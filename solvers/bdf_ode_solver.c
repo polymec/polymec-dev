@@ -11,13 +11,14 @@
 #include "solvers/bdf_ode_solver.h"
 #include "solvers/newton_pc.h"
 #include "cvode/cvode.h"
-#include "cvode/cvode_spils.h"
 
 // JFNK stuff.
 #include "sunlinsol/sunlinsol_spgmr.h"
 #include "sunlinsol/sunlinsol_spfgmr.h"
 #include "sunlinsol/sunlinsol_spbcgs.h"
 #include "sunlinsol/sunlinsol_sptfqmr.h"
+
+#include "sunnonlinsol/sunnonlinsol_newton.h"
 
 // Stuff for generalized BDF solvers.
 #include "cvode/cvode_impl.h"
@@ -121,23 +122,23 @@ static char* get_status_message(int status, real_t current_time)
 static int bdf_evaluate_rhs(real_t t, N_Vector U, N_Vector U_dot, void* context)
 {
   START_FUNCTION_TIMER();
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
   real_t* xx = NV_DATA(U);
   real_t* xxd = NV_DATA(U_dot);
 
   // Evaluate the RHS using a solution vector with ghosts.
-  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->rhs(integ->context, t, integ->U_with_ghosts, xxd);
+  memcpy(solver->U_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
+  int status = solver->rhs(solver->context, t, solver->U_with_ghosts, xxd);
   if (status == 0)
   {
     // Copy the local result into our solution vector.
-    memcpy(xx, integ->U_with_ghosts, sizeof(real_t) * integ->num_local_values);
+    memcpy(xx, solver->U_with_ghosts, sizeof(real_t) * solver->num_local_values);
   }
 
   // Tell our observers we've computed the right hand side.
-  for (int i = 0; i < integ->observers->size; ++i)
+  for (int i = 0; i < solver->observers->size; ++i)
   {
-    bdf_ode_observer_t* obs = integ->observers->data[i];
+    bdf_ode_observer_t* obs = solver->observers->data[i];
     if (obs->rhs_computed != NULL)
       obs->rhs_computed(obs->context, t, xx, xxd);
   }
@@ -149,54 +150,54 @@ static int bdf_evaluate_rhs(real_t t, N_Vector U, N_Vector U_dot, void* context)
 static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* U)
 {
   START_FUNCTION_TIMER();
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
   int status = CV_SUCCESS;
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
   real_t t2 = *t + max_dt;
-  if (t2 > integ->t)
+  if (t2 > solver->t)
   {
     // Integrate to at least t -> t + max_dt.
-    status = CVode(integ->cvode, t2, integ->U, &integ->t, CV_ONE_STEP);
+    status = CVode(solver->cvode, t2, solver->U, &solver->t, CV_ONE_STEP);
     if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
     {
-      integ->status_message = get_status_message(status, integ->t);
+      solver->status_message = get_status_message(status, solver->t);
       STOP_FUNCTION_TIMER();
       return false;
     }
 
-    if ((t2 - *t) < (integ->t - *t))
-      log_detail("bdf_ode_solver: took internal step dt = %g", integ->t - *t);
+    if ((t2 - *t) < (solver->t - *t))
+      log_detail("bdf_ode_solver: took internal step dt = %g", solver->t - *t);
   }
 
   // If we integrated past t2, interpolate to t2.
-  if (integ->t > t2)
+  if (solver->t > t2)
   {
-    status = CVodeGetDky(integ->cvode, t2, 0, integ->U);
+    status = CVodeGetDky(solver->cvode, t2, 0, solver->U);
     *t = t2;
   }
   else
-    *t = integ->t;
+    *t = solver->t;
   
   // Clear the present status.
-  if (integ->status_message != NULL)
+  if (solver->status_message != NULL)
   {
-    polymec_free(integ->status_message);
-    integ->status_message = NULL;
+    polymec_free(solver->status_message);
+    solver->status_message = NULL;
   }
 
   // Did it work?
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(solver->U), sizeof(real_t) * solver->num_local_values); 
     STOP_FUNCTION_TIMER();
     return true;
   }
   else
   {
-    integ->status_message = get_status_message(status, integ->t);
+    solver->status_message = get_status_message(status, solver->t);
     STOP_FUNCTION_TIMER();
     return false;
   }
@@ -204,76 +205,76 @@ static bool bdf_step(void* context, real_t max_dt, real_t* t, real_t* U)
 
 static bool bdf_advance(void* context, real_t t1, real_t t2, real_t* U)
 {
-  bdf_ode_t* integ = context;
-  integ->t = t1;
-  CVodeReInit(integ->cvode, t1, integ->U);
-  CVodeSetStopTime(integ->cvode, t2);
+  bdf_ode_t* solver = context;
+  solver->t = t1;
+  CVodeReInit(solver->cvode, t1, solver->U);
+  CVodeSetStopTime(solver->cvode, t2);
   
   // Copy in the solution.
-  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(solver->U), U, sizeof(real_t) * solver->num_local_values); 
 
   // Integrate.
-  int status = CVode(integ->cvode, t2, integ->U, &integ->t, CV_NORMAL);
+  int status = CVode(solver->cvode, t2, solver->U, &solver->t, CV_NORMAL);
   
   // Clear the present status.
-  if (integ->status_message != NULL)
+  if (solver->status_message != NULL)
   {
-    polymec_free(integ->status_message);
-    integ->status_message = NULL;
+    polymec_free(solver->status_message);
+    solver->status_message = NULL;
   }
 
   // Did it work?
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(solver->U), sizeof(real_t) * solver->num_local_values); 
     return true;
   }
   else
   {
-    integ->status_message = get_status_message(status, integ->t);
+    solver->status_message = get_status_message(status, solver->t);
     return false;
   }
 }
 
 static void bdf_reset(void* context, real_t t, real_t* U)
 {
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
 
   // Reset the preconditioner.
-  if (integ->precond != NULL)
-    newton_pc_reset(integ->precond, t);
+  if (solver->precond != NULL)
+    newton_pc_reset(solver->precond, t);
 
   // Copy in the solution and reinitialize.
-  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
-  CVodeReInit(integ->cvode, t, integ->U);
-  integ->t = t;
+  memcpy(NV_DATA(solver->U), U, sizeof(real_t) * solver->num_local_values); 
+  CVodeReInit(solver->cvode, t, solver->U);
+  solver->t = t;
 }
 
 static void bdf_dtor(void* context)
 {
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
 
   // Kill the preconditioner stuff.
-  if (integ->precond != NULL)
-    newton_pc_free(integ->precond);
+  if (solver->precond != NULL)
+    newton_pc_free(solver->precond);
 
   // Kill the CVode stuff.
-  polymec_free(integ->U_with_ghosts);
-  N_VDestroy(integ->U);
-  if (integ->ls != NULL)
-    SUNLinSolFree(integ->ls);
-  CVodeFree(&integ->cvode);
+  polymec_free(solver->U_with_ghosts);
+  N_VDestroy(solver->U);
+  if (solver->ls != NULL)
+    SUNLinSolFree(solver->ls);
+  CVodeFree(&solver->cvode);
 
   // Kill the rest.
-  if (integ->status_message != NULL)
-    polymec_free(integ->status_message);
-  if ((integ->context != NULL) && (integ->dtor != NULL))
-    integ->dtor(integ->context);
-  ptr_array_free(integ->observers);
-  if (integ->error_weights != NULL)
-    polymec_free(integ->error_weights);
-  polymec_free(integ);
+  if (solver->status_message != NULL)
+    polymec_free(solver->status_message);
+  if ((solver->context != NULL) && (solver->dtor != NULL))
+    solver->dtor(solver->context);
+  ptr_array_free(solver->observers);
+  if (solver->error_weights != NULL)
+    polymec_free(solver->error_weights);
+  polymec_free(solver);
 }
 
 // This function sets up the preconditioner data within the solver.
@@ -281,13 +282,13 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
                                  real_t gamma, void* context)
 {
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
   if (!jacobian_is_current)
   {
     // Compute the approximate Jacobian using a solution vector with ghosts.
     log_debug("jfnk_bdf_ode_solver: Calculating P = I - %g * J.", gamma);
-    memcpy(integ->U_with_ghosts, NV_DATA(U), sizeof(real_t) * integ->num_local_values);
-    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->U_with_ghosts, NULL);
+    memcpy(solver->U_with_ghosts, NV_DATA(U), sizeof(real_t) * solver->num_local_values);
+    newton_pc_setup(solver->precond, 1.0, -gamma, 0.0, t, solver->U_with_ghosts, NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -303,15 +304,15 @@ static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F,
                                        real_t gamma, real_t delta, 
                                        int lr, void* context)
 {
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
   
   // FIXME: Apply scaling if needed.
 
   // Set the preconditioner's L2 norm tolerance.
-  newton_pc_set_tolerance(integ->precond, delta);
+  newton_pc_set_tolerance(solver->precond, delta);
 
   // Solve it.
-  int result = (newton_pc_solve(integ->precond, t, NV_DATA(U), NULL,
+  int result = (newton_pc_solve(solver->precond, t, NV_DATA(U), NULL,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   return result;
 }
@@ -327,7 +328,7 @@ static int set_up_Jy(real_t t, N_Vector y, N_Vector Jy, void* context)
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector rhs, void* context, N_Vector tmp)
 {
   START_FUNCTION_TIMER();
-  bdf_ode_t* integ = context;
+  bdf_ode_t* solver = context;
   real_t* xx = NV_DATA(U);
   real_t* yy = NV_DATA(y);
   real_t* my_rhs = NV_DATA(rhs);
@@ -335,13 +336,13 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector rhs, 
   real_t* jjy = NV_DATA(Jy);
 
   // Make sure we use ghosts.
-  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->Jy(integ->context, t, xx, my_rhs, yy, temp, jjy);
+  memcpy(solver->U_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
+  int status = solver->Jy(solver->context, t, xx, my_rhs, yy, temp, jjy);
 
   // Tell our observers we've computed the right hand side.
-  for (int i = 0; i < integ->observers->size; ++i)
+  for (int i = 0; i < solver->observers->size; ++i)
   {
-    bdf_ode_observer_t* obs = integ->observers->data[i];
+    bdf_ode_observer_t* obs = solver->observers->data[i];
     if (obs->Jy_computed != NULL)
       obs->Jy_computed(obs->context, t, xx, my_rhs, yy, jjy);
   }
@@ -371,31 +372,33 @@ ode_solver_t* jfnk_bdf_ode_solver_new(int order,
   ASSERT(max_krylov_dim > 3);
   ASSERT(!newton_pc_coefficients_fixed(precond));
 
-  bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
-  integ->comm = comm;
-  integ->num_local_values = num_local_values;
-  integ->num_remote_values = num_remote_values;
-  integ->context = context;
-  integ->rhs = rhs_func;
-  integ->dtor = dtor;
-  integ->status_message = NULL;
-  integ->max_krylov_dim = max_krylov_dim;
-  integ->Jy = Jy_func;
-  integ->t = 0.0;
-  integ->observers = ptr_array_new();
-  integ->error_weights = NULL;
+  bdf_ode_t* solver = polymec_malloc(sizeof(bdf_ode_t));
+  solver->comm = comm;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->context = context;
+  solver->rhs = rhs_func;
+  solver->dtor = dtor;
+  solver->status_message = NULL;
+  solver->max_krylov_dim = max_krylov_dim;
+  solver->Jy = Jy_func;
+  solver->t = 0.0;
+  solver->observers = ptr_array_new();
+  solver->error_weights = NULL;
 
-  integ->reset_func = NULL;
-  integ->setup_func = NULL;
-  integ->solve_func = NULL;
+  solver->reset_func = NULL;
+  solver->setup_func = NULL;
+  solver->solve_func = NULL;
 
   // Set up CVode and accessories.
-  integ->U = N_VNew(integ->comm, integ->num_local_values);
-  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->U);
+  solver->U = N_VNew(solver->comm, solver->num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->cvode = CVodeCreate(CV_BDF);
+  CVodeSetMaxOrd(solver->cvode, order);
+  CVodeSetUserData(solver->cvode, solver);
+  CVodeInit(solver->cvode, bdf_evaluate_rhs, 0.0, solver->U);
+  SUNNonlinearSolver nls = SUNNonlinSol_Newton(solver->U);
+  CVodeSetNonlinearSolver(solver->cvode, nls);
 
   newton_pc_side_t newton_side = newton_pc_side(precond);
   int side;
@@ -414,33 +417,33 @@ ode_solver_t* jfnk_bdf_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_BDF_GMRES)
   {
-    integ->ls = SUNSPGMR(integ->U, side, max_krylov_dim);
+    solver->ls = SUNSPGMR(solver->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    SUNSPGMRSetGSType(integ->ls, MODIFIED_GS);
-    CVSpilsSetLinearSolver(integ->cvode, integ->ls);
+    SUNSPGMRSetGSType(solver->ls, MODIFIED_GS);
+    CVodeSetLinearSolver(solver->cvode, solver->ls, NULL);
   }
   else if (solver_type == JFNK_BDF_BICGSTAB)
   {
-    integ->ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
-    CVSpilsSetLinearSolver(integ->cvode, integ->ls);
+    solver->ls = SUNSPBCGS(solver->U, side, max_krylov_dim);
+    CVodeSetLinearSolver(solver->cvode, solver->ls, NULL);
   }
   else
   {
-    integ->ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
-    CVSpilsSetLinearSolver(integ->cvode, integ->ls);
+    solver->ls = SUNSPTFQMR(solver->U, side, max_krylov_dim);
+    CVodeSetLinearSolver(solver->cvode, solver->ls, NULL);
   }
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    CVSpilsSetJacTimes(integ->cvode, set_up_Jy, eval_Jy);
-  integ->precond = precond;
-  CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
+    CVodeSetJacTimes(solver->cvode, set_up_Jy, eval_Jy);
+  solver->precond = precond;
+  CVodeSetPreconditioner(solver->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
 
   ode_solver_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .reset = bdf_reset, .dtor = bdf_dtor};
   char name[1024];
   snprintf(name, 1024, "JFNK Backwards-Difference-Formulae (order %d)", order);
-  ode_solver_t* I = ode_solver_new(name, integ, vtable, order,
+  ode_solver_t* I = ode_solver_new(name, solver, vtable, order,
                                            num_local_values + num_remote_values);
 
   // Set default tolerances.
@@ -453,32 +456,32 @@ ode_solver_t* jfnk_bdf_ode_solver_new(int order,
 
 void* bdf_ode_solver_context(ode_solver_t* solver)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  return integ->context;
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  return bdf->context;
 }
 
 void bdf_ode_solver_set_max_err_test_failures(ode_solver_t* solver,
                                               int max_failures)
 {
   ASSERT(max_failures > 0);
-  bdf_ode_t* integ = ode_solver_context(solver);
-  CVodeSetMaxErrTestFails(integ->cvode, max_failures);
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  CVodeSetMaxErrTestFails(bdf->cvode, max_failures);
 }
 
 void bdf_ode_solver_set_max_nonlinear_iterations(ode_solver_t* solver,
                                                  int max_iterations)
 {
   ASSERT(max_iterations > 0);
-  bdf_ode_t* integ = ode_solver_context(solver);
-  CVodeSetMaxNonlinIters(integ->cvode, max_iterations);
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  CVodeSetMaxNonlinIters(bdf->cvode, max_iterations);
 }
 
 void bdf_ode_solver_set_nonlinear_convergence_coeff(ode_solver_t* solver,
                                                     real_t coefficient)
 {
   ASSERT(coefficient > 0.0);
-  bdf_ode_t* integ = ode_solver_context(solver);
-  CVodeSetNonlinConvCoef(integ->cvode, (double)coefficient);
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  CVodeSetNonlinConvCoef(bdf->cvode, (double)coefficient);
 }
 
 void bdf_ode_solver_set_tolerances(ode_solver_t* solver,
@@ -487,35 +490,35 @@ void bdf_ode_solver_set_tolerances(ode_solver_t* solver,
   ASSERT(relative_tol > 0.0);
   ASSERT(absolute_tol > 0.0);
 
-  bdf_ode_t* integ = ode_solver_context(solver);
+  bdf_ode_t* bdf = ode_solver_context(solver);
 
   // Clear any existing error weight function.
-  integ->compute_weights = NULL;
-  if (integ->error_weights != NULL)
+  bdf->compute_weights = NULL;
+  if (bdf->error_weights != NULL)
   {
-    polymec_free(integ->error_weights);
-    integ->error_weights = NULL;
+    polymec_free(bdf->error_weights);
+    bdf->error_weights = NULL;
   }
 
   // Set the tolerances.
-  CVodeSStolerances(integ->cvode, relative_tol, absolute_tol);
+  CVodeSStolerances(bdf->cvode, relative_tol, absolute_tol);
 }
 
 // Constant error weight adaptor function.
 static void use_constant_weights(void* context, real_t* y, real_t* weights)
 {
-  bdf_ode_t* integ = context;
-  ASSERT(integ->error_weights != NULL);
-  memcpy(weights, integ->error_weights, sizeof(real_t) * integ->num_local_values);
+  bdf_ode_t* solver = context;
+  ASSERT(solver->error_weights != NULL);
+  memcpy(weights, solver->error_weights, sizeof(real_t) * solver->num_local_values);
 }
 
 void bdf_ode_solver_set_error_weights(ode_solver_t* solver, real_t* weights)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
+  bdf_ode_t* bdf = ode_solver_context(solver);
 #ifndef NDEBUG
   // Check for non-negativity and total positivity.
   real_t total = 0.0;
-  for (int i = 0; i < integ->num_local_values; ++i)
+  for (int i = 0; i < bdf->num_local_values; ++i)
   {
     ASSERT(weights[i] >= 0.0);
     total += weights[i];
@@ -523,17 +526,17 @@ void bdf_ode_solver_set_error_weights(ode_solver_t* solver, real_t* weights)
   ASSERT(total > 0.0);
 #endif
 
-  if (integ->error_weights == NULL)
-    integ->error_weights = polymec_malloc(sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->error_weights, weights, sizeof(real_t) * integ->num_local_values);
+  if (bdf->error_weights == NULL)
+    bdf->error_weights = polymec_malloc(sizeof(real_t) * bdf->num_local_values);
+  memcpy(bdf->error_weights, weights, sizeof(real_t) * bdf->num_local_values);
   bdf_ode_solver_set_error_weight_function(solver, use_constant_weights);
 }
 
 // Error weight adaptor function.
 static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 {
-  bdf_ode_t* integ = context;
-  integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
+  bdf_ode_t* solver = context;
+  solver->compute_weights(solver->context, NV_DATA(y), NV_DATA(ewt));
 
   // Check that all the weights are non-negative.
   int N = (int)NV_LOCLENGTH(y);
@@ -548,58 +551,58 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 void bdf_ode_solver_set_error_weight_function(ode_solver_t* solver,
                                               void (*compute_weights)(void* context, real_t* y, real_t* weights))
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
+  bdf_ode_t* bdf = ode_solver_context(solver);
   ASSERT(compute_weights != NULL);
-  integ->compute_weights = compute_weights;
-  CVodeWFtolerances(integ->cvode, compute_error_weights);
+  bdf->compute_weights = compute_weights;
+  CVodeWFtolerances(bdf->cvode, compute_error_weights);
 }
 
 void bdf_ode_solver_set_stability_limit_detection(ode_solver_t* solver,
                                                   bool use_detection)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  CVodeSetStabLimDet(integ->cvode, use_detection);
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  CVodeSetStabLimDet(bdf->cvode, use_detection);
 }
 
 void bdf_ode_solver_eval_rhs(ode_solver_t* solver, real_t t, real_t* U, real_t* U_dot)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  memcpy(integ->U_with_ghosts, U, sizeof(real_t) * integ->num_local_values);
-  integ->rhs(integ->context, t, integ->U_with_ghosts, U_dot);
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  memcpy(bdf->U_with_ghosts, U, sizeof(real_t) * bdf->num_local_values);
+  bdf->rhs(bdf->context, t, bdf->U_with_ghosts, U_dot);
 }
 
 newton_pc_t* bdf_ode_solver_preconditioner(ode_solver_t* solver)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  return integ->precond;
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  return bdf->precond;
 }
 
 void bdf_ode_solver_get_diagnostics(ode_solver_t* solver, 
                                     bdf_ode_solver_diagnostics_t* diagnostics)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  diagnostics->status_message = integ->status_message; // borrowed!
-  CVodeGetNumSteps(integ->cvode, &diagnostics->num_steps);
-  CVodeGetLastOrder(integ->cvode, &diagnostics->order_of_last_step);
-  CVodeGetCurrentOrder(integ->cvode, &diagnostics->order_of_next_step);
-  CVodeGetLastStep(integ->cvode, &diagnostics->last_step_size);
-  CVodeGetCurrentStep(integ->cvode, &diagnostics->next_step_size);
-  CVodeGetNumRhsEvals(integ->cvode, &diagnostics->num_rhs_evaluations);
-  CVodeGetNumLinSolvSetups(integ->cvode, &diagnostics->num_linear_solve_setups);
-  CVodeGetNumErrTestFails(integ->cvode, &diagnostics->num_error_test_failures);
-  CVodeGetNumNonlinSolvIters(integ->cvode, &diagnostics->num_nonlinear_solve_iterations);
-  CVodeGetNumNonlinSolvConvFails(integ->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
-  if (integ->solve_func == NULL) // JFNK mode
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  diagnostics->status_message = bdf->status_message; // borrowed!
+  CVodeGetNumSteps(bdf->cvode, &diagnostics->num_steps);
+  CVodeGetLastOrder(bdf->cvode, &diagnostics->order_of_last_step);
+  CVodeGetCurrentOrder(bdf->cvode, &diagnostics->order_of_next_step);
+  CVodeGetLastStep(bdf->cvode, &diagnostics->last_step_size);
+  CVodeGetCurrentStep(bdf->cvode, &diagnostics->next_step_size);
+  CVodeGetNumRhsEvals(bdf->cvode, &diagnostics->num_rhs_evaluations);
+  CVodeGetNumLinSolvSetups(bdf->cvode, &diagnostics->num_linear_solve_setups);
+  CVodeGetNumErrTestFails(bdf->cvode, &diagnostics->num_error_test_failures);
+  CVodeGetNumNonlinSolvIters(bdf->cvode, &diagnostics->num_nonlinear_solve_iterations);
+  CVodeGetNumNonlinSolvConvFails(bdf->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
+  if (bdf->solve_func == NULL) // JFNK mode
   {
-    CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
-    CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
-    CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
-    CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+    CVodeGetNumLinIters(bdf->cvode, &diagnostics->num_linear_solve_iterations);
+    CVodeGetNumPrecEvals(bdf->cvode, &diagnostics->num_preconditioner_evaluations);
+    CVodeGetNumPrecSolves(bdf->cvode, &diagnostics->num_preconditioner_solves);
+    CVodeGetNumLinConvFails(bdf->cvode, &diagnostics->num_linear_solve_convergence_failures);
   }
   else
   {
-    diagnostics->num_linear_solve_iterations = (long int)integ->num_linear_iterations;
-    diagnostics->num_linear_solve_convergence_failures = (long int)integ->num_linear_conv_failures;
+    diagnostics->num_linear_solve_iterations = (long int)bdf->num_linear_iterations;
+    diagnostics->num_linear_solve_convergence_failures = (long int)bdf->num_linear_conv_failures;
     diagnostics->num_preconditioner_solves = -1;
     diagnostics->num_preconditioner_evaluations = -1;
   }
@@ -654,8 +657,8 @@ static void bdf_ode_observer_free(bdf_ode_observer_t* observer)
 void bdf_ode_solver_add_observer(ode_solver_t* solver,
                                  bdf_ode_observer_t* observer)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  ptr_array_append_with_dtor(integ->observers, observer, DTOR(bdf_ode_observer_free));
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  ptr_array_append_with_dtor(bdf->observers, observer, DTOR(bdf_ode_observer_free));
 }
 
 // This unpublished function provides direct access to the CVode object 
@@ -663,8 +666,8 @@ void bdf_ode_solver_add_observer(ode_solver_t* solver,
 void* bdf_ode_solver_cvode(ode_solver_t* solver);
 void* bdf_ode_solver_cvode(ode_solver_t* solver)
 {
-  bdf_ode_t* integ = ode_solver_context(solver);
-  return integ->cvode;
+  bdf_ode_t* bdf = ode_solver_context(solver);
+  return bdf->cvode;
 }
 
 // This unpublished function provides direct access to the CVode right-hand
@@ -792,35 +795,37 @@ ode_solver_t* bdf_ode_solver_new(const char* name,
   ASSERT(setup_func != NULL);
   ASSERT(solve_func != NULL);
 
-  bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
-  integ->comm = comm;
-  integ->num_local_values = num_local_values;
-  integ->num_remote_values = num_remote_values;
-  integ->context = context;
-  integ->rhs = rhs_func;
-  integ->dtor = dtor;
-  integ->status_message = NULL;
-  integ->max_krylov_dim = -1;
-  integ->Jy = NULL;
-  integ->precond = NULL;
-  integ->t = 0.0;
-  integ->observers = ptr_array_new();
-  integ->error_weights = NULL;
+  bdf_ode_t* solver = polymec_malloc(sizeof(bdf_ode_t));
+  solver->comm = comm;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->context = context;
+  solver->rhs = rhs_func;
+  solver->dtor = dtor;
+  solver->status_message = NULL;
+  solver->max_krylov_dim = -1;
+  solver->Jy = NULL;
+  solver->precond = NULL;
+  solver->t = 0.0;
+  solver->observers = ptr_array_new();
+  solver->error_weights = NULL;
 
   // Set up CVode and accessories.
-  integ->U = N_VNew(integ->comm, integ->num_local_values);
-  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->U);
+  solver->U = N_VNew(solver->comm, solver->num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->cvode = CVodeCreate(CV_BDF);
+  CVodeSetMaxOrd(solver->cvode, order);
+  CVodeSetUserData(solver->cvode, solver);
+  CVodeInit(solver->cvode, bdf_evaluate_rhs, 0.0, solver->U);
+  SUNNonlinearSolver nls = SUNNonlinSol_Newton(solver->U);
+  CVodeSetNonlinearSolver(solver->cvode, nls);
 
   // Set up the solver.
-  integ->ls = NULL;
-  integ->reset_func = reset_func;
-  integ->setup_func = setup_func;
-  integ->solve_func = solve_func;
-  CVodeMem cv_mem = integ->cvode;
+  solver->ls = NULL;
+  solver->reset_func = reset_func;
+  solver->setup_func = setup_func;
+  solver->solve_func = solve_func;
+  CVodeMem cv_mem = solver->cvode;
   cv_mem->cv_linit = bdf_linit;
   cv_mem->cv_lsetup = bdf_lsetup;
   cv_mem->cv_lsolve = bdf_lsolve;
@@ -830,7 +835,7 @@ ode_solver_t* bdf_ode_solver_new(const char* name,
                                   .advance = bdf_advance, 
                                   .reset = bdf_reset, 
                                   .dtor = bdf_dtor};
-  ode_solver_t* I = ode_solver_new(name, integ, vtable, order,
+  ode_solver_t* I = ode_solver_new(name, solver, vtable, order,
                                            num_local_values + num_remote_values);
 
   // Set default tolerances.
@@ -1095,62 +1100,62 @@ ode_solver_t* ink_bdf_ode_solver_new(int order,
   return I;
 }
 
-void ink_bdf_ode_solver_use_pcg(ode_solver_t* ink_bdf_ode_integ)
+void ink_bdf_ode_solver_use_pcg(ode_solver_t* ink_bdf_ode_solver)
 {
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   if (ink->solver != NULL)
     krylov_solver_free(ink->solver);
   ink->solver = krylov_factory_pcg_solver(ink->factory, ink->comm);
 }
 
-void ink_bdf_ode_solver_use_gmres(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_use_gmres(ode_solver_t* ink_bdf_ode_solver,
                                   int max_krylov_dim)
 {
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   if (ink->solver != NULL)
     krylov_solver_free(ink->solver);
   ink->solver = krylov_factory_gmres_solver(ink->factory, ink->comm, max_krylov_dim);
 }
 
-void ink_bdf_ode_solver_use_bicgstab(ode_solver_t* ink_bdf_ode_integ)
+void ink_bdf_ode_solver_use_bicgstab(ode_solver_t* ink_bdf_ode_solver)
 {
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   if (ink->solver != NULL)
     krylov_solver_free(ink->solver);
   ink->solver = krylov_factory_bicgstab_solver(ink->factory, ink->comm);
 }
 
-void ink_bdf_ode_solver_use_special(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_use_special(ode_solver_t* ink_bdf_ode_solver,
                                     const char* solver_name,
                                     string_string_unordered_map_t* options)
 {
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   if (ink->solver != NULL)
     krylov_solver_free(ink->solver);
   ink->solver = krylov_factory_special_solver(ink->factory, ink->comm,
                                               solver_name, options);
 }
 
-void ink_bdf_ode_solver_set_pc(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_set_pc(ode_solver_t* ink_bdf_ode_solver,
                                const char* pc_name, 
                                string_string_unordered_map_t* options)
 {
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   if (ink->pc != NULL)
     krylov_pc_free(ink->pc);
   ink->pc = krylov_factory_preconditioner(ink->factory, ink->comm, pc_name, options);
 }
 
-void ink_bdf_ode_solver_set_block_size(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_set_block_size(ode_solver_t* ink_bdf_ode_solver,
                                        int block_size)
 {
   ASSERT(block_size > 0);
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   ink->block_size = block_size;
 }
 
-void* ink_bdf_ode_solver_context(ode_solver_t* ink_bdf_ode_integ)
+void* ink_bdf_ode_solver_context(ode_solver_t* ink_bdf_ode_solver)
 {
-  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_integ);
+  ink_bdf_ode_t* ink = bdf_ode_solver_context(ink_bdf_ode_solver);
   return ink->context;
 }

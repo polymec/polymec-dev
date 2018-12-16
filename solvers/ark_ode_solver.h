@@ -109,6 +109,7 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
                                       jfnk_ark_krylov_t solver_type,
                                       int max_krylov_dim);
 
+#if 0
 /// This function creates an ARK solver that uses an inexact Newton-Krylov 
 /// method to solve the underlying linearized equations. This method constructs 
 /// a full Jacobian matrix and updates it only when needed, and requires a 
@@ -174,6 +175,7 @@ void ink_ark_ode_solver_set_block_size(ode_solver_t* ink_ark_ode_integ,
 /// Returns the context pointer for the given INK ARK solver.
 /// \relates ode_solver
 void* ink_ark_ode_solver_context(ode_solver_t* ink_ark_ode_integ);
+#endif
 
 /// \enum ark_conv_status_t
 /// Convergence failure status codes, used by the ARK solver machinery below to determine whether 
@@ -186,6 +188,7 @@ typedef enum
   ARK_CONV_OTHER_FAILURE, // Newton iteration failed to converge with current Jacobian data
 } ark_conv_status_t;
 
+/*
 /// Creates an ARK solver that uses the given methods to define how
 /// it solves the linear systems that underlie the ARK method. These methods are:
 /// * rhs_func -- Used to compute the right-hand side of the ODE.
@@ -259,6 +262,7 @@ ode_solver_t* ark_ode_solver_new(const char* name,
                                                    real_t* B,
                                                    int* num_iters), 
                                  void (*dtor)(void* context));
+*/
 
 /// This returns the context pointer passed to the ark_ode_solver 
 /// constructor. In general, this will NOT return the same pointer as 

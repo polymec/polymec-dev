@@ -16,7 +16,6 @@
 #include "sunlinsol/sunlinsol_sptfqmr.h"
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_impl.h"
-#include "kinsol/kinsol_spils.h"
 
 struct newton_solver_t 
 {
@@ -446,36 +445,36 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   {
     solver->ls = SUNSPGMR(solver->U, side, solver->max_krylov_dim);
     SUNSPGMRSetMaxRestarts(solver->ls, solver->max_restarts);
-    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
+    KINSetLinearSolver(solver->kinsol, solver->ls, NULL);
   }
   else if (solver->solver_type == NEWTON_FGMRES)
   {
     solver->ls = SUNSPFGMR(solver->U, side, solver->max_krylov_dim);
     SUNSPFGMRSetMaxRestarts(solver->ls, solver->max_restarts);
-    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
+    KINSetLinearSolver(solver->kinsol, solver->ls, NULL);
   }
   else if (solver->solver_type == NEWTON_BICGSTAB)
   {
     solver->ls = SUNSPBCGS(solver->U, side, solver->max_krylov_dim);
-    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
+    KINSetLinearSolver(solver->kinsol, solver->ls, NULL);
   }
   else
   {
     solver->ls = SUNSPTFQMR(solver->U, side, solver->max_krylov_dim);
-    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
+    KINSetLinearSolver(solver->kinsol, solver->ls, NULL);
   }
 
   // Set up the Jacobian-vector product.
   if (Jv_func != NULL)
-    KINSpilsSetJacTimesVecFn(solver->kinsol, jfnk_Jv_func_wrapper);
+    KINSetJacTimesVecFn(solver->kinsol, jfnk_Jv_func_wrapper);
   else
-    KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
+    KINSetJacTimesVecFn(solver->kinsol, NULL);
 
   // Set up the preconditioner.
   if (solver->precond != NULL)
   {
-    KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
-                              solve_preconditioner_system);
+    KINSetPreconditioner(solver->kinsol, set_up_preconditioner,
+                         solve_preconditioner_system);
   }
 
   return solver;
@@ -721,12 +720,12 @@ void newton_solver_get_diagnostics(newton_solver_t* solver,
   KINGetStepLength(solver->kinsol, &diagnostics->scaled_newton_step_length);
   if (solver->solve_func == NULL) // JFNK mode
   {
-    KINSpilsGetNumLinIters(solver->kinsol, &diagnostics->num_linear_solve_iterations);
-    KINSpilsGetNumConvFails(solver->kinsol, &diagnostics->num_linear_solve_convergence_failures);
-    KINSpilsGetNumPrecEvals(solver->kinsol, &diagnostics->num_preconditioner_evaluations);
-    KINSpilsGetNumPrecSolves(solver->kinsol, &diagnostics->num_preconditioner_solves);
-    KINSpilsGetNumJtimesEvals(solver->kinsol, &diagnostics->num_jacobian_vector_product_evaluations);
-    KINSpilsGetNumFuncEvals(solver->kinsol, &diagnostics->num_difference_quotient_function_evaluations);
+    KINGetNumLinIters(solver->kinsol, &diagnostics->num_linear_solve_iterations);
+    KINGetNumLinConvFails(solver->kinsol, &diagnostics->num_linear_solve_convergence_failures);
+    KINGetNumPrecEvals(solver->kinsol, &diagnostics->num_preconditioner_evaluations);
+    KINGetNumPrecSolves(solver->kinsol, &diagnostics->num_preconditioner_solves);
+    KINGetNumJtimesEvals(solver->kinsol, &diagnostics->num_jacobian_vector_product_evaluations);
+    KINGetNumFuncEvals(solver->kinsol, &diagnostics->num_difference_quotient_function_evaluations);
   }
   else
   {

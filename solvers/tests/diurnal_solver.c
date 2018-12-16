@@ -400,8 +400,8 @@ real_t* diurnal_initial_conditions(ode_solver_t* integ)
   const char* integ_name = ode_solver_name(integ);
   if (string_contains(integ_name, "INK Backwards-Difference"))
     data = ink_bdf_ode_solver_context(integ);
-  else if (string_contains(integ_name, "INK Additive"))
-    data = ink_ark_ode_solver_context(integ);
+//  else if (string_contains(integ_name, "INK Additive"))
+//    data = ink_ark_ode_solver_context(integ);
   else if (string_contains(integ_name, "Backwards"))
     data = bdf_ode_solver_context(integ);
   else
@@ -508,6 +508,7 @@ ode_solver_t* bj_jfnk_ark_diurnal_solver_new(newton_pc_side_t side)
   return integ;
 }
 
+#if 0
 // Constructor for an Inexact Newton-Krylov ARK diurnal solver.
 ode_solver_t* ink_ark_diurnal_solver_new(krylov_factory_t* factory);
 ode_solver_t* ink_ark_diurnal_solver_new(krylov_factory_t* factory)
@@ -530,6 +531,7 @@ ode_solver_t* ink_ark_diurnal_solver_new(krylov_factory_t* factory)
     ink_ark_ode_solver_use_gmres(integ, 30);
   return integ;
 }
+#endif
 
 // Test harness for ODE solver.
 int test_diurnal_step(void** state, ode_solver_t* integ, int max_steps);
