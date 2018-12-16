@@ -46,6 +46,7 @@ typedef struct
   real_t t;
   char* status_message; // status of most recent integration.
   SUNLinearSolver ls;
+  SUNNonlinearSolver nls;
 
   // JFNK stuff.
   int max_krylov_dim;
@@ -262,6 +263,8 @@ static void bdf_dtor(void* context)
   // Kill the CVode stuff.
   polymec_free(solver->U_with_ghosts);
   N_VDestroy(solver->U);
+  if (solver->nls != NULL)
+    SUNNonlinSolFree(solver->nls);
   if (solver->ls != NULL)
     SUNLinSolFree(solver->ls);
   CVodeFree(&solver->cvode);
@@ -397,8 +400,8 @@ ode_solver_t* jfnk_bdf_ode_solver_new(int order,
   CVodeSetMaxOrd(solver->cvode, order);
   CVodeSetUserData(solver->cvode, solver);
   CVodeInit(solver->cvode, bdf_evaluate_rhs, 0.0, solver->U);
-  SUNNonlinearSolver nls = SUNNonlinSol_Newton(solver->U);
-  CVodeSetNonlinearSolver(solver->cvode, nls);
+  solver->nls = SUNNonlinSol_Newton(solver->U);
+  CVodeSetNonlinearSolver(solver->cvode, solver->nls);
 
   newton_pc_side_t newton_side = newton_pc_side(precond);
   int side;
@@ -817,8 +820,8 @@ ode_solver_t* bdf_ode_solver_new(const char* name,
   CVodeSetMaxOrd(solver->cvode, order);
   CVodeSetUserData(solver->cvode, solver);
   CVodeInit(solver->cvode, bdf_evaluate_rhs, 0.0, solver->U);
-  SUNNonlinearSolver nls = SUNNonlinSol_Newton(solver->U);
-  CVodeSetNonlinearSolver(solver->cvode, nls);
+  solver->nls = SUNNonlinSol_Newton(solver->U);
+  CVodeSetNonlinearSolver(solver->cvode, solver->nls);
 
   // Set up the solver.
   solver->ls = NULL;

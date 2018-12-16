@@ -33,6 +33,7 @@ ode_solver_t* functional_am_ode_solver_new(int order,
                                            MPI_Comm comm, 
                                            int num_local_values,
                                            int num_remote_values,
+                                           int num_accel_vectors,
                                            void* context, 
                                            int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                            void (*dtor)(void* context));
