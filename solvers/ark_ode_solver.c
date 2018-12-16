@@ -58,6 +58,7 @@ typedef struct
   newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy);
   SUNLinearSolver ls;
+  SUNNonlinearSolver nls;
 
   // Generalized adaptor stuff.
   real_t sqrtN;
@@ -303,6 +304,8 @@ static void ark_dtor(void* context)
   polymec_free(integ->U_with_ghosts);
   if (integ->ls != NULL)
     SUNLinSolFree(integ->ls);
+  if (integ->nls != NULL)
+    SUNNonlinSolFree(integ->nls);
   N_VDestroy(integ->U);
   ARKStepFree(&integ->arkode);
 
@@ -467,9 +470,11 @@ ode_solver_t* functional_ark_ode_solver_new(int order,
     ARKStepSetStabilityFn(integ->arkode, stable_dt, integ);
   if (integ->fi != NULL)
   {
-    SUNNonlinearSolver nls = SUNNonlinSol_Newton(integ->U);
-    ARKStepSetNonlinearSolver(integ->arkode, nls);
+    integ->nls = SUNNonlinSol_Newton(integ->U);
+    ARKStepSetNonlinearSolver(integ->arkode, integ->nls);
   }
+  else
+    integ->nls = NULL;
   if (fi_func == NULL)
     ARKStepSetExplicit(integ->arkode);
   else if (fe_func == NULL)
@@ -598,6 +603,8 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
   }
 
   // Set up the Jacobian function and preconditioner.
+  integ->nls = SUNNonlinSol_Newton(integ->U);
+  ARKStepSetNonlinearSolver(integ->arkode, integ->nls);
   if (Jy_func != NULL)
     ARKStepSetJacTimes(integ->arkode, set_up_Jy, eval_Jy);
   integ->precond = precond;

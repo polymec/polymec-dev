@@ -43,6 +43,7 @@ typedef struct
   real_t* U_with_ghosts;
   real_t t;
   char* status_message; // status of most recent integration.
+  SUNNonlinearSolver nls;
 
   // JFNK stuff.
   int max_krylov_dim;
@@ -236,6 +237,7 @@ static void am_dtor(void* context)
   // Kill the CVode stuff.
   polymec_free(solver->U_with_ghosts);
   N_VDestroy(solver->U);
+  SUNNonlinSolFree(solver->nls);
   CVodeFree(&solver->cvode);
 
   // Kill the rest.
@@ -253,6 +255,7 @@ ode_solver_t* functional_am_ode_solver_new(int order,
                                            MPI_Comm comm, 
                                            int num_local_values,
                                            int num_remote_values,
+                                           int num_accel_vectors,
                                            void* context, 
                                            int (*rhs)(void* context, real_t t, real_t* U, real_t* U_dot),
                                            void (*dtor)(void* context))
@@ -284,9 +287,8 @@ ode_solver_t* functional_am_ode_solver_new(int order,
   CVodeSetMaxOrd(solver->cvode, order);
   CVodeSetUserData(solver->cvode, solver);
   CVodeInit(solver->cvode, am_evaluate_rhs, 0.0, solver->U);
-  int num_accels; // FIXME: Number of Anderson acceleration vectors!
-  SUNNonlinearSolver nls = SUNNonlinSol_FixedPoint(solver->U, num_accels);
-  CVodeSetNonlinearSolver(solver->cvode, nls);
+  solver->nls = SUNNonlinSol_FixedPoint(solver->U, num_accel_vectors);
+  CVodeSetNonlinearSolver(solver->cvode, solver->nls);
 
   ode_solver_vtable vtable = {.step = am_step, .advance = am_advance, .reset = am_reset, .dtor = am_dtor};
   char name[1024];
@@ -419,8 +421,8 @@ ode_solver_t* jfnk_am_ode_solver_new(int order,
   CVodeSetMaxOrd(solver->cvode, order);
   CVodeSetUserData(solver->cvode, solver);
   CVodeInit(solver->cvode, am_evaluate_rhs, 0.0, solver->U);
-  SUNNonlinearSolver nls = SUNNonlinSol_Newton(solver->U);
-  CVodeSetNonlinearSolver(solver->cvode, nls);
+  solver->nls = SUNNonlinSol_Newton(solver->U);
+  CVodeSetNonlinearSolver(solver->cvode, solver->nls);
 
   newton_pc_side_t newton_side = newton_pc_side(solver->precond);
   int side;
