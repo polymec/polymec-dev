@@ -52,12 +52,15 @@ blockmesh_t* blockmesh_new(MPI_Comm comm);
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
 
-/// Returns the face associated with the given set of block nodes, or -1 
+/// Returns the block boundary associated with the given set of block nodes, or -1 
 /// if the nodes do not match any of the block's faces. 
 /// \param [in] block_nodes An array of 4 block nodes that supposedly match those
 ///                         in one of the block's 6 faces. The order in which 
 ///                         the nodes are specified doesn't matter.
-int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
+/// \returns An integer between 0 and 5 that can be cast to a unimesh_boundary_t, or -1 
+///          if the given nodes don't match with those on a block boundary.
+/// \memberof blockmesh
+int blockmesh_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
 
 /// Connects two blocks with the given indices within a block mesh in a manner 
 /// specified by parameters. You must call this function on every process 
@@ -115,6 +118,12 @@ size_t blockmesh_num_blocks(blockmesh_t* mesh);
 /// \param [in] index The index of the requested block.
 /// \memberof blockmesh
 unimesh_t* blockmesh_block(blockmesh_t* mesh, int index);
+
+/// Allows the traversal of all blocks in the blockmesh.
+/// \param [in] pos Stores the index of the next block in the mesh.
+/// \param [in] block Stores the next block in the mesh.
+/// \returns True if the mesh contains another block, false if not.
+bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block);
 
 typedef struct blockmesh_field_t blockmesh_field_t;
 

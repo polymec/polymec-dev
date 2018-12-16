@@ -7,6 +7,7 @@
 
 #include "core/timer.h"
 #include "core/array.h"
+#include "core/unordered_map.h"
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_field.h"
 
@@ -20,6 +21,41 @@
 
 DEFINE_ARRAY(unimesh_array, unimesh_t*)
 
+// This type represents counterclockwise "twists" between connected blocks.
+typedef enum
+{
+  NO_TURN = 0,
+  QUARTER_TURN = 1,
+  HALF_TURN = 2,
+  THREE_QUARTERS_TURN = 3
+} cxn_twist_t;
+
+typedef struct
+{
+  int blocks[6];
+  int boundaries[6]; 
+  int twists[6];
+} cxn_t;
+
+static cxn_t* cxn_new()
+{
+  cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
+  for (int b = 0; b < 6; ++b)
+  {
+    cxn->blocks[b] = -1;
+    cxn->boundaries[b] = -1;
+    cxn->twists[b] = -1;
+  }
+  return cxn;
+}
+
+static void cxn_free(cxn_t* cxn)
+{
+  polymec_free(cxn);
+}
+
+DEFINE_UNORDERED_MAP(cxn_map, int, cxn_t*, int_hash, int_equals)
+
 struct blockmesh_t
 {
   // Parallel stuff.
@@ -30,7 +66,7 @@ struct blockmesh_t
   unimesh_array_t* blocks;
 
   // Connections.
-  // FIXME
+  cxn_map_t* cxns;
 
   // This flag is set by blockmesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -43,6 +79,7 @@ blockmesh_t* blockmesh_new(MPI_Comm comm)
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
   mesh->blocks = unimesh_array_new();
+  mesh->cxns = cxn_map_new();
   mesh->finalized = false;
 
   return mesh;
@@ -58,7 +95,7 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block)
   return index;
 }
 
-int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4])
+int blockmesh_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
 {
   // Only certain combos of block faces are acceptible, so let's make sure
   // no one's doing anything stupid.
@@ -96,12 +133,49 @@ int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4])
   return face;
 }
 
-void blockmesh_connect_blocks(blockmesh_t* mesh, 
-                              int block1_index, 
-                              int block1_nodes[4],
-                              int block2_index,
-                              int block2_nodes[4])
+static cxn_twist_t determine_twist(int block1_nodes[4],
+                                   int block2_nodes[4])
 {
+  // FIXME
+  return NO_TURN;
+}
+
+void blockmesh_connect_blocks(blockmesh_t* mesh, 
+                              int block1_index, int block1_nodes[4],
+                              int block2_index, int block2_nodes[4])
+{
+  int b1 = blockmesh_boundary_for_nodes(mesh, block1_nodes);
+  ASSERT(b1 != -1);
+  int b2 = blockmesh_boundary_for_nodes(mesh, block2_nodes);
+  ASSERT(b2 != -1);
+  cxn_twist_t twist = determine_twist(block1_nodes, block2_nodes);
+
+  // Find or add a connection for each block.
+  cxn_t** cxn1_p = cxn_map_get(mesh->cxns, block1_index);
+  cxn_t* cxn1 = NULL;
+  if (cxn1_p == NULL)
+  {
+    cxn1 = cxn_new();
+    cxn_map_insert_with_v_dtor(mesh->cxns, block1_index, cxn1, cxn_free);
+  }
+  else
+    cxn1 = *cxn1_p;
+  cxn1->blocks[b1] = block2_index;
+  cxn1->boundaries[b1] = b2;
+  cxn1->twists[b1] = (int)twist;
+
+  cxn_t** cxn2_p = cxn_map_get(mesh->cxns, block2_index);
+  cxn_t* cxn2 = NULL;
+  if (cxn2_p == NULL)
+  {
+    cxn2 = cxn_new();
+    cxn_map_insert_with_v_dtor(mesh->cxns, block2_index, cxn2, cxn_free);
+  }
+  else
+    cxn2 = *cxn2_p;
+  cxn2->blocks[b2] = block1_index;
+  cxn2->boundaries[b2] = b1;
+  cxn2->twists[b2] = ((((int)twist) + 2) % 4);
 }
 
 void blockmesh_finalize(blockmesh_t* mesh)
@@ -123,6 +197,7 @@ bool blockmesh_is_finalized(blockmesh_t* mesh)
 
 void blockmesh_free(blockmesh_t* mesh)
 {
+  cxn_map_free(mesh->cxns);
   unimesh_array_free(mesh->blocks);
   polymec_free(mesh);
 }
@@ -142,6 +217,18 @@ unimesh_t* blockmesh_block(blockmesh_t* mesh, int index)
   ASSERT(index >= 0);
   ASSERT((size_t)index < mesh->blocks->size);
   return mesh->blocks->data[index];
+}
+
+bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block)
+{
+  if (*pos < (int)mesh->blocks->size)
+  {
+    *block = mesh->blocks->data[*pos];
+    ++(*pos);
+    return true;
+  }
+  else
+    return false;
 }
 
 #if POLYMEC_HAVE_MPI

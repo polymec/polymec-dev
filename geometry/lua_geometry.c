@@ -1834,7 +1834,7 @@ static int bm_connect_blocks(lua_State* L)
     }
     lua_pop(L, 1);
   }
-  if (blockmesh_face_for_nodes(m, nodes1) == -1)
+  if (blockmesh_boundary_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block1_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes1[0], nodes1[1], nodes1[2], nodes1[3]);
 
   lua_getfield(L, 2, "block2_index");
@@ -1861,7 +1861,7 @@ static int bm_connect_blocks(lua_State* L)
     }
     lua_pop(L, 1);
   }
-  if (blockmesh_face_for_nodes(m, nodes1) == -1)
+  if (blockmesh_boundary_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
 
   blockmesh_connect_blocks(m, index1, nodes1, index2, nodes2);
