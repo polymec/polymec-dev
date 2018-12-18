@@ -41,16 +41,22 @@ typedef struct blockmesh_t blockmesh_t;
 //------------------------------------------------------------------------
 
 /// Creates a new blockmesh with no blocks, defined on the given communicator.
+/// The blockmesh can house unimesh blocks whose patches have the given dimensions.
+/// \param [in] comm The MPI communicator for the blockmesh.
+/// \param [in] patch_nx The number of "x" cells in a patch within each block of the blockmesh.
+/// \param [in] patch_ny The number of "y" cells in a patch within each block of the blockmesh.
+/// \param [in] patch_nx The number of "z" cells in a patch within each block of the blockmesh.
 /// \memberof blockmesh
-blockmesh_t* blockmesh_new(MPI_Comm comm);
+blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_nz);
 
-/// Adds a new block to the blockmesh. 
-/// \param [in] block A \ref unimesh presenting a block. This unimesh must not 
-///                   yet be finalized, since boundary conditions may be added
-///                   to it when it is connected to other blocks.
-/// \returns the index of the new block.
+/// Adds a new empty block to the blockmesh with the given numbers of patches in the "x", "y", 
+/// and "z" directions. The block is empty in the sense that it contains no patches.
+/// \param [in] num_x_patches The number of patches in the "x" direction within the new block.
+/// \param [in] num_y_patches The number of patches in the "y" direction within the new block.
+/// \param [in] num_z_patches The number of patches in the "z" direction within the new block.
+/// \returns the index of the new block within the blockmesh.
 /// \memberof blockmesh
-int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
+int blockmesh_add_block(blockmesh_t* mesh, int num_x_patches, int num_y_patches, int num_z_patches);
 
 /// Returns the block boundary associated with the given set of block nodes, or -1 
 /// if the nodes do not match any of the block's faces. 
