@@ -184,6 +184,19 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
   endif()
 endif()
 
+# If the lld or gold linkers are available, use them (in that order).
+find_program(LLD lld)
+if (NOT LLD STREQUAL "LLD-NOTFOUND")
+  find_program(GOLD gold)
+  if (NOT GOLD STREQUAL "GOLD-NOTFOUND")
+    message(STATUS "Found gold linker. Using instead of ld.")
+    set(CMAKE_LINKER ${GOLD})
+  endif()
+else()
+  message(STATUS "Found lld linker. Using instead of ld.")
+  set(CMAKE_LINKER ${LLD})
+endif()
+
 # Address Sanitizer
 if (USE_ASAN)
   message(STATUS "Enabling Address Sanitizer.")
