@@ -243,6 +243,8 @@ ExternalProject_Add(lua_proj
                     DEPENDS linenoise
                     LOG_BUILD TRUE
                     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a ${PROJECT_BINARY_DIR}/lib
+                    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lua/src/lua ${PROJECT_BINARY_DIR}/bin
+                    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lua/src/luac ${PROJECT_BINARY_DIR}/bin
                     LOG_INSTALL TRUE)
 file(GLOB lua_includes "${CMAKE_CURRENT_SOURCE_DIR}/lua/src/*.h")
 foreach(inc ${lua_includes})
