@@ -335,6 +335,8 @@ static int receive_chunk(lua_State *L)
   }
 }
 
+extern int register_thirdparty_module(lua_State* L);
+
 // This function controls the main loop, and is called in Lua's protected mode.
 static int pmain(lua_State* L)
 {
@@ -365,6 +367,7 @@ static int pmain(lua_State* L)
 
   // Open standard libraries, and register extra types and modules.
   luaL_openlibs(L);
+  register_thirdparty_module(L);
   if (register_types_and_modules != NULL)
     register_types_and_modules(L);
 

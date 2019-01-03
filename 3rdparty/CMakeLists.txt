@@ -343,7 +343,10 @@ if (HAVE_MPI)
 endif()
 
 # This target expresses a single dependency on all third-party libs.
-add_custom_target(all_3rdparty_libs ALL 
+# It also validates thirdparty.lua so the thirdparty module loads successfully.
+add_custom_target(all_3rdparty_libs ALL
+                  COMMAND ${PROJECT_BINARY_DIR}/bin/lua ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty.lua
+                  COMMENT "Validating ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty.lua..."
                   DEPENDS ${POLYMEC_TP_LIBS})
 
 # Add all the libraries to the build system at large.
