@@ -41,7 +41,7 @@ for lib_name, lib_metadata in sorted_pairs(thirdparty) do
   f:write('  lua_newtable(L);\n\n')
   for key, value in sorted_pairs(lib_metadata) do
     if type(value) == 'string' then
-      value = value:gsub('\n', '\\n'):gsub('"', "'")
+      value = value:gsub('\n', '\\n'):gsub('"', '\\"')
       f:write(string.format('  lua_pushstring(L, "%s");\n', value))
     elseif type(value) == 'number' then
       f:write(string.format('  lua_pushinteger(L, %d);\n', value))
@@ -49,7 +49,7 @@ for lib_name, lib_metadata in sorted_pairs(thirdparty) do
       f:write('  lua_newtable(L);\n')
       for k, v in sorted_pairs(value) do
         if type(v) == 'string' then
-          v= v:gsub('\n', '\\n\n\\'):gsub('"', "'")
+          v= v:gsub('\n', '\\n\n\\'):gsub('"', '\\"')
           f:write(string.format('  lua_pushstring(L, "%s");\n', v))
         elseif type(v) == 'number' then
           f:write(string.format('  lua_pushinteger(L, %d);\n', v))
