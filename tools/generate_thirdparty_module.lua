@@ -17,7 +17,7 @@ f:write('#include "lua.h"\n#include "lualib.h"\n#include "lauxlib.h"\n\n')
 f:write('int register_thirdparty_module(lua_State* L);\n')
 f:write('int register_thirdparty_module(lua_State* L)\n{\n')
 f:write('  // thirdparty module table\n')
-f:write('  lua_newtable(L);\n')
+f:write('  lua_newtable(L);\n\n')
 
 -- This iterator function traverses a table in sorted key order.
 function sorted_pairs(t)
@@ -38,7 +38,7 @@ end
 libs = {}
 for lib_name, lib_metadata in sorted_pairs(thirdparty) do
   f:write(string.format('  // %s\n', lib_name))
-  f:write('  lua_newtable(L);\n\n')
+  f:write('  lua_newtable(L);\n')
   for key, value in sorted_pairs(lib_metadata) do
     if type(value) == 'string' then
       value = value:gsub('\n', '\\n'):gsub('"', '\\"')
@@ -59,8 +59,7 @@ for lib_name, lib_metadata in sorted_pairs(thirdparty) do
     end
     f:write(string.format('  lua_setfield(L, -2, "%s");\n', key))
   end
-  f:write(string.format('  lua_setfield(L, -2, "%s");\n', lib_name))
-  f:write('\n')
+  f:write(string.format('  lua_setfield(L, -2, "%s");\n\n', lib_name))
 end
 
 -- Finish up and write the thing out.
