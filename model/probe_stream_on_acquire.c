@@ -89,13 +89,17 @@ static void stream_on_acquire_osc(void* context,
   osc[name_size+1] = 'f';
   for (size_t i = 0; i < stream->data_size; ++i)
     osc[name_size+2+i] = 'f';
+  size_t offset = name_size+2+stream->data_size;
   float t_f = (float)t;
-  memcpy(&osc[name_size+2+stream->data_size], &t_f, sizeof(float));
+  memcpy(&osc[offset], &t_f, sizeof(float));
+  offset += sizeof(float);
   for (size_t i = 0; i < stream->data_size; ++i)
   {
     float data_f = (float)(data->data[i]);
-    memcpy(&osc[name_size+2+stream->data_size+1+i], &data_f, sizeof(float));
+    memcpy(&osc[offset], &data_f, sizeof(float));
+    offset += sizeof(float);
   }
+  ASSERT(offset == osc_size);
 
   // Write the buffer to the stream.
   write(stream->socket_fd, osc, osc_size);
@@ -133,11 +137,16 @@ bool probe_stream_on_acquire(probe_t* probe,
       int result = connect(context->socket_fd, (struct sockaddr*)&(context->inet_addr), sizeof(context->inet_addr));
       if (result != -1)
       {
-        log_info("Probe %s: streaming %s to %s:%d via UDP", p_name, context->data_name, destination, port);
-        if (!strcasecmp(format, "json") == 0)
+        if (strcasecmp(format, "json") == 0)
+        {
+          log_info("Probe %s: streaming %s to %s:%d (JSON)", p_name, context->data_name, destination, port);
           probe_on_acquire(probe, context, stream_on_acquire_json, free_stream);
+        }
         else
+        {
+          log_info("Probe %s: streaming %s to %s:%d (OSC)", p_name, context->data_name, destination, port);
           probe_on_acquire(probe, context, stream_on_acquire_osc, free_stream);
+        }
         return true;
       }
       else
