@@ -127,19 +127,25 @@ void probe_on_acquire(probe_t* probe,
 
 /// Tells the probe to stream its data to the given network address and port
 /// using a simple UDP protocol. When the probe acquires data, it emits a 
-/// datagram containing a JSON object with the following contents:
-/// * "name": a field containing the name of the probe's data
-/// * "time": the time at which the data was acquired
-/// * "data": A list of numbers representing the data acquired
-///
+/// UDP datagram whose contents depend on the given (case-insensitive) format. 
+/// * If the format is "JSON", the packet contains a JSON object with the 
+///   following fields:
+///   - "name": a field containing the name of the probe's data
+///   - "time": the time at which the data was acquired
+///   - "data": A list of numbers representing the data acquired
+/// * If the format is "OSC", the packet contains an Open Sound Control 
+///   message with the following content:
+///   name time N datum1 datum2 ... datumN
 /// \param [in] destination A properly formed destination URL. 
-/// \param [in] port The port to used for streaming.
+/// \param [in] port The port to use for streaming.
+/// \param [in] format The format to use for streaming ("JSON" or "OSC").
 /// \returns true if the probe will transmit data with the given information, 
 ///               false otherwise.
 /// \memberof probe
 bool probe_stream_on_acquire(probe_t* probe, 
                              const char* destination, 
-                             int port);
+                             int port, 
+                             const char* format);
 
 ///@}
 
