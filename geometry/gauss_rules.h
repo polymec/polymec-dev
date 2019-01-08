@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,12 +26,12 @@ void get_gauss_legendre_points(int n, real_t* points, real_t* weights);
 
 /// This function fills the given array (size n each) with the quadrature
 /// points and weights for the Gauss-Radau integration rule on the 
-/// interval (­1, 1].
+/// interval (1, 1].
 void get_gauss_radau_points(int n, real_t* points, real_t* weights);
 
 /// This function fills the given array (size n each) with the quadrature
 /// points and weights for the Gauss-Lobatto integration rule on the 
-/// interval [­1, 1].
+/// interval [1, 1].
 void get_gauss_lobatto_points(int n, real_t* points, real_t* weights);
 
 ///@}
