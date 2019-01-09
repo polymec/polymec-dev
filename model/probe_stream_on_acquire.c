@@ -137,15 +137,15 @@ bool probe_stream_on_acquire(probe_t* probe,
       int result = connect(context->socket_fd, (struct sockaddr*)&(context->inet_addr), sizeof(context->inet_addr));
       if (result != -1)
       {
-        if (strcasecmp(format, "json") == 0)
-        {
-          log_info("Probe %s: streaming %s to %s:%d (JSON)", p_name, context->data_name, destination, port);
-          probe_on_acquire(probe, context, stream_on_acquire_json, free_stream);
-        }
-        else
+        if (strcasecmp(format, "osc") == 0)
         {
           log_info("Probe %s: streaming %s to %s:%d (OSC)", p_name, context->data_name, destination, port);
           probe_on_acquire(probe, context, stream_on_acquire_osc, free_stream);
+        }
+        else
+        {
+          log_info("Probe %s: streaming %s to %s:%d (JSON)", p_name, context->data_name, destination, port);
+          probe_on_acquire(probe, context, stream_on_acquire_json, free_stream);
         }
         return true;
       }
