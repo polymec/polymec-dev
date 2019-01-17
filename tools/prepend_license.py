@@ -26,7 +26,8 @@ def find_sources(top_dir):
         for root, dirs, files in os.walk(libdir):
             sources.extend([os.path.join(root, f) \
                 for f in files if f.endswith('.h') or f.endswith('.h.in') or \
-                                  f.endswith('.c') or f.endswith('.cpp')])
+                                  f.endswith('.c') or f.endswith('.cpp') or \
+                                  f.endswith('.f90.in')])
     return sources
 
 def remove_old_license(source_file):
