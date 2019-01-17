@@ -4,7 +4,7 @@
 
 # Polymec
 
-Copyright (c) 2012-2018, Jeffrey N. Johnson
+Copyright (c) 2012-2019, Jeffrey N. Johnson
 All rights reserved.
 
 Polymec is a set of libraries that can be used to construct models for 
