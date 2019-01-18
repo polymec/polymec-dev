@@ -2630,6 +2630,57 @@ sp_func_t* lua_to_sp_func(lua_State* L, int index)
   return (sp_func_t*)lua_to_object(L, index, "sp_func");
 }
 
+typedef struct
+{
+  lua_State* L;
+  int num_comp;
+} lua_sp_t;
+
+static void lua_sp_eval(void* context, point_t* x, real_t* F)
+{
+  // Fetch our Lua table from the registry.
+  lua_sp_t* sp = context;
+  lua_pushlightuserdata(sp->L, sp);
+  lua_gettable(sp->L, LUA_REGISTRYINDEX);
+
+  // Call the function with x as an argument.
+  lua_push_point(sp->L, x);
+  lua_call(sp->L, 1, sp->num_comp);
+
+  for (int c = 0; c < sp->num_comp; ++c)
+  {
+    if (!lua_isnumber(sp->L, -1))
+      luaL_error(sp->L, "sp_func result is not a number.");
+    F[c] = lua_to_real(sp->L, -1);
+    lua_pop(sp->L, 1);
+  }
+}
+
+static void lua_sp_dtor(void* context)
+{
+  lua_sp_t* sp = context;
+  lua_pushnil(sp->L);
+  lua_settable(sp->L, LUA_REGISTRYINDEX);
+  polymec_free(sp);
+}
+
+sp_func_t* lua_as_sp_func(lua_State* L, int index, int num_comp)
+{
+  if (lua_isfunction(L, index))
+  {
+    lua_sp_t* sp = polymec_malloc(sizeof(lua_sp_t));
+    sp->L = L;
+    sp->num_comp = num_comp;
+    sp_func_vtable vtable = {.eval = lua_sp_eval, .dtor = lua_sp_dtor};
+    lua_pushlightuserdata(L, sp);
+    lua_pushvalue(L, index);
+    lua_rawset(L, LUA_REGISTRYINDEX);
+    return sp_func_new("Lua sp_func", sp, vtable, SP_FUNC_HETEROGENEOUS, num_comp);
+  }
+  else
+    return NULL;
+}
+
 void lua_push_st_func(lua_State* L, st_func_t* f)
 {
   lua_push_object(L, "st_func", f);
@@ -2643,6 +2694,46 @@ bool lua_is_st_func(lua_State* L, int index)
 st_func_t* lua_to_st_func(lua_State* L, int index)
 {
   return (st_func_t*)lua_to_object(L, index, "st_func");
+}
+
+static void lua_st_eval(void* context, point_t* x, real_t t, real_t* F)
+{
+  // Fetch our Lua table from the registry.
+  lua_sp_t* st = context;
+  lua_pushlightuserdata(st->L, st);
+  lua_gettable(st->L, LUA_REGISTRYINDEX);
+
+  // Call the function with x as an argument.
+  lua_push_point(st->L, x);
+  lua_push_real(st->L, t);
+  lua_call(st->L, 2, st->num_comp);
+
+  for (int c = 0; c < st->num_comp; ++c)
+  {
+    if (!lua_isnumber(st->L, -1))
+      luaL_error(st->L, "st_func result is not a number.");
+    F[c] = lua_to_real(st->L, -1);
+    lua_pop(st->L, 1);
+  }
+}
+
+st_func_t* lua_as_st_func(lua_State* L, int index, int num_comp)
+{
+  if (lua_isfunction(L, index))
+  {
+    lua_sp_t* st = polymec_malloc(sizeof(lua_sp_t));
+    st->L = L;
+    st->num_comp = num_comp;
+    st_func_vtable vtable = {.eval = lua_st_eval, .dtor = lua_sp_dtor};
+    lua_pushlightuserdata(L, st);
+    lua_pushvalue(L, index);
+    lua_rawset(L, LUA_REGISTRYINDEX);
+    return st_func_new("Lua st_func", st, vtable, 
+                       ST_FUNC_HETEROGENEOUS, ST_FUNC_NONCONSTANT,
+                       num_comp);
+  }
+  else
+    return NULL;
 }
 
 void lua_push_rng(lua_State* L, rng_t* r)
