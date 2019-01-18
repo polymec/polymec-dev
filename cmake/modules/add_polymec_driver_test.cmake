@@ -10,11 +10,11 @@ else()
   set(NUMBER_OF_TEST_CORES ${NUMBER_OF_PHYSICAL_CORES}) 
 endif()
 
-function(add_driver_with_libs driver_name libs driver_source)
+function(add_polymec_driver_with_libs driver_name libs driver_source)
   add_polymec_executable_with_libs(${driver_name}_exe "${libs}" ${driver_source})
 endfunction()
 
-function(add_driver_test test_name driver_name test_script)
+function(add_polymec_driver_test test_name driver_name test_script)
   if (HAVE_MPI)
     foreach (arg ${ARGN})
       if (arg MATCHES "=")

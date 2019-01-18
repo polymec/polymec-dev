@@ -417,6 +417,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polyme
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_executable.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_library.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_test.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_driver_test.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindValgrind.cmake DESTINATION share/polymec)
 
 # Additional targets.
