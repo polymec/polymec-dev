@@ -243,6 +243,8 @@ ExternalProject_Add(lua_proj
                     DEPENDS linenoise
                     LOG_BUILD TRUE
                     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a ${PROJECT_BINARY_DIR}/lib
+                    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lua/src/lua ${PROJECT_BINARY_DIR}/bin
+                    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lua/src/luac ${PROJECT_BINARY_DIR}/bin
                     LOG_INSTALL TRUE)
 file(GLOB lua_includes "${CMAKE_CURRENT_SOURCE_DIR}/lua/src/*.h")
 foreach(inc ${lua_includes})
@@ -341,7 +343,10 @@ if (HAVE_MPI)
 endif()
 
 # This target expresses a single dependency on all third-party libs.
-add_custom_target(all_3rdparty_libs ALL 
+# It also validates thirdparty.lua so the thirdparty module loads successfully.
+add_custom_target(all_3rdparty_libs ALL
+                  COMMAND ${PROJECT_BINARY_DIR}/bin/lua ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty.lua
+                  COMMENT "Validating ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty.lua..."
                   DEPENDS ${POLYMEC_TP_LIBS})
 
 # Add all the libraries to the build system at large.

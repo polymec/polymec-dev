@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -2402,6 +2402,48 @@ static int lua_register_timers(lua_State* L)
   return 0;
 }
 
+static int dl_get_paths(lua_State* L)
+{
+  int pos = 0;
+  const char* path;
+  lua_newtable(L);
+  while (polymec_next_dl_path(&pos, &path))
+  {
+    lua_pushstring(L, path);
+    lua_seti(L, -2, pos);
+  }
+  return 1;
+}
+ 
+static lua_module_field dl_fields[] = 
+{
+  {"paths", dl_get_paths, NULL},
+  {NULL, NULL, NULL}
+};
+ 
+static int dl_add_path(lua_State* L)
+{
+  if (!lua_isstring(L, 1))
+    luaL_error(L, "Path must be an absolute path.");
+  const char* path = lua_tostring(L, 1);
+  if (path[0] != '/')
+    luaL_error(L, "Path must be an absolute path.");
+  polymec_add_dl_path(path);
+  return 0;
+}
+ 
+static lua_module_function dl_funcs[] = {
+  {"add_path", dl_add_path, "dl.add_path(path) -> Adds the given path to the list of paths searched for dynamically loadable libraries."},
+  {NULL, NULL, NULL}
+};
+ 
+static int lua_register_dl(lua_State* L)
+{
+  lua_register_module(L, "dl", "Settings for dynamic load libraries.",
+                      dl_fields, dl_funcs);
+  return 0;
+}
+
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
@@ -2417,6 +2459,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_mpi(L);
   lua_register_logging(L);
   lua_register_timers(L);
+  lua_register_dl(L);
 
   lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_fields, bbox_methods, NULL);
   lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_fields, sp_methods, NULL);

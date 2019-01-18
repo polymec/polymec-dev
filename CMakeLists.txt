@@ -184,6 +184,19 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
   endif()
 endif()
 
+# If the lld or gold linkers are available, use them (in that order).
+find_program(LLD lld)
+if (NOT LLD STREQUAL "LLD-NOTFOUND")
+  find_program(GOLD gold)
+  if (NOT GOLD STREQUAL "GOLD-NOTFOUND")
+    message(STATUS "Found gold linker. Using instead of ld.")
+    set(CMAKE_LINKER ${GOLD})
+  endif()
+else()
+  message(STATUS "Found lld linker. Using instead of ld.")
+  set(CMAKE_LINKER ${LLD})
+endif()
+
 # Address Sanitizer
 if (USE_ASAN)
   message(STATUS "Enabling Address Sanitizer.")
@@ -404,6 +417,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polyme
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_executable.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_library.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_test.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_driver_test.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindValgrind.cmake DESTINATION share/polymec)
 
 # Additional targets.

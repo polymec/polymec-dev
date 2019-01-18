@@ -1,22 +1,14 @@
 -- This tests the various geometry classes.
 
 -- Make a coordinate mapping and try it out.
-function ident_map_x(self, x)
-  return x
-end
-
-function ident_map_v(self, x, v)
-  return v
-end
-
-function ident_jac(self, x)
-  return tensor2.new(1, 0, 0, 0, 1, 0, 0, 0, 1)
-end
-
 I = coord_mapping.new{name = "I",
-                      map = ident_map_x, 
-                      map_vector = ident_map_v, 
-                      jacobian = ident_jac,
+                      map = function(self, x) return x end,
+                      map_vector = function(self, x, v) return v end, 
+                      jacobian = function(self, x) 
+                                   return tensor2.new(1, 0, 0, 
+                                                      0, 1, 0, 
+                                                      0, 0, 1) 
+                                 end,
                       inverse = "self"}
 x = point.new(1, 2, 3)
 v = vector.new(4, 5, 6)
@@ -46,20 +38,16 @@ print(plane:grad(x), cyl:grad(x), sph:grad(x), union:grad(x), int:grad(x), diff:
 print(plane:project(x), cyl:project(x), sph:project(x), union:project(x), int:project(x), diff:project(x))
 
 -- Now let's make our own plane function.
-function pl1_value(self, x)
-  n = vector.new(1, 0, 0)
-  x0 = point.new(0, 0, 0)
-  D = x - x0
-  return vector.dot(D, n)
-end
-
-function pl1_grad(self, x)
-  return vector.new(-1, 0, 0)
-end
-
 plane1 = sd_func.new{name = "my plane", 
-                     value = pl1_value, 
-                     grad = pl1_grad}
+                     value = function(self, x)
+                               n = vector.new(1, 0, 0)
+                               x0 = point.new(0, 0, 0)
+                               D = x - x0
+                               return vector.dot(D, n)
+                             end,
+                     grad = function(self, x) return vector.new(-1, 0, 0) end,
+                    }
+
 print(plane1)
 plane1.name = 'your plane'
 assert(plane1.name == 'your plane')
@@ -68,20 +56,18 @@ print(plane1:grad(x))
 print(plane1:project(x))
 
 -- Now let's make a plane that moves to the right with speed 1.
-function pl2_value(self, x, t)
-  n = vector.new(1, 0, 0)
-  x0 = point.new(t, 0, 0)
-  D = x - x0
-  return vector.dot(D, n)
-end
-
-function pl2_grad(self, x, t)
-  return vector.new(t-1, 0, 0)
-end
-
 plane2 = sdt_func.new{name = "my moving plane", 
-                      value = pl2_value, 
-                      grad = pl2_grad}
+                      value = function(self, x, t)
+                                n = vector.new(1, 0, 0)
+                                x0 = point.new(t, 0, 0)
+                                D = x - x0
+                                return vector.dot(D, n)
+                              end,
+                      grad = function(self, x, t)
+                               return vector.new(t-1, 0, 0)
+                             end
+                     }
+
 print(plane2)
 plane2.name = 'your moving plane'
 assert(plane2.name == 'your moving plane')

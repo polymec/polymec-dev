@@ -1,13 +1,13 @@
 """prepend_license.py -- prepends license information to all source files."""
 
-license_text = """Copyright (c) 2012-2018, Jeffrey N. Johnson
+license_text = """Copyright (c) 2012-2019, Jeffrey N. Johnson
 All rights reserved.
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/."""
 
-old_license_text = """Copyright (c) 2012-2017, Jeffrey N. Johnson
+old_license_text = """Copyright (c) 2012-2018, Jeffrey N. Johnson
 All rights reserved.
 
 This Source Code Form is subject to the terms of the Mozilla Public
@@ -15,7 +15,7 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/."""
 
 # Here are the libraries we search for source files.
-libs = ['core', 'geometry', 'solvers', 'model', 'io']
+libs = ['core', 'geometry', 'solvers', 'model', 'io', 'mpi_serial']
 
 import os, os.path
 
@@ -26,7 +26,8 @@ def find_sources(top_dir):
         for root, dirs, files in os.walk(libdir):
             sources.extend([os.path.join(root, f) \
                 for f in files if f.endswith('.h') or f.endswith('.h.in') or \
-                                  f.endswith('.c') or f.endswith('.cpp')])
+                                  f.endswith('.c') or f.endswith('.cpp') or \
+                                  f.endswith('.f90.in')])
     return sources
 
 def remove_old_license(source_file):
@@ -37,7 +38,7 @@ def remove_old_license(source_file):
     # Do we have the old license?
     old_license_lines = old_license_text.split('\n')
     has_old_license = True
-    for i in xrange(len(lines)):
+    for i in range(len(lines)):
         if (i < len(old_license_lines)) and \
            (old_license_lines[i] not in lines[i]):
             has_old_license = False

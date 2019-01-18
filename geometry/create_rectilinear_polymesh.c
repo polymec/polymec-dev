@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -55,12 +55,12 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
     cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
 
     // Count up faces and nodes and generate global-to-local mappings.
-    index_t faces[6] = {cubic_lattice_x_face(lattice, i, j, k),
-                        cubic_lattice_x_face(lattice, i+1, j, k),
-                        cubic_lattice_y_face(lattice, i, j, k),
-                        cubic_lattice_y_face(lattice, i, j+1, k),
-                        cubic_lattice_z_face(lattice, i, j, k),
-                        cubic_lattice_z_face(lattice, i, j, k+1)};
+    index_t faces[6] = {cubic_lattice_xface(lattice, i, j, k),
+                        cubic_lattice_xface(lattice, i+1, j, k),
+                        cubic_lattice_yface(lattice, i, j, k),
+                        cubic_lattice_yface(lattice, i, j+1, k),
+                        cubic_lattice_zface(lattice, i, j, k),
+                        cubic_lattice_zface(lattice, i, j, k+1)};
     for (int f = 0; f < 6; ++f)
     {
       if (!index_int_unordered_map_contains(local_faces, faces[f]))
@@ -130,21 +130,21 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
     if (comm == MPI_COMM_SELF)
     {
       // Use the dirt-simple indexing scheme!
-      mesh->cell_faces[6*cell+0] = ~((int)cubic_lattice_x_face(lattice, i, j, k));
-      mesh->cell_faces[6*cell+1] =  (int)cubic_lattice_x_face(lattice, i+1, j, k);
-      mesh->cell_faces[6*cell+2] = ~((int)cubic_lattice_y_face(lattice, i, j, k));
-      mesh->cell_faces[6*cell+3] =  (int)cubic_lattice_y_face(lattice, i, j+1, k);
-      mesh->cell_faces[6*cell+4] = ~((int)cubic_lattice_z_face(lattice, i, j, k));
-      mesh->cell_faces[6*cell+5] =  (int)cubic_lattice_z_face(lattice, i, j, k+1);
+      mesh->cell_faces[6*cell+0] = ~((int)cubic_lattice_xface(lattice, i, j, k));
+      mesh->cell_faces[6*cell+1] =  (int)cubic_lattice_xface(lattice, i+1, j, k);
+      mesh->cell_faces[6*cell+2] = ~((int)cubic_lattice_yface(lattice, i, j, k));
+      mesh->cell_faces[6*cell+3] =  (int)cubic_lattice_yface(lattice, i, j+1, k);
+      mesh->cell_faces[6*cell+4] = ~((int)cubic_lattice_zface(lattice, i, j, k));
+      mesh->cell_faces[6*cell+5] =  (int)cubic_lattice_zface(lattice, i, j, k+1);
     }
     else
     {
-      mesh->cell_faces[6*cell+0] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i, j, k)));
-      mesh->cell_faces[6*cell+1] = *index_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i+1, j, k));
-      mesh->cell_faces[6*cell+2] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j, k)));
-      mesh->cell_faces[6*cell+3] = *index_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j+1, k));
-      mesh->cell_faces[6*cell+4] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k)));
-      mesh->cell_faces[6*cell+5] = *index_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k+1));
+      mesh->cell_faces[6*cell+0] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_xface(lattice, i, j, k)));
+      mesh->cell_faces[6*cell+1] = *index_int_unordered_map_get(local_faces, cubic_lattice_xface(lattice, i+1, j, k));
+      mesh->cell_faces[6*cell+2] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_yface(lattice, i, j, k)));
+      mesh->cell_faces[6*cell+3] = *index_int_unordered_map_get(local_faces, cubic_lattice_yface(lattice, i, j+1, k));
+      mesh->cell_faces[6*cell+4] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_zface(lattice, i, j, k)));
+      mesh->cell_faces[6*cell+5] = *index_int_unordered_map_get(local_faces, cubic_lattice_zface(lattice, i, j, k+1));
     }
 
     // Hook up each face to its nodes.

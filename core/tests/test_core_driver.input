@@ -253,6 +253,9 @@ print(tab)
 -- Creature comforts.
 print(dir())
 print(help(mpi))
+print(mpi.COMM_WORLD.rank, mpi.COMM_WORLD.size)
+print(dl.paths)
+print(logging.level, logging.mode, logging.rank, logging.stream)
 
 -- Real number comparisons.
 assert(reals_equal(1.0, 1.0))

@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -205,7 +205,6 @@ static void set_up_logging()
   char* logging = options_value(opts, "logging");
   char* logging_mode = options_value(opts, "logging_mode");
   char* log_file = options_value(opts, "log_file");
-  opts = NULL;
   if (logging != NULL)
   {
     if (!string_casecmp(logging, "debug"))
@@ -296,9 +295,11 @@ static void set_up_dl_paths()
   // Paths to search for dynamically loadable libraries.
   _dl_paths = string_array_new();
 
+  // By default, we search for loadable libs in our installation tree.
+  polymec_add_dl_path(POLYMEC_INSTALL_PREFIX "/lib");
+
   options_t* opts = options_argv();
   char* dl_paths = options_value(opts, "dl_paths");
-  opts = NULL;
   if (dl_paths != NULL)
   {
     // The paths are delimited by colons.
@@ -332,7 +333,6 @@ static void set_up_threads()
     log_debug("polymec: Setting number of OpenMP threads to %d.", num_threads);
     omp_set_num_threads(num_threads);
   }
-  opts = NULL;
 #endif
 }
 
@@ -367,7 +367,6 @@ static void pause_if_requested()
       polymec_free(words);
     }
   }
-  opts = NULL;
 
   if (delay != NULL)
   {
@@ -739,7 +738,12 @@ void polymec_add_dl_path(const char* path)
   ASSERT(_dl_paths != NULL);
   ASSERT(path != NULL);
   if (directory_exists(path))
+  {
+    log_debug("polymec_add_dl_path: Adding path %s", path);
     string_array_append(_dl_paths, (char*)path);
+  }
+  else
+    log_debug("polymec_add_dl_path: Didn't add %s (doesn't exist)", path);
 }
 
 bool polymec_next_dl_path(int* pos, const char** path)

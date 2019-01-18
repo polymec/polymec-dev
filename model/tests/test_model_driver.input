@@ -100,7 +100,8 @@ function rut(t)
             {math.random(), math.random(), math.random()}}}}
 end
 p1111 = probe.new('random_ubertensorizer', rut, {3,3,3,3})
-p1111:stream_on_acquire{destination = 'localhost:4040'}
+p1111:stream_on_acquire{format = 'json', 
+                        destination = 'localhost:4040'}
 print(p1111)
 
 for t=1,10 do

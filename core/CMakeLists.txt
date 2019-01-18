@@ -11,6 +11,11 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90"
 )
 
+# Generate the thirdparty Lua module from the metadata in 3rdparty/thirdparty.lua.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c
+                   COMMAND ${PROJECT_BINARY_DIR}/bin/lua ${PROJECT_SOURCE_DIR}/tools/generate_thirdparty_module.lua ${PROJECT_SOURCE_DIR}/3rdparty/thirdparty.lua ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c
+                   DEPENDS ${PROJECT_SOURCE_DIR}/3rdparty/thirdparty.lua;${PROJECT_SOURCE_DIR}/tools/generate_thirdparty_module.lua;all_3rdparty_libs)
+
 include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
                     point.c point2.c tensor2.c hilbert.c kd_tree.c octree.c 
@@ -21,9 +26,9 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 
                     ${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90 
                     special_functions.c 
-                    exchanger.c lua_types.c lua_core.c 
-                    lua_replace_tostring.c
-                    lua_array.c lua_ndarray.c lua_driver.c)
+                    exchanger.c lua_types.c lua_core.c lua_replace_tostring.c
+                    lua_array.c lua_ndarray.c lua_driver.c 
+                    ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c)
 set_target_properties(polymec_core PROPERTIES LINKER_LANGUAGE C)
 add_dependencies(polymec_core all_3rdparty_libs)
 

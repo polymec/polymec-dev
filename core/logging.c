@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -205,7 +205,9 @@ void set_log_stream(log_level_t log_type, FILE* stream)
        (logging_mode == LOG_TO_ALL_RANKS)) && 
       (logger != NULL))
   {
-    if (logger->stream != NULL)
+    if ((logger->stream != NULL) &&
+        (logger->stream != stdout) && // don't close any system streams(!)
+        (logger->stream != stderr))
       fclose(logger->stream);
     logger->stream = stream;
   }
@@ -245,6 +247,16 @@ FILE* log_stream(log_level_t log_type)
       return logger->stream;
     else
       return NULL;
+  }
+}
+
+void log_flush(log_level_t log_type)
+{
+  logger_t* logger = get_logger(log_type);
+  if ((logger != NULL) && (logger->stream != NULL))
+  {
+    logger_flush(logger);
+    fflush(logger->stream);
   }
 }
 

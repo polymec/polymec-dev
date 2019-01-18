@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -926,31 +926,26 @@ static int p_stream_on_acquire(lua_State* L)
   if (p == NULL)
     return luaL_error(L, "Method must be invoked with a probe.");
   int num_args = lua_gettop(L);
-  if ((num_args != 2) || (!lua_istable(L, 2) && !lua_isstring(L, 2)))
-    return luaL_error(L, "Argument must be a string or a table with a 'destination' (and possibly a 'port') key.");
+  if ((num_args != 2) || !lua_istable(L, 2))
+    return luaL_error(L, "Argument must be a table with 'format' and 'destination' (and possibly 'port') keys.");
 
   const char* destination = NULL;
-  int port = -1;
-  if (lua_isstring(L, 2))
-    destination = lua_tostring(L, 2);
-  else
-  {
-    lua_getfield(L, 2, "destination");
-    if (!lua_isstring(L, -1))
-      return luaL_error(L, "destination must be an URL or a file path.");
-    destination = lua_tostring(L, -1);
+  lua_getfield(L, 2, "destination");
+  if (!lua_isstring(L, -1))
+    return luaL_error(L, "destination must be an URL or a file path.");
+  destination = lua_tostring(L, -1);
 
-    lua_getfield(L, 2, "port");
-    if (!lua_isnil(L, -1)) 
+  int port = -1;
+  lua_getfield(L, 2, "port");
+  if (!lua_isnil(L, -1)) 
+  {
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "If given, port must be a positive integer.");
+    else
     {
-      if (!lua_isinteger(L, -1))
-        return luaL_error(L, "If given, port must be a positive integer.");
-      else
-      {
-        port = (int)lua_tointeger(L, -1);
-        if (port <= 0)
-          return luaL_error(L, "port must be positive.");
-      }
+      port = (int)lua_tointeger(L, -1);
+      if (port <= 0)
+        return luaL_error(L, "port must be positive.");
     }
   }
 
@@ -980,7 +975,13 @@ static int p_stream_on_acquire(lua_State* L)
   else
     strcpy(host, destination);
 
-  bool result = probe_stream_on_acquire(p, host, port);
+  const char* format = NULL;
+  lua_getfield(L, 2, "format");
+  if (!lua_isstring(L, -1))
+    return luaL_error(L, "format must be a string.");
+  format = lua_tostring(L, -1);
+
+  bool result = probe_stream_on_acquire(p, host, port, format);
   lua_pushboolean(L, result);
   return 1;
 }
