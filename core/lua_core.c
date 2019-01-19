@@ -198,9 +198,11 @@ static int p_random(lua_State* L)
 static int p_distance(lua_State* L)
 {
   point_t* p = lua_to_point(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Argument 1 must be a point.");
   point_t* q = lua_to_point(L, 2);
   if (q == NULL)
-    return luaL_error(L, "Argument must be a point.");
+    return luaL_error(L, "Argument 2 must be a point.");
   lua_pushnumber(L, (double)point_distance(p, q));
   return 1;
 }
@@ -1434,6 +1436,26 @@ static lua_class_method bbox_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static int sp_new(lua_State* L)
+{
+  // Check the argument.
+  if (!lua_isfunction(L, 1))
+    return luaL_error(L, "Argument 1 must be a Lua function.");
+  if (!lua_isinteger(L, 2))
+    return luaL_error(L, "Argument 2 must be a number of components.");
+  lua_Integer n = lua_tointeger(L, 2);
+  if (n < 0)
+    return luaL_error(L, "Argument 2 must be a positive number.");
+  sp_func_t* f = lua_as_sp_func(L, 1, (int)n);
+  if (f != NULL)
+  {
+    lua_push_sp_func(L, f);
+    return 1;
+  }
+  else
+    return luaL_error(L, "Could not create an sp_func from arguments.");
+}
+
 static int sp_constant(lua_State* L)
 {
   // Check the argument.
@@ -1451,6 +1473,7 @@ static int sp_constant(lua_State* L)
 }
 
 static lua_module_function sp_funcs[] = {
+  {"new", sp_new, "sp_func.new(f, n) -> returns an n-component spatial function implemented by the lua function f(x)."},
   {"constant", sp_constant, "sp_func.constant(F0) -> returns a function with the constant value F0."},
   {NULL, NULL, NULL}
 };
@@ -1525,6 +1548,26 @@ static lua_class_method sp_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static int st_new(lua_State* L)
+{
+  // Check the argument.
+  if (!lua_isfunction(L, 1))
+    return luaL_error(L, "Argument 1 must be a Lua function.");
+  if (!lua_isinteger(L, 2))
+    return luaL_error(L, "Argument 2 must be a number of components.");
+  lua_Integer n = lua_tointeger(L, 2);
+  if (n < 0)
+    return luaL_error(L, "Argument 2 must be a positive number.");
+  st_func_t* f= lua_as_st_func(L, 1, (int)n);
+  if (f != NULL)
+  {
+    lua_push_st_func(L, f);
+    return 1;
+  }
+  else
+    return luaL_error(L, "Could not create an st_func from arguments.");
+}
+
 static int st_constant(lua_State* L)
 {
   // Check the argument.
@@ -1553,8 +1596,9 @@ static int st_from_sp_func(lua_State* L)
 }
 
 static lua_module_function st_funcs[] = {
+  {"new", st_new, "st_func.new(f, n) -> returns an n-component space-time function implemented by the lua function f(x, t)."},
   {"constant", st_constant, "st_func.constant(F0) -> returns a function with the constant value F0."},
-  {"from_sp_func", st_from_sp_func, "st_func.from_sp_func(f) -> returns a time-dependent function identical to f."},
+  {"from_sp_func", st_from_sp_func, "st_func.from_sp_func(f) -> returns a space-time function g(x, t) identical in form to the spatial function f(x)."},
   {NULL, NULL, NULL}
 };
 

@@ -128,6 +128,11 @@ f.name = 'bob'
 assert(f.name == 'bob')
 print(f(p))
 
+g = sp_func.new(function(x) print(x); return point.distance(x, point.new(0, 0, 0)) end, 1)
+print(g)
+print(#g)
+assert(reals_equal(g(p), point.distance(p, point.new(0, 0, 0))))
+
 -- Random number generator stuff.
 rngs = {rng.rand(), rng.host()}
 for i, rn in ipairs(rngs) do
@@ -145,6 +150,11 @@ assert(f.name == 'joe')
 print(f(p, 0))
 g = f:freeze(0)
 h = st_func.from_sp_func(g)
+
+j = st_func.new(function(x, t) return point.distance(x, point.new(t, t, t)) end, 1)
+print(j)
+print(#j)
+assert(reals_equal(j(p, 1), point.distance(p, point.new(1, 1, 1))))
 
 -- Arrays.
 a = array.new({0, 1, 1, 2, 2, 3}, 'byte')
