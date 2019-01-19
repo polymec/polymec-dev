@@ -148,6 +148,35 @@ gol = model.new{name = 'game_of_life',
                 save = gol_save,
                 plot = gol_plot}
 
+-- Create a probe that counts the number of living cells, and 
+-- add it to the model.
+counter = {}
+counter.model = gol.context
+counter.__call = 
+  function (self, t)
+    count = 0
+    for j = 1,self.model.ny do
+      for i = 1,self.model.nx do
+        if self.model.grid[i][j] == 1 then
+          count = count + 1
+        end
+      end
+    end
+    return count
+  end
+setmetatable(counter, counter)
+probe = probe.new('living_cells', counter, {})
+assert(probe.name == 'Lua probe')
+assert(probe.data_name == 'living_cells')
+gol:add_probe(probe, {0, pattern.steps})
+
+-- Check some things.
+assert(gol.name == 'game_of_life')
+gol.max_dt = 1
+assert(gol.max_dt == 1)
+gol.initial_dt = 1
+assert(reals_equal(gol.initial_dt, 1))
+
 -- Do a complete run of the pattern, whatever that means.
 gol:run{t1 = 0, t2 = pattern.steps, max_steps = pattern.steps, 
         plot_every=1, save_every=1, 
