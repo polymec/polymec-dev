@@ -59,6 +59,17 @@ typedef struct unimesh_patch_t unimesh_patch_t;
 /// Creates a new empty unimesh defined on the region filling the given bounding box 
 /// with npx x npy x npz patches of size nx x ny x nz. Use periodic_in_[x,y,z] to 
 /// indicate whether the mesh is periodic in the x, y, and/or z directions.
+/// \param [in] comm The communicator on which this unimesh is defined.
+/// \param [in] bbox A bounding box defining the boundary for the unimesh.
+/// \param [in] npx The number of patches the unimesh can store in the x direction.
+/// \param [in] npy The number of patches the unimesh can store in the y direction.
+/// \param [in] npz The number of patches the unimesh can store in the z direction.
+/// \param [in] nx The number of cells in the x direction for each patch.
+/// \param [in] ny The number of cells in the y direction for each patch.
+/// \param [in] nz The number of cells in the z direction for each patch.
+/// \param [in] periodic_in_x Specifies whether the mesh is periodic in the x direction.
+/// \param [in] periodic_in_y Specifies whether the mesh is periodic in the y direction.
+/// \param [in] periodic_in_z Specifies whether the mesh is periodic in the z direction.
 /// \memberof unimesh
 unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox, 
                                 int npx, int npy, int npz, 
@@ -133,17 +144,18 @@ bbox_t* unimesh_bbox(unimesh_t* mesh);
 void unimesh_get_spacings(unimesh_t* mesh, 
                           real_t* dx, real_t* dy, real_t* dz);
 
-/// Fetches the number of patches in this mesh in the x, y, and z directions, 
+/// Fetches the number of patches this mesh can store in the x, y, and z directions, 
 /// placing them in npx, npy, npz.
 /// \memberof unimesh
 void unimesh_get_extents(unimesh_t* mesh, int* npx, int* npy, int* npz);
 
 /// Fetches the number of cells in each patch on this mesh in the x, y, and z 
-/// directions, placing them in nx, ny, nz.
+/// directions, storing them in nx, ny, nz.
 /// \memberof unimesh
 void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz);
 
-/// Retrieves flags that indicate whether the mesh is periodic in x, y, and z.
+/// Retrieves flags that indicate whether the mesh is periodic in x, y, and z, 
+/// storing them in periodic_in_x, periodic_in_y, and periodic_in_z.
 /// \memberof unimesh
 void unimesh_get_periodicity(unimesh_t* mesh, 
                              bool* periodic_in_x,
@@ -158,8 +170,12 @@ int unimesh_num_patches(unimesh_t* mesh);
 /// next (i, j, k) triple if the traversal is incomplete, false otherwise. 
 /// The traversal proceeds in lexicographic order through the triples of 
 /// locally-stored patches. Set *pos to zero to reset the traversal. 
-/// Additionally, if bbox is non-NULL, its fields x1, x2, y1, y2, z1, z2 are 
-/// set to the coordinates of the patch's extent (excluding ghost cells).
+/// \param [inout] pos Controls the traversal. Set to 0 to reset.
+/// \param [out] i The i index of the next patch in the traversal.
+/// \param [out] j The j index of the next patch in the traversal.
+/// \param [out] k The k index of the next patch in the traversal.
+/// \param [inout] bbox If non-NULL, bbox's x1, x2, y1, y2, z1, z2 fields store
+///                the coordinates of the patch's extent (excluding ghost cells).
 /// \memberof unimesh
 bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
                         int* i, int* j, int* k,

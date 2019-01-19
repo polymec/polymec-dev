@@ -1702,10 +1702,25 @@ static lua_class_method um_methods[] = {
 static int bm_new_(lua_State* L)
 {
   if (!lua_is_mpi_comm(L, 1))
-    luaL_error(L, "Argument must be an mpi.comm.");
+    luaL_error(L, "Argument 1 must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, 1);
+  if (!lua_isinteger(L, 2))
+    luaL_error(L, "Argument 2 must be a positive number of x cells in a patch.");
+  int patch_nx = (int)lua_tointeger(L, 2);
+  if (patch_nx <= 0)
+    luaL_error(L, "Argument 2 must be a positive number of x cells in a patch.");
+  if (!lua_isinteger(L, 3))
+    luaL_error(L, "Argument 3 must be a positive number of y cells in a patch.");
+  int patch_ny = (int)lua_tointeger(L, 3);
+  if (patch_ny <= 0)
+    luaL_error(L, "Argument 2 must be a positive number of y cells in a patch.");
+  if (!lua_isinteger(L, 4))
+    luaL_error(L, "Argument 4 must be a positive number of z cells in a patch.");
+  int patch_nz = (int)lua_tointeger(L, 4);
+  if (patch_nz <= 0)
+    luaL_error(L, "Argument 4 must be a positive number of z cells in a patch.");
 
-  blockmesh_t* mesh = blockmesh_new(comm);
+  blockmesh_t* mesh = blockmesh_new(comm, patch_nx, patch_ny, patch_nz);
   lua_push_blockmesh(L, mesh);
   return 1;
 }
@@ -1731,7 +1746,7 @@ static int bm_repartition(lua_State* L)
 }
 
 static lua_module_function bm_funcs[] = {
-  {"new", bm_new_, "blockmesh.new(comm) -> New empty block-structured mesh."},
+  {"new", bm_new_, "blockmesh.new(comm, patch_nx, patch_ny, patch_nz) -> New empty block-structured mesh with the given patch diemensions."},
   {"repartition", bm_repartition, "blockmesh.repartition(m) -> Repartitions the blockmesh m."},
   {NULL, NULL, NULL}
 };
@@ -1785,15 +1800,22 @@ static int bm_add_block(lua_State* L)
   blockmesh_t* m = lua_to_blockmesh(L, 1);
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
-  if (!lua_is_unimesh(L, 2))
-    return luaL_error(L, "Argument must be a unimesh.");
-  unimesh_t* block = lua_to_unimesh(L, 2);
-  if (unimesh_is_finalized(block))
-  {
-    return luaL_error(L, "A unimesh block must not be finalized before being "
-                         "added to a blockmesh.");
-  }
-  blockmesh_add_block(m, block);
+  if (!lua_isinteger(L, 2))
+    return luaL_error(L, "Argument 1 must be a positive number of x patches.");
+  int npx = (int)lua_tointeger(L, 2);
+  if (npx <= 0)
+    return luaL_error(L, "Argument 1 must be a positive number of x patches.");
+  if (!lua_isinteger(L, 3))
+    return luaL_error(L, "Argument 2 must be a positive number of y patches.");
+  int npy = (int)lua_tointeger(L, 3);
+  if (npy <= 0)
+    return luaL_error(L, "Argument 2 must be a positive number of y patches.");
+  if (!lua_isinteger(L, 4))
+    return luaL_error(L, "Argument 3 must be a positive number of z patches.");
+  int npz = (int)lua_tointeger(L, 4);
+  if (npz <= 0)
+    return luaL_error(L, "Argument 3 must be a positive number of z patches.");
+  blockmesh_add_block(m, npx, npy, npz);
   return 0;
 }
 
@@ -1893,11 +1915,11 @@ static int bm_tostring(lua_State* L)
 
 static lua_class_method bm_methods[] = {
   {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
-  {"add_block", bm_add_block, "mesh:add_block(block) - Adds a unimesh block to this mesh."},
-  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks{index1 = I1, boundary1 = B1, "
-                                        "trans1 = T1, index2 = I2, boundary2 = B2, trans2 = T2} "
-                                        "- Connects two blocks in this mesh, optionally providing "
-                                        "transformations T1 and T2 for fields transferred between blocks."},
+  {"add_block", bm_add_block, "mesh:add_block(num_x_patches, num_y_patches, num_z_patches) - Adds a new empty block to this mesh."},
+  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks{block1 = B1, nodes1 = {n11, n12, n13, n14}, "
+                                        "block2 = B2, nodes = {n21, n22, n23, n24} "
+                                        "- Connects two blocks with indices B1 and B2 in the mesh, specifying the "
+                                        "  nodes to identify on the boundary."},
   {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
   {"__tostring", bm_tostring, NULL},
   {NULL, NULL, NULL}

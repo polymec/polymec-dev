@@ -56,7 +56,10 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 /// \param [in] num_z_patches The number of patches in the "z" direction within the new block.
 /// \returns the index of the new block within the blockmesh.
 /// \memberof blockmesh
-int blockmesh_add_block(blockmesh_t* mesh, int num_x_patches, int num_y_patches, int num_z_patches);
+int blockmesh_add_block(blockmesh_t* mesh, 
+                        int num_x_patches, 
+                        int num_y_patches, 
+                        int num_z_patches);
 
 /// Returns the block boundary associated with the given set of block nodes, or -1 
 /// if the nodes do not match any of the block's faces. 
