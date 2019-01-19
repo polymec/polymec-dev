@@ -172,6 +172,8 @@ gol:add_probe(probe, {0, pattern.steps})
 
 -- Check some things.
 assert(gol.name == 'game_of_life')
+gol.min_dt = 1
+assert(gol.min_dt == 1)
 gol.max_dt = 1
 assert(gol.max_dt == 1)
 gol.initial_dt = 1
