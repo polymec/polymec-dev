@@ -1055,6 +1055,7 @@ static void read_colmesh_chunk_data(silo_file_t* file,
       field_metadata_set_units(md, c, units);
       field_metadata_set_conserved(md, c, (int)(mda[1+label_size+1+units_size]));
       field_metadata_set_extensive(md, c, (int)(mda[1+label_size+1+units_size+1]));
+      polymec_free(mda);
     }
 
     polymec_free(data);

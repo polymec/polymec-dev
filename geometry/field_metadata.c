@@ -156,6 +156,8 @@ void field_metadata_set_extensive(field_metadata_t* md,
 
 void field_metadata_set_vector(field_metadata_t* md, int component)
 {
+  ASSERT(component >= 0);
+  ASSERT(component <= (md->num_comps - 3));
   md->comp_types[component] = FIELD_VECTOR;
 }
 
@@ -188,6 +190,8 @@ bool field_metadata_next_vector(field_metadata_t* md,
 
 void field_metadata_set_tensor2(field_metadata_t* md, int component)
 {
+  ASSERT(component >= 0);
+  ASSERT(component <= (md->num_comps - 9));
   md->comp_types[component] = FIELD_TENSOR2;
 }
 
@@ -220,6 +224,8 @@ bool field_metadata_next_tensor2(field_metadata_t* md,
 
 void field_metadata_set_symtensor2(field_metadata_t* md, int component)
 {
+  ASSERT(component >= 0);
+  ASSERT(component <= (md->num_comps - 6));
   md->comp_types[component] = FIELD_SYMTENSOR2;
 }
 
