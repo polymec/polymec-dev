@@ -91,6 +91,12 @@ void field_metadata_set_extensive(field_metadata_t* md,
                                   int component,
                                   bool extensive);
 
+/// Specifies that the given component in the field associated with this metadata is 
+/// the first component of a (3-component) vector.
+/// \param [in] component The component at which a vector-valued quantity begins.
+/// \memberof field_metadata
+void field_metadata_set_vector(field_metadata_t* md, int component);
+
 /// Returns true if the field for this metadata contains one or more vector-
 /// valued quantities, false if it contains none.
 /// \memberof field_metadata
@@ -109,6 +115,12 @@ bool field_metadata_next_vector(field_metadata_t* md,
                                 int* pos,
                                 int* comp);
 
+/// Specifies that the given component in the field associated with this metadata is 
+/// the first component of a (9-component) rank 2 tensor.
+/// \param [in] component The component at which a rank 2 tensor-valued quantity begins.
+/// \memberof field_metadata
+void field_metadata_set_tensor2(field_metadata_t* md, int component);
+
 /// Returns true if the field for this metadata contains one or more rank 2 
 /// tensor2-valued quantities, false if it contains none.
 /// \memberof field_metadata
@@ -126,6 +138,12 @@ bool field_metadata_has_tensor2s(field_metadata_t* md);
 bool field_metadata_next_tensor2(field_metadata_t* md,
                                  int* pos,
                                  int* comp);
+
+/// Specifies that the given component in the field associated with this metadata is 
+/// the first component of a (6-component) symmetric rank 2 tensor.
+/// \param [in] component The component at which a rank 2 symmetric tensor-valued quantity begins.
+/// \memberof field_metadata
+void field_metadata_set_symtensor2(field_metadata_t* md, int component);
 
 /// Returns true if the field for this metadata contains one or more rank 2 
 /// symmetric tensor2-valued quantities, false if it contains none.

@@ -82,7 +82,7 @@ field_metadata_t* field_metadata_clone(field_metadata_t* md)
 
 const char* field_metadata_name(field_metadata_t* md, int component)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   return md->names[component];
 }
@@ -91,16 +91,19 @@ void field_metadata_set_name(field_metadata_t* md,
                              int component,
                              const char* name)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   if (md->names[component] != NULL)
     string_free(md->names[component]);
-  md->names[component] = string_dup(name);
+  if (name != NULL)
+    md->names[component] = string_dup(name);
+  else
+    md->names[component] = NULL;
 }
 
 const char* field_metadata_units(field_metadata_t* md, int component)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   return md->units[component];
 }
@@ -109,16 +112,19 @@ void field_metadata_set_units(field_metadata_t* md,
                               int component, 
                               const char* units)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   if (md->units[component] != NULL)
     string_free(md->units[component]);
-  md->units[component] = string_dup(units);
+  if (units != NULL)
+    md->units[component] = string_dup(units);
+  else
+    md->units[component] = NULL;
 }
 
 bool field_metadata_conserved(field_metadata_t* md, int component)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   return md->conserved[component];
 }
@@ -127,14 +133,14 @@ void field_metadata_set_conserved(field_metadata_t* md,
                                   int component,
                                   bool conserved)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   md->conserved[component] = conserved;
 }
 
 bool field_metadata_extensive(field_metadata_t* md, int component)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   return md->extensive[component];
 }
@@ -143,9 +149,14 @@ void field_metadata_set_extensive(field_metadata_t* md,
                                   int component,
                                   bool extensive)
 {
-  ASSERT(component > 0);
+  ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   md->extensive[component] = extensive;
+}
+
+void field_metadata_set_vector(field_metadata_t* md, int component)
+{
+  md->comp_types[component] = FIELD_VECTOR;
 }
 
 bool field_metadata_has_vectors(field_metadata_t* md)
@@ -175,6 +186,11 @@ bool field_metadata_next_vector(field_metadata_t* md,
     return false;
 }
 
+void field_metadata_set_tensor2(field_metadata_t* md, int component)
+{
+  md->comp_types[component] = FIELD_TENSOR2;
+}
+
 bool field_metadata_has_tensor2s(field_metadata_t* md)
 {
   for (int c = 0; c < md->num_comps; ++c)
@@ -200,6 +216,11 @@ bool field_metadata_next_tensor2(field_metadata_t* md,
   }
   else
     return false;
+}
+
+void field_metadata_set_symtensor2(field_metadata_t* md, int component)
+{
+  md->comp_types[component] = FIELD_SYMTENSOR2;
 }
 
 bool field_metadata_has_symtensor2s(field_metadata_t* md)

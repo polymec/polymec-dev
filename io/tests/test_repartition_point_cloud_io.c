@@ -162,7 +162,7 @@ static void test_repartition_linear_cloud(void** state,
   const char* pname[] = {"rank"};
   for (int i = 0; i < cloud->num_points; ++i)
     p[i][0] = 1.0*rank;
-  silo_file_write_point_field(silo, pname, "cloud", pfield, NULL);
+  silo_file_write_point_field(silo, pname, "cloud", pfield);
   silo_file_close(silo);
 
   // Clean up.

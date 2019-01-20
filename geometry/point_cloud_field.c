@@ -37,13 +37,21 @@ point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
   point_cloud_observer_t* obs = point_cloud_observer_new(field, obs_vtable);
   point_cloud_add_observer(cloud, obs);
 
+  field->md = field_metadata_new(num_components);
+
   return field;
 }
 
 void point_cloud_field_free(point_cloud_field_t* field)
 {
   polymec_free(field->data);
+  release_ref(field->md);
   polymec_free(field);
+}
+
+field_metadata_t* point_cloud_field_metadata(point_cloud_field_t* field)
+{
+  return field->md;
 }
 
 real_enumerable_generator_t* point_cloud_field_enumerate(point_cloud_field_t* field)

@@ -32,30 +32,6 @@
 /// compression.
 void silo_enable_compression(int level);
 
-/// \struct silo_field_metadata_t
-/// This type represents a collection of metadata for field variables in 
-/// Silo files. 
-/// \refcounted
-struct silo_field_metadata_t
-{
-  /// A visualization label. Owned by metadata.
-  char* label; 
-  /// Units of measure. Owned by metadata.
-  char* units; 
-  /// True if the field is conserved, false if not.
-  bool conserved; 
-  /// True if the field is extensive, false if not.
-  bool extensive; 
-  /// The index of the vector component that the field represents, or -1 if 
-  /// the field is not the component of a vector.
-  int vector_component; 
-};
-typedef struct silo_field_metadata_t silo_field_metadata_t;
-
-/// Creates a new empty object for storing field metadata.
-/// \memberof silo_field_metadata
-silo_field_metadata_t* silo_field_metadata_new(void);
-
 /// \class silo_file
 /// A Silo file stores various geometries (meshes) and data, using 
 /// "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
@@ -154,20 +130,15 @@ void silo_file_write_unimesh_field(silo_file_t* file,
                                    const char** field_component_names,
                                    const char* mesh_name,
                                    unimesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata,
                                    coord_mapping_t* mapping);
 
 /// Reads a uniform cartesian mesh field with the given component names from 
 /// the given Silo file if it is associated with the mesh with the given name. 
-/// If an non-NULL array of silo_field_metadata objects is passed as the last 
-/// argument, metadata for each field will be read into corresponding entries 
-/// there--otherwise it can be NULL.
 /// \memberof silo_file
 void silo_file_read_unimesh_field(silo_file_t* file, 
                                   const char** field_component_names,
                                   const char* mesh_name,
-                                  unimesh_field_t* field,
-                                  silo_field_metadata_t** field_metadata);
+                                  unimesh_field_t* field);
 
 /// Returns true if the Silo file contains a uniform cartesian mesh field
 /// (or component) with the given name, associated with mesh with the given 
@@ -215,20 +186,15 @@ void silo_file_write_colmesh_field(silo_file_t* file,
                                     const char** field_component_names,
                                     const char* mesh_name,
                                     colmesh_field_t* field,
-                                    silo_field_metadata_t** field_metadata,
                                     coord_mapping_t* mapping);
 
 /// Reads a prism mesh field with the given component names from 
 /// the given Silo file if it is associated with the mesh with the given name. 
-/// If an non-NULL array of silo_field_metadata objects is passed as the last 
-/// argument, metadata for each field will be read into corresponding entries 
-/// there--otherwise it can be NULL.
 /// \memberof silo_file
 void silo_file_read_colmesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
-                                   const char* mesh_name,
-                                   colmesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata);
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  colmesh_field_t* field);
 
 /// Returns true if the Silo file contains a prism mesh field component
 /// (or component) with the given name, associated with mesh with the given 
@@ -258,26 +224,20 @@ bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name);
 
 /// Writes a named multicomponent field of the given centering on a polymesh, 
 /// understood to exist on the polymesh with the given name, to the given Silo 
-/// file. The field data is interpreted to be in component-minor order. If an 
-/// array of metadata objects is passed as the last argument, the metadata for 
-/// the field will also be written to the file--otherwise it can be NULL.
+/// file. The field data is interpreted to be in component-minor order. 
 /// \memberof silo_file
 void silo_file_write_polymesh_field(silo_file_t* file,
                                     const char** field_component_names,
                                     const char* mesh_name,
-                                    polymesh_field_t* field,
-                                    silo_field_metadata_t** field_metadata);
+                                    polymesh_field_t* field);
 
 /// Reads a named multicomponent field with the given polymesh centering from 
-/// the Silo file, returning a newly-allocated array of field data. If an array 
-/// of metadata objects is passed as the last argument, the metadata for the 
-/// field will be read into it--otherwise it can be NULL.
+/// the Silo file, returning a newly-allocated array of field data. 
 /// \memberof silo_file
 void silo_file_read_polymesh_field(silo_file_t* file,
                                    const char** field_component_names,
                                    const char* mesh_name,
-                                   polymesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata);
+                                   polymesh_field_t* field);
 
 /// Returns true if the given Silo file contains a polymesh field component
 /// with the given centering and name, and associated with the given polymesh, 
@@ -323,25 +283,19 @@ bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name);
 
 /// Writes a named multicomponent point field to the given Silo file, 
 /// associated with the given point cloud. The field data is interpreted to 
-/// be in component-minor order. If an array of metadata objects is passed as 
-/// the last argument, the metadata for the field will also be written to the 
-/// file--otherwise it can be NULL.
+/// be in component-minor order.
 /// \memberof silo_file
 void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
                                  const char* cloud_name,
-                                 point_cloud_field_t* field,
-                                 silo_field_metadata_t** field_metadata);
+                                 point_cloud_field_t* field);
 
 /// Reads a named multicomponent point field from the Silo file.
-/// If an array of metadata objects is passed as the last argument, the 
-/// metadata for the field will be read into it--otherwise it can be NULL.
 /// \memberof silo_file
 void silo_file_read_point_field(silo_file_t* file,
                                 const char** field_component_names,
                                 const char* cloud_name,
-                                point_cloud_field_t* field,
-                                silo_field_metadata_t** field_metadata);
+                                point_cloud_field_t* field);
 
 /// Returns true if the given Silo file contains a (scalar) point field 
 /// with the given name and associated with the given cloud, false otherwise.

@@ -89,11 +89,11 @@ static void test_partition_linear_mesh(void** state)
   DECLARE_POLYMESH_FIELD_ARRAY(r, rfield);
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c][0] = 1.0*rank;
-  silo_field_metadata_t* r_metadata = silo_field_metadata_new();
-  r_metadata->label = string_dup("P");
-  r_metadata->conserved = true;
+  field_metadata_t* r_metadata = polymesh_field_metadata(rfield);
+  field_metadata_set_name(r_metadata, 0, "P");
+  field_metadata_set_conserved(r_metadata, 0, true);
   const char* rname[] = {"rank"};
-  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, &r_metadata);
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield);
   silo_file_close(silo);
 
   // Clean up.
@@ -156,7 +156,7 @@ static void test_partition_slab_mesh(void** state)
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c][0] = 1.0*rank;
   const char* rname[] = {"rank"};
-  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, NULL);
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield);
   silo_file_close(silo);
 
   // Clean up.
@@ -219,7 +219,7 @@ static void test_partition_box_mesh(void** state)
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c][0] = 1.0*rank;
   const char* rname[] = {"rank"};
-  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, NULL);
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield);
   silo_file_close(silo);
 
   // Clean up.

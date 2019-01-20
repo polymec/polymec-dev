@@ -86,7 +86,7 @@ static void test_write_unimesh_cell_field(void** state)
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_cell_field", 1, 0, 0.0);
   silo_file_write_unimesh(silo, "mesh", mesh, NULL);
   const char* field_names[4] = {"f1", "f2", "f3", "f4"};
-  silo_file_write_unimesh_field(silo, field_names, "mesh", field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", field, NULL);
   silo_file_close(silo);
   unimesh_field_free(field);
   unimesh_free(mesh); 
@@ -101,7 +101,7 @@ static void test_write_unimesh_cell_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_CELL));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_CELL));
   field = unimesh_field_new(mesh, UNIMESH_CELL, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", field);
   pos = 0;
   while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -172,9 +172,9 @@ static void test_write_unimesh_face_field(void** state)
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_face_field", 1, 0, 0.0);
   silo_file_write_unimesh(silo, "mesh", mesh, NULL);
   const char* field_names[4] = {"f1", "f2", "f3", "f4"};
-  silo_file_write_unimesh_field(silo, field_names, "mesh", x_field, NULL, NULL);
-  silo_file_write_unimesh_field(silo, field_names, "mesh", y_field, NULL, NULL);
-  silo_file_write_unimesh_field(silo, field_names, "mesh", z_field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", x_field, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", y_field, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", z_field, NULL);
   silo_file_close(silo);
   unimesh_field_free(x_field);
   unimesh_field_free(y_field);
@@ -192,7 +192,7 @@ static void test_write_unimesh_face_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_XFACE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_XFACE));
   x_field = unimesh_field_new(mesh, UNIMESH_XFACE, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", x_field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", x_field);
   pos = 0;
   while (unimesh_field_next_patch(x_field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -209,7 +209,7 @@ static void test_write_unimesh_face_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_YFACE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_YFACE));
   y_field = unimesh_field_new(mesh, UNIMESH_YFACE, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", y_field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", y_field);
   pos = 0;
   while (unimesh_field_next_patch(y_field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -226,7 +226,7 @@ static void test_write_unimesh_face_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_ZFACE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_ZFACE));
   z_field = unimesh_field_new(mesh, UNIMESH_ZFACE, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", z_field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", z_field);
   pos = 0;
   while (unimesh_field_next_patch(z_field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -299,9 +299,9 @@ static void test_write_unimesh_edge_field(void** state)
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_edge_field", 1, 0, 0.0);
   silo_file_write_unimesh(silo, "mesh", mesh, NULL);
   const char* field_names[4] = {"f1", "f2", "f3", "f4"};
-  silo_file_write_unimesh_field(silo, field_names, "mesh", x_field, NULL, NULL);
-  silo_file_write_unimesh_field(silo, field_names, "mesh", y_field, NULL, NULL);
-  silo_file_write_unimesh_field(silo, field_names, "mesh", z_field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", x_field, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", y_field, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", z_field, NULL);
   silo_file_close(silo);
   unimesh_field_free(x_field);
   unimesh_field_free(y_field);
@@ -319,7 +319,7 @@ static void test_write_unimesh_edge_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_XEDGE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_XEDGE));
   x_field = unimesh_field_new(mesh, UNIMESH_XEDGE, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", x_field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", x_field);
   pos = 0;
   while (unimesh_field_next_patch(x_field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -336,7 +336,7 @@ static void test_write_unimesh_edge_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_YEDGE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_YEDGE));
   y_field = unimesh_field_new(mesh, UNIMESH_YEDGE, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", y_field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", y_field);
   pos = 0;
   while (unimesh_field_next_patch(y_field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -353,7 +353,7 @@ static void test_write_unimesh_edge_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_ZEDGE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_ZEDGE));
   z_field = unimesh_field_new(mesh, UNIMESH_ZEDGE, 4);
-  silo_file_read_unimesh_field(silo, field_names, "mesh", z_field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", z_field);
   pos = 0;
   while (unimesh_field_next_patch(z_field, &pos, &I, &J, &K, &patch, NULL))
   {
@@ -402,7 +402,7 @@ static void test_write_unimesh_node_field(void** state)
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_node_field", 1, 0, 0.0);
   silo_file_write_unimesh(silo, "mesh", mesh, NULL);
   const char* field_names[4] = {"f1", "f2", "f3", "f4"};
-  silo_file_write_unimesh_field(silo, field_names, "mesh", field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", field, NULL);
   silo_file_close(silo);
   unimesh_field_free(field);
   unimesh_free(mesh); 
@@ -417,7 +417,7 @@ static void test_write_unimesh_node_field(void** state)
   assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_NODE));
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_NODE));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_NODE));
-  silo_file_read_unimesh_field(silo, field_names, "mesh", field, NULL);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", field);
   pos = 0;
   while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))
   {

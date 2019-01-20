@@ -204,7 +204,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c][0] = 1.0*rank;
   const char* rname[] = {"rank"};
-  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, NULL);
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield);
   silo_file_close(silo);
 
   // Clean up.

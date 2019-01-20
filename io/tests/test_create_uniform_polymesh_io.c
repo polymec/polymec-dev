@@ -31,7 +31,7 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   const char* cnames[] = {"solution"};
   for (int c = 0; c < 4*4*4; ++c)
     cvals[c][0] = 1.0*c;
-  silo_file_write_polymesh_field(silo, cnames, "mesh", cfield, NULL);
+  silo_file_write_polymesh_field(silo, cnames, "mesh", cfield);
   silo_file_close(silo);
 
   // Query the plot file to make sure its numbers are good.
