@@ -920,28 +920,28 @@ static int st2_new(lua_State* L)
   real_t yy = lua_to_real(L, 4);
   real_t yz = lua_to_real(L, 5);
   real_t zz = lua_to_real(L, 6);
-  sym_tensor2_t* t = sym_tensor2_new(xx, xy, xz,
-                                         yy, yz,
-                                             zz);
-  lua_push_sym_tensor2(L, t);
+  symtensor2_t* t = symtensor2_new(xx, xy, xz,
+                                       yy, yz,
+                                           zz);
+  lua_push_symtensor2(L, t);
   return 1;
 }
 
-static lua_module_function sym_tensor2_funcs[] = {
-  {"new", st2_new, "sym_tensor2.new(txx, txy, txz, tyy, tyz, tzz) -> new symmetric rank 2 tensor."},
+static lua_module_function symtensor2_funcs[] = {
+  {"new", st2_new, "symtensor2.new(txx, txy, txz, tyy, tyz, tzz) -> new symmetric rank 2 tensor."},
   {NULL, NULL, NULL}
 };
 
 static int st2_xx(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->xx);
   return 1;
 }
 
 static int st2_set_xx(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->xx = lua_to_real(L, 2);
@@ -950,14 +950,14 @@ static int st2_set_xx(lua_State* L)
 
 static int st2_xy(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->xy);
   return 1;
 }
 
 static int st2_set_xy(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->xy = lua_to_real(L, 2);
@@ -966,14 +966,14 @@ static int st2_set_xy(lua_State* L)
 
 static int st2_xz(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->xz);
   return 1;
 }
 
 static int st2_set_xz(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->xz = lua_to_real(L, 2);
@@ -982,14 +982,14 @@ static int st2_set_xz(lua_State* L)
 
 static int st2_yx(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->xy);
   return 1;
 }
 
 static int st2_set_yx(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->xy = lua_to_real(L, 2);
@@ -998,14 +998,14 @@ static int st2_set_yx(lua_State* L)
 
 static int st2_yy(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->yy);
   return 1;
 }
 
 static int st2_set_yy(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->yy = lua_to_real(L, 2);
@@ -1014,14 +1014,14 @@ static int st2_set_yy(lua_State* L)
 
 static int st2_yz(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->yz);
   return 1;
 }
 
 static int st2_set_yz(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->yz = lua_to_real(L, 2);
@@ -1030,14 +1030,14 @@ static int st2_set_yz(lua_State* L)
 
 static int st2_zx(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->xz);
   return 1;
 }
 
 static int st2_set_zx(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->xz = lua_to_real(L, 2);
@@ -1046,14 +1046,14 @@ static int st2_set_zx(lua_State* L)
 
 static int st2_zy(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->yz);
   return 1;
 }
 
 static int st2_set_zy(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->yz = lua_to_real(L, 2);
@@ -1062,21 +1062,21 @@ static int st2_set_zy(lua_State* L)
 
 static int st2_zz(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   lua_pushnumber(L, (double)t->zz);
   return 1;
 }
 
 static int st2_set_zz(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
   t->zz = lua_to_real(L, 2);
   return 0;
 }
 
-static lua_class_field sym_tensor2_fields[] = {
+static lua_class_field symtensor2_fields[] = {
   {"xx", st2_xx, st2_set_xx},
   {"xy", st2_xy, st2_set_xy},
   {"xz", st2_xz, st2_set_xz},
@@ -1091,66 +1091,66 @@ static lua_class_field sym_tensor2_fields[] = {
 
 static int st2_add(lua_State* L)
 {
-  sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
-  sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
+  symtensor2_t* t1 = lua_to_symtensor2(L, 1);
+  symtensor2_t* t2 = lua_to_symtensor2(L, 2);
   if ((t1 == NULL) || (t2 == NULL))
-    luaL_error(L, "Arguments must both be sym_tensor2s.");
-  sym_tensor2_t* sum = sym_tensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
-                                                        t1->yy + t2->yy, t1->yz + t2->yz,
-                                                                         t1->zz + t2->zz);
-  lua_push_sym_tensor2(L, sum);
+    luaL_error(L, "Arguments must both be symtensor2s.");
+  symtensor2_t* sum = symtensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
+                                                      t1->yy + t2->yy, t1->yz + t2->yz,
+                                                                       t1->zz + t2->zz);
+  lua_push_symtensor2(L, sum);
   return 1;
 }
 
 static int st2_sub(lua_State* L)
 {
-  sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
-  sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
+  symtensor2_t* t1 = lua_to_symtensor2(L, 1);
+  symtensor2_t* t2 = lua_to_symtensor2(L, 2);
   if ((t1 == NULL) || (t2 == NULL))
-    luaL_error(L, "Arguments must both be sym_tensor2s.");
-  sym_tensor2_t* diff = sym_tensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
-                                                         t1->yy - t2->yy, t1->yz - t2->yz,
-                                                         t1->zz - t2->zz);
-  lua_push_sym_tensor2(L, diff);
+    luaL_error(L, "Arguments must both be symtensor2s.");
+  symtensor2_t* diff = symtensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
+                                                       t1->yy - t2->yy, t1->yz - t2->yz,
+                                                                        t1->zz - t2->zz);
+  lua_push_symtensor2(L, diff);
   return 1;
 }
 
 static int st2_mul(lua_State* L)
 {
-  if ((!lua_isnumber(L, 1) || !lua_is_sym_tensor2(L, 2)) &&
-      (!lua_is_sym_tensor2(L, 1) || !lua_isnumber(L, 2)))
-    luaL_error(L, "Arguments must be a sym_tensor2 and a number.");
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
+  if ((!lua_isnumber(L, 1) || !lua_is_symtensor2(L, 2)) &&
+      (!lua_is_symtensor2(L, 1) || !lua_isnumber(L, 2)))
+    luaL_error(L, "Arguments must be a symtensor2 and a number.");
+  symtensor2_t* t = lua_to_symtensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
   real_t c = lua_to_real(L, (lua_isnumber(L, 1)) ? 1 : 2);
-  sym_tensor2_t* t1 = sym_tensor2_new(c * t->xx, c * t->xy, c * t->xz,
-                                                 c * t->yy, c * t->yz,
-                                                            c * t->zz);
-  lua_push_sym_tensor2(L, t1);
+  symtensor2_t* t1 = symtensor2_new(c * t->xx, c * t->xy, c * t->xz,
+                                               c * t->yy, c * t->yz,
+                                                          c * t->zz);
+  lua_push_symtensor2(L, t1);
   return 1;
 }
 
 static int st2_div(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
   if (t == NULL)
-    luaL_error(L, "Argument 1 must be a sym_tensor2.");
+    luaL_error(L, "Argument 1 must be a symtensor2.");
   if (!lua_isnumber(L, 2))
     luaL_error(L, "Argument 2 must be a number.");
   real_t c = lua_to_real(L, 2);
-  sym_tensor2_t* t1 = sym_tensor2_new(t->xx/c, t->xy/c, t->xz/c,
-                                               t->yy/c, t->yz/c,
-                                                        t->zz/c);
-  lua_push_sym_tensor2(L, t1);
+  symtensor2_t* t1 = symtensor2_new(t->xx/c, t->xy/c, t->xz/c,
+                                             t->yy/c, t->yz/c,
+                                                      t->zz/c);
+  lua_push_symtensor2(L, t1);
   return 1;
 }
 
 static int st2_unm(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
-  sym_tensor2_t* t1 = sym_tensor2_new(-1.0 * t->xx, -1.0 * t->xy, -1.0 * t->xz,
-                                                    -1.0 * t->yy, -1.0 * t->yz,
-                                                                  -1.0 * t->zz);
-  lua_push_sym_tensor2(L, t1);
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
+  symtensor2_t* t1 = symtensor2_new(-1.0 * t->xx, -1.0 * t->xy, -1.0 * t->xz,
+                                                  -1.0 * t->yy, -1.0 * t->yz,
+                                                                -1.0 * t->zz);
+  lua_push_symtensor2(L, t1);
   return 1;
 }
 
@@ -1162,13 +1162,13 @@ static int st2_len(lua_State* L)
 
 static int st2_tostring(lua_State* L)
 {
-  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
-  lua_pushfstring(L, "sym_tensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+  symtensor2_t* t = lua_to_symtensor2(L, 1);
+  lua_pushfstring(L, "symtensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
                   t->xx, t->xy, t->xz, t->xy, t->yy, t->yz, t->xz, t->yz, t->zz);
   return 1;
 }
 
-static lua_class_method sym_tensor2_methods[] = {
+static lua_class_method symtensor2_methods[] = {
   {"__add", st2_add, NULL},
   {"__sub", st2_sub, NULL},
   {"__mul", st2_mul, NULL},
@@ -2212,11 +2212,11 @@ static int lua_register_constants(lua_State* L)
   lua_setfield(L, -2, "unit");
   lua_pop(L, 1);
 
-  lua_getglobal(L, "sym_tensor2");
-  sym_tensor2_t I_sym = {.xx = 1.0, .xy = 0.0, .xz = 0.0,
+  lua_getglobal(L, "symtensor2");
+  symtensor2_t I_sym = {.xx = 1.0, .xy = 0.0, .xz = 0.0,
                                     .yy = 1.0, .yz = 0.0,
                                                .zz = 1.0};
-  lua_push_sym_tensor2(L, &I_sym);
+  lua_push_symtensor2(L, &I_sym);
   lua_setfield(L, -2, "unit");
   lua_pop(L, 1);
 
@@ -2496,7 +2496,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_class(L, "point2", "A 2D point.", point2_funcs, point2_fields, point2_methods, NULL);
   lua_register_class(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_methods, NULL);
   lua_register_class(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_methods, NULL);
-  lua_register_class(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_methods, NULL);
+  lua_register_class(L, "symtensor2", "A symmetric rank 2 tensor.", symtensor2_funcs, symtensor2_fields, symtensor2_methods, NULL);
   lua_register_array(L);
   lua_register_ndarray(L);
   lua_register_constants(L);
@@ -2612,19 +2612,19 @@ tensor2_t* lua_to_tensor2(lua_State* L, int index)
   return (tensor2_t*)lua_to_object(L, index, "tensor2");
 }
 
-void lua_push_sym_tensor2(lua_State* L, sym_tensor2_t* t)
+void lua_push_symtensor2(lua_State* L, symtensor2_t* t)
 {
-  lua_push_object(L, "sym_tensor2", t);
+  lua_push_object(L, "symtensor2", t);
 }
 
-bool lua_is_sym_tensor2(lua_State* L, int index)
+bool lua_is_symtensor2(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "sym_tensor2");
+  return lua_is_object(L, index, "symtensor2");
 }
 
-sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index)
+symtensor2_t* lua_to_symtensor2(lua_State* L, int index)
 {
-  return (sym_tensor2_t*)lua_to_object(L, index, "sym_tensor2");
+  return (symtensor2_t*)lua_to_object(L, index, "symtensor2");
 }
 
 void lua_push_mpi_comm(lua_State* L, MPI_Comm comm)

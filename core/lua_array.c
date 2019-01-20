@@ -43,8 +43,8 @@ void lua_array_get_type_str(lua_array_data_t type, char* type_str)
     strcpy(type_str, "vector");
   else if (type == LUA_ARRAY_TENSOR2)
     strcpy(type_str, "tensor2");
-  else // if (type == LUA_ARRAY_SYM_TENSOR2)
-    strcpy(type_str, "sym_tensor2");
+  else // if (type == LUA_ARRAY_SYMTENSOR2)
+    strcpy(type_str, "symtensor2");
 }
 
 // Also exposed for use by lua_ndarray.
@@ -72,8 +72,8 @@ size_t lua_array_elem_size(lua_array_data_t type)
     size = sizeof(vector_t);
   else if (type == LUA_ARRAY_TENSOR2)
     size = sizeof(tensor2_t);
-  else // if (type == LUA_ARRAY_SYM_TENSOR2)
-    size = sizeof(sym_tensor2_t);
+  else // if (type == LUA_ARRAY_SYMTENSOR2)
+    size = sizeof(symtensor2_t);
   return size;
 }
 
@@ -143,10 +143,10 @@ static int array_index(lua_State* L)
     tensor2_array_t* tensors = a->array;
     lua_push_tensor2(L, &tensors->data[index-1]);
   }
-  else // if (a->type == LUA_ARRAY_SYM_TENSOR2)
+  else // if (a->type == LUA_ARRAY_SYMTENSOR2)
   {
-    sym_tensor2_array_t* tensors = a->array;
-    lua_push_sym_tensor2(L, &tensors->data[index-1]);
+    symtensor2_array_t* tensors = a->array;
+    lua_push_symtensor2(L, &tensors->data[index-1]);
   }
   return 1;
 }
@@ -229,12 +229,12 @@ static int array_newindex(lua_State* L)
     tensor2_array_t* tensors = a->array;
     tensors->data[index-1] = *lua_to_tensor2(L, 3);
   }
-  else // if (a->type == LUA_ARRAY_SYM_TENSOR2)
+  else // if (a->type == LUA_ARRAY_SYMTENSOR2)
   {
-    if (!lua_is_sym_tensor2(L, 3))
+    if (!lua_is_symtensor2(L, 3))
       luaL_error(L, "Invalid value: must be a symtensor2.");
-    sym_tensor2_array_t* tensors = a->array;
-    tensors->data[index-1] = *lua_to_sym_tensor2(L, 3);
+    symtensor2_array_t* tensors = a->array;
+    tensors->data[index-1] = *lua_to_symtensor2(L, 3);
   }
   return 0;
 }
@@ -640,22 +640,22 @@ static void* array_from_tensor2s(lua_State* L, int index)
   return tensors;
 }
 
-static void* array_from_sym_tensor2s(lua_State* L, int index)
+static void* array_from_symtensor2s(lua_State* L, int index)
 {
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
   if (len == 0) 
     return NULL;
-  sym_tensor2_array_t* tensors = sym_tensor2_array_new_with_capacity(len);
+  symtensor2_array_t* tensors = symtensor2_array_new_with_capacity(len);
   for (size_t i = 1; i <= len; ++i)
   {
     lua_rawgeti(L, index, (lua_Integer)i);
-    if (lua_is_sym_tensor2(L, -1))
-      sym_tensor2_array_append(tensors, *lua_to_sym_tensor2(L, -1));
+    if (lua_is_symtensor2(L, -1))
+      symtensor2_array_append(tensors, *lua_to_symtensor2(L, -1));
     else
     {
-      sym_tensor2_array_free(tensors);
+      symtensor2_array_free(tensors);
       tensors = NULL;
       break;
     }
@@ -686,8 +686,8 @@ static void* array_from_type(lua_State* L, int index, lua_array_data_t type)
     return array_from_vectors(L, index);
   else if (type == LUA_ARRAY_TENSOR2)
     return array_from_tensor2s(L, index);
-  else // if (type == LUA_ARRAY_SYM_TENSOR2)
-    return array_from_sym_tensor2s(L, index);
+  else // if (type == LUA_ARRAY_SYMTENSOR2)
+    return array_from_symtensor2s(L, index);
 }
 
 static int array_concat(lua_State* L)
@@ -821,15 +821,15 @@ static int array_concat(lua_State* L)
       tensor2_array_append(concat, d2->data[i]);
     lua_push_array(L, concat, type, true);
   }
-  else // if (type == LUA_ARRAY_SYM_TENSOR2)
+  else // if (type == LUA_ARRAY_SYMTENSOR2)
   {
-    sym_tensor2_array_t* d1 = a->array;
-    sym_tensor2_array_t* d2 = ar1;
-    sym_tensor2_array_t* concat = sym_tensor2_array_new();
+    symtensor2_array_t* d1 = a->array;
+    symtensor2_array_t* d2 = ar1;
+    symtensor2_array_t* concat = symtensor2_array_new();
     for (size_t i = 0; i < d1->size; ++i)
-      sym_tensor2_array_append(concat, d1->data[i]);
+      symtensor2_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
-      sym_tensor2_array_append(concat, d2->data[i]);
+      symtensor2_array_append(concat, d2->data[i]);
     lua_push_array(L, concat, type, true);
   }
   return 1;
@@ -860,8 +860,8 @@ static void array_dtor(void* context)
       vector_array_free((vector_array_t*)a->array);
     else if (a->type == LUA_ARRAY_TENSOR2)
       tensor2_array_free((tensor2_array_t*)a->array);
-    else // if (a->type == LUA_ARRAY_SYM_TENSOR2)
-      sym_tensor2_array_free((sym_tensor2_array_t*)a->array);
+    else // if (a->type == LUA_ARRAY_SYMTENSOR2)
+      symtensor2_array_free((symtensor2_array_t*)a->array);
   }
   polymec_free(a);
 }
@@ -989,8 +989,8 @@ lua_array_data_t lua_array_get_type(lua_State* L, const char* type_str, int inde
     return LUA_ARRAY_VECTOR;
   else if (strcmp(type_str, "tensor2") == 0) 
     return LUA_ARRAY_TENSOR2;
-  else if (strcmp(type_str, "sym_tensor2") == 0)
-    return LUA_ARRAY_SYM_TENSOR2;
+  else if (strcmp(type_str, "symtensor2") == 0)
+    return LUA_ARRAY_SYMTENSOR2;
   else
   {
     luaL_error(L, "Argument %d must be one of the following:\n"
@@ -1056,8 +1056,8 @@ void lua_register_array(lua_State* L)
   lua_setfield(L, -2, "vector");
   lua_pushstring(L, "tensor2");
   lua_setfield(L, -2, "tensor2");
-  lua_pushstring(L, "sym_tensor2");
-  lua_setfield(L, -2, "sym_tensor2");
+  lua_pushstring(L, "symtensor2");
+  lua_setfield(L, -2, "symtensor2");
 }
 
 void lua_push_array(lua_State* L, void* array, lua_array_data_t type, bool free_data)
@@ -1113,9 +1113,9 @@ void lua_push_array(lua_State* L, void* array, lua_array_data_t type, bool free_
     tensor2_array_t* tensors = array;
     a->size = tensors->size;
   }
-  else // if (type == LUA_ARRAY_SYM_TENSOR2)
+  else // if (type == LUA_ARRAY_SYMTENSOR2)
   {
-    sym_tensor2_array_t* tensors = array;
+    symtensor2_array_t* tensors = array;
     a->size = tensors->size;
   }
   a->array = array;

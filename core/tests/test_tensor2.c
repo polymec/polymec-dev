@@ -147,23 +147,23 @@ static void test_tensor2_array(void** state)
   tensor2_array_free(a);
 }
 
-static void test_sym_tensor2_ctor(void** state)
+static void test_symtensor2_ctor(void** state)
 {
-  sym_tensor2_t* t = sym_tensor2_new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+  symtensor2_t* t = symtensor2_new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
   assert_true(reals_equal(t->xx, 1.0));
   assert_true(reals_equal(t->xy, 2.0));
   assert_true(reals_equal(t->xz, 3.0));
   assert_true(reals_equal(t->yy, 4.0));
   assert_true(reals_equal(t->yz, 5.0));
   assert_true(reals_equal(t->zz, 6.0));
-  sym_tensor2_fprintf(t, stdout);
+  symtensor2_fprintf(t, stdout);
   t = NULL;
 }
 
-static void test_sym_tensor2_set(void** state)
+static void test_symtensor2_set(void** state)
 {
-  sym_tensor2_t t;
-  sym_tensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+  symtensor2_t t;
+  symtensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
   assert_true(reals_equal(t.xx, 1.0));
   assert_true(reals_equal(t.xy, 2.0));
   assert_true(reals_equal(t.xz, 3.0));
@@ -172,10 +172,10 @@ static void test_sym_tensor2_set(void** state)
   assert_true(reals_equal(t.zz, 6.0));
 }
 
-static void test_sym_tensor2_set_identity(void** state)
+static void test_symtensor2_set_identity(void** state)
 {
-  sym_tensor2_t t;
-  sym_tensor2_set_identity(&t, 5.0);
+  symtensor2_t t;
+  symtensor2_set_identity(&t, 5.0);
   assert_true(reals_equal(t.xx, 5.0));
   assert_true(reals_equal(t.xy, 0.0));
   assert_true(reals_equal(t.xz, 0.0));
@@ -184,11 +184,11 @@ static void test_sym_tensor2_set_identity(void** state)
   assert_true(reals_equal(t.zz, 5.0));
 }
 
-static void test_sym_tensor2_scale(void** state)
+static void test_symtensor2_scale(void** state)
 {
-  sym_tensor2_t t;
-  sym_tensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
-  sym_tensor2_scale(&t, 2.0);
+  symtensor2_t t;
+  symtensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+  symtensor2_scale(&t, 2.0);
   assert_true(reals_equal(t.xx, 2.0));
   assert_true(reals_equal(t.xy, 4.0));
   assert_true(reals_equal(t.xz, 6.0));
@@ -197,41 +197,41 @@ static void test_sym_tensor2_scale(void** state)
   assert_true(reals_equal(t.zz, 12.0));
 }
 
-static void test_sym_tensor2_det(void** state)
+static void test_symtensor2_det(void** state)
 {
-  sym_tensor2_t t;
-  sym_tensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
-  real_t det_t = sym_tensor2_det(&t);
+  symtensor2_t t;
+  symtensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+  real_t det_t = symtensor2_det(&t);
   assert_true(reals_equal(det_t, 1.0 * (4.0*6.0-5.0*5.0) - 2.0 * (2.0*6.0-3.0*5.0) + 3.0 * (2.0*5.0-3.0*4.0)));
 }
 
-static void test_sym_tensor2_trace(void** state)
+static void test_symtensor2_trace(void** state)
 {
-  sym_tensor2_t t;
-  sym_tensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
-  real_t trace_t = sym_tensor2_trace(&t);
+  symtensor2_t t;
+  symtensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+  real_t trace_t = symtensor2_trace(&t);
   assert_true(reals_equal(trace_t, 1.0 + 4.0 + 6.0));
 }
 
-static void test_sym_tensor2_dot_vector(void** state)
+static void test_symtensor2_dot_vector(void** state)
 {
-  sym_tensor2_t t;
-  sym_tensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+  symtensor2_t t;
+  symtensor2_set(&t, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
   vector_t v = {.x = 1.0, .y = 2.0, .z = 3.0};
   vector_t t_o_v;
-  sym_tensor2_dot_vector(&t, &v, &t_o_v);
+  symtensor2_dot_vector(&t, &v, &t_o_v);
   assert_true(reals_equal(t_o_v.x, 14.0));
   assert_true(reals_equal(t_o_v.y, 25.0));
   assert_true(reals_equal(t_o_v.z, 31.0));
 }
 
-static void test_sym_tensor2_invert(void** state)
+static void test_symtensor2_invert(void** state)
 {
-  sym_tensor2_t A, Ainv;
-  sym_tensor2_set(&A, 1.0, 1.0, 1.0, 
+  symtensor2_t A, Ainv;
+  symtensor2_set(&A, 1.0, 1.0, 1.0, 
                            2.0, 2.0,
                                 3.0);
-  sym_tensor2_invert(&A, &Ainv);
+  symtensor2_invert(&A, &Ainv);
   assert_true(reals_nearly_equal(Ainv.xx, 2.0, 1e-14));
   assert_true(reals_nearly_equal(Ainv.xy, -1.0, 1e-14));
   assert_true(reals_nearly_equal(Ainv.xz, 0.0, 1e-14));
@@ -240,14 +240,14 @@ static void test_sym_tensor2_invert(void** state)
   assert_true(reals_nearly_equal(Ainv.zz, 1.0, 1e-14));
 }
 
-static void test_sym_tensor2_get_eigenvalues(void** state)
+static void test_symtensor2_get_eigenvalues(void** state)
 {
-  sym_tensor2_t A;
-  sym_tensor2_set(&A, 2.0, 0.0, 1.0, 
+  symtensor2_t A;
+  symtensor2_set(&A, 2.0, 0.0, 1.0, 
                            2.0, 0.0,
                                 2.0);
   real_t lambdas[3];
-  sym_tensor2_get_eigenvalues(&A, lambdas);
+  symtensor2_get_eigenvalues(&A, lambdas);
   assert_true(reals_nearly_equal(lambdas[0], 1.0, 1e-14));
   assert_true(reals_nearly_equal(lambdas[1], 2.0, 1e-14));
   assert_true(reals_nearly_equal(lambdas[2], 3.0, 1e-14));
@@ -255,24 +255,24 @@ static void test_sym_tensor2_get_eigenvalues(void** state)
 
 // This helper returns true if u is an eigenvector of A corresponding to 
 // the eigenvalue lambda, false if not.
-static bool is_eigenvector(sym_tensor2_t* A, real_t lambda, vector_t* u)
+static bool is_eigenvector(symtensor2_t* A, real_t lambda, vector_t* u)
 {
   vector_t Au;
-  sym_tensor2_dot_vector(A, u, &Au);
+  symtensor2_dot_vector(A, u, &Au);
   return (reals_nearly_equal(Au.x, lambda*u->x, 1e-14) &&
           reals_nearly_equal(Au.y, lambda*u->y, 1e-14) &&
           reals_nearly_equal(Au.z, lambda*u->z, 1e-14));
 }
 
-static void test_sym_tensor2_get_eigenvectors(void** state)
+static void test_symtensor2_get_eigenvectors(void** state)
 {
-  sym_tensor2_t A;
-  sym_tensor2_set(&A, 2.0, 0.0, 1.0, 
+  symtensor2_t A;
+  symtensor2_set(&A, 2.0, 0.0, 1.0, 
                            2.0, 0.0,
                                 2.0);
   real_t lambdas[3];
   vector_t us[3];
-  sym_tensor2_get_eigenvectors(&A, lambdas, us);
+  symtensor2_get_eigenvectors(&A, lambdas, us);
   assert_true(reals_nearly_equal(lambdas[0], 1.0, 1e-14));
   assert_true(reals_nearly_equal(lambdas[1], 2.0, 1e-14));
   assert_true(reals_nearly_equal(lambdas[2], 3.0, 1e-14));
@@ -287,16 +287,16 @@ static void test_sym_tensor2_get_eigenvectors(void** state)
               is_eigenvector(&A, lambdas[2], &us[2]));
 }
 
-static void test_sym_tensor2_array(void** state)
+static void test_symtensor2_array(void** state)
 {
-  sym_tensor2_array_t* a = sym_tensor2_array_new();
-  sym_tensor2_t A;
-  sym_tensor2_set(&A, 2.0, 0.0, 1.0, 
+  symtensor2_array_t* a = symtensor2_array_new();
+  symtensor2_t A;
+  symtensor2_set(&A, 2.0, 0.0, 1.0, 
                            2.0, 0.0,
                                 2.0);
   for (size_t i = 0; i < 10; ++i)
-    sym_tensor2_array_append(a, A);
-  sym_tensor2_array_free(a);
+    symtensor2_array_append(a, A);
+  symtensor2_array_free(a);
 }
 
 int main(int argc, char* argv[]) 
@@ -314,17 +314,17 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_tensor2_dot_vector_t),
     cmocka_unit_test(test_tensor2_invert),
     cmocka_unit_test(test_tensor2_array),
-    cmocka_unit_test(test_sym_tensor2_ctor),
-    cmocka_unit_test(test_sym_tensor2_set),
-    cmocka_unit_test(test_sym_tensor2_set_identity),
-    cmocka_unit_test(test_sym_tensor2_scale),
-    cmocka_unit_test(test_sym_tensor2_det),
-    cmocka_unit_test(test_sym_tensor2_trace),
-    cmocka_unit_test(test_sym_tensor2_dot_vector),
-    cmocka_unit_test(test_sym_tensor2_invert),
-    cmocka_unit_test(test_sym_tensor2_get_eigenvalues),
-    cmocka_unit_test(test_sym_tensor2_get_eigenvectors),
-    cmocka_unit_test(test_sym_tensor2_array)
+    cmocka_unit_test(test_symtensor2_ctor),
+    cmocka_unit_test(test_symtensor2_set),
+    cmocka_unit_test(test_symtensor2_set_identity),
+    cmocka_unit_test(test_symtensor2_scale),
+    cmocka_unit_test(test_symtensor2_det),
+    cmocka_unit_test(test_symtensor2_trace),
+    cmocka_unit_test(test_symtensor2_dot_vector),
+    cmocka_unit_test(test_symtensor2_invert),
+    cmocka_unit_test(test_symtensor2_get_eigenvalues),
+    cmocka_unit_test(test_symtensor2_get_eigenvectors),
+    cmocka_unit_test(test_symtensor2_array)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
