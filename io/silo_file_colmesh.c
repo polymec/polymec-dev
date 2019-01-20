@@ -886,6 +886,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
       size_t units_size = (units != NULL) ? strlen(units) : 0;
       size_t mda_size = 5 + label_size + units_size;
       int mda[mda_size];
+      memset(mda, 0, sizeof(int) * mda_size);
       mda[0] = (int)label_size; 
       for (size_t i = 0; i < label_size; ++i)
         mda[1+i] = (int)(name[i]);
