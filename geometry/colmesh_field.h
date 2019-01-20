@@ -10,6 +10,7 @@
 
 #include "core/declare_nd_array.h"
 #include "geometry/colmesh.h"
+#include "geometry/field_metadata.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -100,6 +101,11 @@ void colmesh_field_set_buffer(colmesh_field_t* field,
 /// Copies the data in this field to a destination field.
 /// \memberof colmesh_field
 void colmesh_field_copy(colmesh_field_t* field, colmesh_field_t* dest);
+
+/// Returns the metadata associated with this field. Every field has a 
+/// metadata object that is empty until its properties are specified.
+/// \memberof unimesh_field
+field_metadata_t* colmesh_field_metadata(colmesh_field_t* field);
 
 /// Returns the centering for the field.
 /// \memberof colmesh_field

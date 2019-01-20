@@ -43,6 +43,9 @@ struct unimesh_field_t
   int token; // -1 if not updating, otherwise non-negative.
   real_t update_t; // Time of pending update (or -REAL_MAX).
   patch_bc_map_t* patch_bcs;
+
+  // Metadata.
+  field_metadata_t* md;
 };
 
 static inline int patch_index(unimesh_field_t* field, int i, int j, int k)
@@ -126,6 +129,9 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   field->patch_bcs = patch_bc_map_new();
   STOP_FUNCTION_TIMER();
 
+  // Create a new empty metadata object.
+  field->md = field_metadata_new(num_components);
+
   return field;
 }
 
@@ -134,6 +140,7 @@ void unimesh_field_free(unimesh_field_t* field)
   patch_bc_map_free(field->patch_bcs);
   int_ptr_unordered_map_free(field->patches);
   polymec_free(field->patch_offsets);
+  release_ref(field->md);
   if (field->owns_buffer)
     polymec_free(field->buffer);
   polymec_free(field);
@@ -147,7 +154,17 @@ void unimesh_field_copy(unimesh_field_t* field,
   ASSERT(dest->centering == field->centering);
   ASSERT(dest->bytes == field->bytes);
   memcpy(dest->buffer, field->buffer, field->bytes);
+
+  // Copy metadata.
+  release_ref(dest->md);
+  dest->md = field_metadata_clone(field->md);
+
   STOP_FUNCTION_TIMER();
+}
+
+field_metadata_t* unimesh_field_metadata(unimesh_field_t* field)
+{
+  return field->md;
 }
 
 unimesh_centering_t unimesh_field_centering(unimesh_field_t* field)
