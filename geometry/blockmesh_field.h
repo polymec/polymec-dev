@@ -10,6 +10,7 @@
 
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_transfer.h"
+#include "geometry/field_metadata.h"
 
 typedef struct unimesh_field_t unimesh_field_t;
 
@@ -43,6 +44,10 @@ void blockmesh_field_free(blockmesh_field_t* field);
 /// \memberof blockmesh_field
 void blockmesh_field_copy(blockmesh_field_t* field,
                           blockmesh_field_t* dest);
+
+/// Returns the metadata associated with this blockmesh_field.
+/// \memberof blockmesh_field
+field_metadata_t* blockmesh_field_metadata(blockmesh_field_t* field);
 
 /// Returns the centering of the blockmesh_field.
 /// \memberof blockmesh_field

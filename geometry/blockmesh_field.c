@@ -21,6 +21,7 @@ struct blockmesh_field_t
   unimesh_centering_t centering;
   int num_components;
   bool updating;
+  field_metadata_t* md;
 };
 
 blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh, 
@@ -44,6 +45,9 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
     field_array_append_with_dtor(field->fields, block_field, unimesh_field_free);
   }
 
+  // Create metadata.
+  field->md = field_metadata_new(num_components);
+
   return field;
 }
 
@@ -51,6 +55,7 @@ void blockmesh_field_free(blockmesh_field_t* field)
 {
   transfer_map_free(field->transfer_ops);
   field_array_free(field->fields);
+  release_ref(field->md);
   polymec_free(field);
 }
 
@@ -59,6 +64,15 @@ void blockmesh_field_copy(blockmesh_field_t* field,
 {
   for (size_t i = 0; i < field->fields->size; ++i)
     unimesh_field_copy(field->fields->data[i], dest->fields->data[i]);
+
+  // Copy metadata.
+  release_ref(dest->md);
+  dest->md = field_metadata_clone(field->md);
+}
+
+field_metadata_t* blockmesh_field_metadata(blockmesh_field_t* field)
+{
+  return field->md;
 }
 
 unimesh_centering_t blockmesh_field_centering(blockmesh_field_t* field)
