@@ -125,18 +125,30 @@ bool silo_file_contains_unimesh(silo_file_t* file,
 /// silo_file_write_unimesh_field 3 times with the same field name, but with 
 /// the different fields. The silo_file, recognizing that they are face-centered
 /// fields, will preserve the existing information when writing each component.
+/// \param [in] field The unimesh_field to write to the file. 
+/// \param [in] field_name The name by the field is stored in the file.
+/// \param [in] mesh_name The name of the mesh on which the field is defined,
+///                       as stored by \ref silo_file_write_unimesh.
+/// \param [in] mapping If non-NULL, this mapping is applied to the field 
+///                     before it is stored.
 /// \memberof silo_file
 void silo_file_write_unimesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
-                                   const char* mesh_name,
                                    unimesh_field_t* field,
+                                   const char* field_name,
+                                   const char* mesh_name,
                                    coord_mapping_t* mapping);
 
 /// Reads a uniform cartesian mesh field with the given component names from 
 /// the given Silo file if it is associated with the mesh with the given name. 
+/// \param [in] field_name The name by which the field is stored.
+/// \param [in] mesh_name The name of the mesh on which the field is defined,
+///                       as stored by \ref silo_file_write_unimesh.
+/// \param [inout] field The unimesh_field in which the data from the file is 
+///                      stored. The names of the field components are taken from the 
+///                      field's metadata. 
 /// \memberof silo_file
 void silo_file_read_unimesh_field(silo_file_t* file, 
-                                  const char** field_component_names,
+                                  const char* field_name,
                                   const char* mesh_name,
                                   unimesh_field_t* field);
 
@@ -153,14 +165,14 @@ bool silo_file_contains_unimesh_field(silo_file_t* file,
 /// is non-NULL, the nodes of the cells are mapped accordingly.
 /// \memberof silo_file
 void silo_file_write_colmesh(silo_file_t* file, 
-                              const char* mesh_name,
-                              colmesh_t* mesh,
-                              coord_mapping_t* mapping);
+                             const char* mesh_name,
+                             colmesh_t* mesh,
+                             coord_mapping_t* mapping);
 
 /// Reads a prism mesh with the given name from the given Silo file. 
 /// \memberof silo_file
 colmesh_t* silo_file_read_colmesh(silo_file_t* file, 
-                                    const char* mesh_name);
+                                  const char* mesh_name);
 
 /// Returns true if the Silo file contains a prism mesh with the 
 /// given name, false if not. 
@@ -181,18 +193,32 @@ bool silo_file_contains_colmesh(silo_file_t* file,
 /// silo_file_write_colmesh_field twice with the same field name, but with 
 /// the different fields. The silo_file, recognizing that they are face-centered
 /// fields, will preserve the existing information when writing each component.
+/// \param [in] field The colmesh_field to write to the file. The names of the
+///                   components of the unimesh_field are taken from the field's
+///                   metadata.
+/// \param [in] field_name The name by the field is stored in the file.
+/// \param [in] mesh_name The name of the mesh on which the field is defined,
+///                       as stored by \ref silo_file_write_colmesh.
+/// \param [in] mapping If non-NULL, this mapping is applied to the field 
+///                     before it is stored.
 /// \memberof silo_file
 void silo_file_write_colmesh_field(silo_file_t* file, 
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    colmesh_field_t* field,
-                                    coord_mapping_t* mapping);
+                                   colmesh_field_t* field,
+                                   const char* field_name,
+                                   const char* mesh_name,
+                                   coord_mapping_t* mapping);
 
 /// Reads a prism mesh field with the given component names from 
 /// the given Silo file if it is associated with the mesh with the given name. 
+/// \param [in] field_name The name by which the field is stored.
+/// \param [in] mesh_name The name of the mesh on which the field is defined,
+///                       as stored by \ref silo_file_write_colmesh.
+/// \param [inout] field The colmesh_field in which the data from the file is 
+///                      stored. The names of the field components are taken from the 
+///                      field's metadata. 
 /// \memberof silo_file
 void silo_file_read_colmesh_field(silo_file_t* file, 
-                                  const char** field_component_names,
+                                  const char* field_name,
                                   const char* mesh_name,
                                   colmesh_field_t* field);
 
@@ -201,9 +227,9 @@ void silo_file_read_colmesh_field(silo_file_t* file,
 /// name, and with the given centering. Returns false otherwise.
 /// \memberof silo_file
 bool silo_file_contains_colmesh_field(silo_file_t* file, 
-                                       const char* field_name,
-                                       const char* mesh_name,
-                                       colmesh_centering_t centering);
+                                      const char* field_name,
+                                      const char* mesh_name,
+                                      colmesh_centering_t centering);
 
 /// Writes a named arbitrary polyhedral mesh to the given Silo file.
 /// \memberof silo_file
@@ -225,17 +251,29 @@ bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name);
 /// Writes a named multicomponent field of the given centering on a polymesh, 
 /// understood to exist on the polymesh with the given name, to the given Silo 
 /// file. The field data is interpreted to be in component-minor order. 
+/// \param [in] field_name The name by the field is stored in the file.
+/// \param [in] mesh_name The name of the mesh on which the field is defined,
+///                       as stored by \ref silo_file_write_unimesh.
+/// \param [in] field The polymesh_field to write to the file. The names of the
+///                   components of the unimesh_field are taken from the field's
+///                   metadata. 
 /// \memberof silo_file
 void silo_file_write_polymesh_field(silo_file_t* file,
-                                    const char** field_component_names,
+                                    const char* field_name,
                                     const char* mesh_name,
                                     polymesh_field_t* field);
 
 /// Reads a named multicomponent field with the given polymesh centering from 
 /// the Silo file, returning a newly-allocated array of field data. 
+/// \param [in] field_name The name by which the field is stored.
+/// \param [in] mesh_name The name of the mesh on which the field is defined,
+///                       as stored by \ref silo_file_write_polymesh.
+/// \param [inout] field The polymesh_field in which the data from the file is 
+///                      stored. The names of the field components are taken from the 
+///                      field's metadata. 
 /// \memberof silo_file
 void silo_file_read_polymesh_field(silo_file_t* file,
-                                   const char** field_component_names,
+                                   const char* field_name,
                                    const char* mesh_name,
                                    polymesh_field_t* field);
 
@@ -284,16 +322,28 @@ bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name);
 /// Writes a named multicomponent point field to the given Silo file, 
 /// associated with the given point cloud. The field data is interpreted to 
 /// be in component-minor order.
+/// \param [in] field The point_cloud_field to write to the file. The names of the
+///                   components of the unimesh_field are taken from the field's
+///                   metadata.
+/// \param [in] field_name The name by the field is stored in the file.
+/// \param [in] cloud_name The name of the point cloud on which the field is defined,
+///                        as stored by \ref silo_file_write_point_cloud.
 /// \memberof silo_file
 void silo_file_write_point_field(silo_file_t* file,
-                                 const char** field_component_names,
+                                 const char* field_name,
                                  const char* cloud_name,
                                  point_cloud_field_t* field);
 
 /// Reads a named multicomponent point field from the Silo file.
+/// \param [in] field_name The name by which the field is stored.
+/// \param [in] cloud_name The name of the point cloud on which the field is defined,
+///                        as stored by \ref silo_file_write_point_cloud.
+/// \param [inout] field The poin_cloud_field in which the data from the file is 
+///                      stored. The names of the field components are taken from the 
+///                      field's metadata. 
 /// \memberof silo_file
 void silo_file_read_point_field(silo_file_t* file,
-                                const char** field_component_names,
+                                const char* field_name,
                                 const char* cloud_name,
                                 point_cloud_field_t* field);
 

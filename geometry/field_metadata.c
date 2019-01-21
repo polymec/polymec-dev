@@ -80,6 +80,11 @@ field_metadata_t* field_metadata_clone(field_metadata_t* md)
   return clone;
 }
 
+int field_metadata_num_components(field_metadata_t* md)
+{
+  return md->num_comps;
+}
+
 const char* field_metadata_name(field_metadata_t* md, int component)
 {
   ASSERT(component >= 0);

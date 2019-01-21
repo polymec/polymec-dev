@@ -29,6 +29,10 @@ field_metadata_t* field_metadata_new(int num_components);
 /// \memberof field_metadata
 field_metadata_t* field_metadata_clone(field_metadata_t* md);
 
+/// Returns the number of components in the field described by this metadata.
+/// \memberof field_metadata
+int field_metadata_num_components(field_metadata_t* md);
+
 /// Returns an internal string containing the name of the given component of 
 /// the field, or NULL if the component has no associated name.
 /// \param [in] component The component for which the name is retrieved.
