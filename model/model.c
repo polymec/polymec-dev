@@ -351,7 +351,7 @@ real_t model_max_dt(model_t* model, char* reason)
   // First let the model have at it.
   if (model->vtable.max_dt != NULL)
   {
-    char model_reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
+    char model_reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
     real_t model_dt = model->vtable.max_dt(model->context, model->time, model_reason);
     if (model_dt < dt)
     {
@@ -438,7 +438,7 @@ void model_set_max_dt(model_t* model, real_t max_dt)
 void model_set_min_dt(model_t* model, real_t min_dt)
 {
   ASSERT(min_dt >= 0.0);
-  ASSERT(min_dt < model->max_dt);
+  ASSERT(min_dt <= model->max_dt);
   model->min_dt = min_dt;
 }
 

@@ -25,13 +25,16 @@
 // here, even though they are not part of polymec's API.
 extern MPI_Comm silo_file_comm(silo_file_t* file);
 extern DBfile* silo_file_dbfile(silo_file_t* file);
-extern DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata);
+extern DBoptlist* optlist_from_metadata(field_metadata_t* metadata, int component);
 extern void optlist_free(DBoptlist* optlist);
 extern void silo_file_add_subdomain_mesh(silo_file_t* file, const char* mesh_name, int silo_mesh_type, DBoptlist* optlist);
 extern void silo_file_add_subdomain_field(silo_file_t* file, const char* mesh_name, const char* field_name, int silo_field_type, DBoptlist* optlist);
 extern void silo_file_push_domain_dir(silo_file_t* file);
 extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
+extern void silo_file_write_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern void silo_file_read_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern bool silo_file_contains_field_metadata(silo_file_t* file, const char* md_name);
 
 extern exchanger_proc_map_t* colmesh_xy_data_send_map(colmesh_t* mesh, int xy_index);
 extern exchanger_proc_map_t* colmesh_xy_data_receive_map(colmesh_t* mesh, int xy_index);
@@ -292,37 +295,30 @@ bool silo_file_contains_colmesh(silo_file_t* file,
 }
 
 static void query_colmesh_vector_comps(colmesh_chunk_data_t* chunk_data,
-                                       silo_field_metadata_t** field_metadata,
+                                       field_metadata_t* md,
                                        coord_mapping_t* mapping,
                                        bool* is_vector_comp,
                                        int* first_vector_comp)
 {
-  int num_vector_comps = 0;
-  *first_vector_comp = -1;
-  if ((mapping != NULL) && (field_metadata != NULL))
+  if ((mapping != NULL) && (field_metadata_has_vectors(md)))
   {
-    for (int c = 0; c < chunk_data->num_components; ++c)
+    int pos = 0, start;
+    while (field_metadata_next_vector(md, &pos, first_vector_comp))
     {
-      if ((field_metadata[c] != NULL) && 
-          (field_metadata[c]->vector_component != -1))
-      {
-        if ((num_vector_comps % 3) == 0)
-        {
-          ASSERT(chunk_data->num_components >= c + 3); // If you start a vector, you better finish your vector.
-          *first_vector_comp = c;
-        }
-        is_vector_comp[c] = true;
-        ++num_vector_comps;
-      }
+      is_vector_comp[start] = true;
+      is_vector_comp[start+1] = true;
+      is_vector_comp[start+2] = true;
     }
   }
   else
+  {
     memset(is_vector_comp, 0, sizeof(bool) * chunk_data->num_components);
-  ASSERT((num_vector_comps % 3) == 0); // We should have complete sets of vector triples.
+    *first_vector_comp = -1;
+  }
 }
 
 static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
-                                            silo_field_metadata_t** field_metadata,
+                                            field_metadata_t* md,
                                             int c,
                                             coord_mapping_t* mapping,
                                             real_t* data)
@@ -331,8 +327,7 @@ static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
-  query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                              is_vector_comp, &first_vector_comp);
+  query_colmesh_vector_comps(chunk_data, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   DECLARE_COLMESH_NODE_ARRAY(a, chunk_data);
@@ -377,7 +372,7 @@ static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
-                                              silo_field_metadata_t** field_metadata,
+                                              field_metadata_t* md,
                                               int c,
                                               coord_mapping_t* mapping,
                                               real_t* data)
@@ -386,8 +381,7 @@ static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
-  query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                              is_vector_comp, &first_vector_comp);
+  query_colmesh_vector_comps(chunk_data, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   DECLARE_COLMESH_XYEDGE_ARRAY(a, chunk_data);
@@ -433,7 +427,7 @@ static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              coord_mapping_t* mapping,
                                              real_t* data)
@@ -442,8 +436,7 @@ static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
-  query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                              is_vector_comp, &first_vector_comp);
+  query_colmesh_vector_comps(chunk_data, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   colmesh_chunk_t* chunk = chunk_data->chunk;
@@ -487,7 +480,7 @@ static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
-                                              silo_field_metadata_t** field_metadata,
+                                              field_metadata_t* md,
                                               int c,
                                               coord_mapping_t* mapping,
                                               real_t* data)
@@ -496,8 +489,7 @@ static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
-  query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                              is_vector_comp, &first_vector_comp);
+  query_colmesh_vector_comps(chunk_data, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   int l = 0;
@@ -547,7 +539,7 @@ static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              coord_mapping_t* mapping,
                                              real_t* data)
@@ -556,8 +548,7 @@ static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
-  query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                              is_vector_comp, &first_vector_comp);
+  query_colmesh_vector_comps(chunk_data, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data from the chunk.
   colmesh_chunk_t* chunk = chunk_data->chunk;
@@ -612,7 +603,7 @@ static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
-                                            silo_field_metadata_t** field_metadata,
+                                            field_metadata_t* md,
                                             int c,
                                             coord_mapping_t* mapping,
                                             real_t* data)
@@ -621,8 +612,7 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
-  query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_colmesh_vector_comps(chunk_data, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   colmesh_chunk_t* chunk = chunk_data->chunk;
@@ -825,7 +815,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
                                      const char** field_component_names,
                                      const char* chunk_grid_name,
                                      colmesh_chunk_data_t* chunk_data,
-                                     silo_field_metadata_t** field_metadata,
+                                     field_metadata_t* md,
                                      coord_mapping_t* mapping)
 {
   // Because we can't really represent a colmesh faithfully in a SILO format,
@@ -855,7 +845,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
     bool ready_to_write = false;
     if (chunk_data->centering == COLMESH_NODE) 
     {
-      copy_out_colmesh_node_component(chunk_data, field_metadata, c, mapping, data);
+      copy_out_colmesh_node_component(chunk_data, md, c, mapping, data);
       ready_to_write = true;
     }
     else if ((chunk_data->centering == COLMESH_XYEDGE) || 
@@ -863,23 +853,23 @@ static void write_colmesh_chunk_data(silo_file_t* file,
     {
       copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
       if (chunk_data->centering == COLMESH_XYEDGE)
-        copy_out_colmesh_xyedge_component(chunk_data, field_metadata, c, mapping, data);
+        copy_out_colmesh_xyedge_component(chunk_data, md, c, mapping, data);
       else // (data->centering == COLMESH_ZEDGE)
-        copy_out_colmesh_zedge_component(chunk_data, field_metadata, c, mapping, data);
+        copy_out_colmesh_zedge_component(chunk_data, md, c, mapping, data);
     }
     else if ((chunk_data->centering == COLMESH_XYFACE) || 
              (chunk_data->centering == COLMESH_ZFACE))
     {
       copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
       if (chunk_data->centering == COLMESH_XYFACE)
-        copy_out_colmesh_xyface_component(chunk_data, field_metadata, c, mapping, data);
+        copy_out_colmesh_xyface_component(chunk_data, md, c, mapping, data);
       else // (data->centering == COLMESH_ZFACE)
-        copy_out_colmesh_zface_component(chunk_data, field_metadata, c, mapping, data);
+        copy_out_colmesh_zface_component(chunk_data, md, c, mapping, data);
     }
     else
     {
       ASSERT(chunk_data->centering == COLMESH_CELL);
-      copy_out_colmesh_cell_component(chunk_data, field_metadata, c, mapping, data);
+      copy_out_colmesh_cell_component(chunk_data, md, c, mapping, data);
       ready_to_write = true;
     }
     
@@ -889,27 +879,6 @@ static void write_colmesh_chunk_data(silo_file_t* file,
       char data_name[FILENAME_MAX+1];
       snprintf(data_name, FILENAME_MAX, "%s_%s", chunk_grid_name, field_component_names[c]);
       silo_file_write_real_array(file, data_name, data, data_size);
-
-      // Pack any metadata into an array.
-      if ((field_metadata != NULL) && (field_metadata[c] != NULL))
-      {
-        char md_name[FILENAME_MAX+1];
-        snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
-        size_t label_size = strlen(field_metadata[c]->label);
-        size_t units_size = strlen(field_metadata[c]->units);
-        size_t md_size = 5 + label_size + units_size;
-        int md[md_size];
-        md[0] = (int)label_size; 
-        for (size_t i = 0; i < label_size; ++i)
-          md[1+i] = (int)(field_metadata[c]->label[i]);
-        md[label_size+1] = (int)units_size; 
-        for (size_t i = 0; i < units_size; ++i)
-          md[1+label_size+1+i] = (int)(field_metadata[c]->units[i]);
-        md[1+label_size+1+units_size] = (int)(field_metadata[c]->conserved);
-        md[1+label_size+1+units_size+1] = (int)(field_metadata[c]->extensive);
-        md[1+label_size+1+units_size+2] = (int)(field_metadata[c]->vector_component);
-        silo_file_write_int_array(file, md_name, md, md_size);
-      }
     }
   }
 
@@ -918,25 +887,42 @@ static void write_colmesh_chunk_data(silo_file_t* file,
 }
 
 void silo_file_write_colmesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
+                                   const char* field_name,
                                    const char* mesh_name,
                                    colmesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata,
                                    coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
+
+  int num_components = colmesh_field_num_components(field);
+  char* field_names[num_components];
+
+  field_metadata_t* md = colmesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_write_field_metadata(file, md_name, md);
 
   colmesh_chunk_data_t* data;
   int pos = 0, xy, z, l = 0;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
     // Write out the chunk data itself.
+    for (int c = 0; c < num_components; ++c)
+    {
+      char field_comp_name[FILENAME_MAX+1];
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c, xy, z);
+      field_names[c] = string_dup(field_comp_name);
+    }
+
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
-    write_colmesh_chunk_data(file, field_component_names, chunk_grid_name,  
-                             data, field_metadata, mapping);
+    write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
+                             data, md, mapping);
     ++l;
+
+    for (int c = 0; c < num_components; ++c)
+      string_free(field_names[c]);
   }
   ASSERT(l == colmesh_field_num_chunks(field));
 
@@ -1015,8 +1001,7 @@ static void read_colmesh_chunk_data(silo_file_t* file,
                                     const char** field_component_names,
                                     const char* chunk_grid_name,
                                     size_t num_components,
-                                    colmesh_chunk_data_t* chunk_data,
-                                    silo_field_metadata_t** field_metadata)
+                                    colmesh_chunk_data_t* chunk_data)
 {
   // Fetch each component from the file.
   for (int c = 0; c < (int)num_components; ++c)
@@ -1047,55 +1032,44 @@ static void read_colmesh_chunk_data(silo_file_t* file,
       default:
         copy_in_colmesh_cell_component(data, c, chunk_data);
     }
-
-    // Extract metadata.
-    if ((field_metadata != NULL) && (field_metadata[c] != NULL))
-    {
-      // Unpack the metadata from an array.
-      char md_name[FILENAME_MAX+1];
-      snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
-      size_t md_size;
-      int* md = silo_file_read_int_array(file, md_name, &md_size);
-      if (md != NULL)
-      {
-        size_t label_size = (int)md[0];
-        field_metadata[c]->label = polymec_malloc(sizeof(char) * (label_size+1));
-        for (size_t i = 0; i < label_size; ++i)
-          field_metadata[c]->label[i] = (char)md[1+i];
-        field_metadata[c]->label[label_size] = '\0';
-        size_t units_size = (int)md[1+label_size];
-        field_metadata[c]->units = polymec_malloc(sizeof(char) * (units_size+1));
-        for (size_t i = 0; i < units_size; ++i)
-          field_metadata[c]->units[i] = (char)md[1+label_size+1+i];
-        field_metadata[c]->units[units_size] = '\0';
-        field_metadata[c]->conserved = (int)(md[1+label_size+1+units_size]);
-        field_metadata[c]->extensive = (int)(md[1+label_size+1+units_size+1]);
-        field_metadata[c]->vector_component = (int)(md[1+label_size+1+units_size+2]);
-      }
-      polymec_free(md);
-    }
-
     polymec_free(data);
   }
 }
 
 void silo_file_read_colmesh_field(silo_file_t* file, 
-                                  const char** field_component_names,
+                                  const char* field_name,
                                   const char* mesh_name,
-                                  colmesh_field_t* field,
-                                  silo_field_metadata_t** field_metadata)
+                                  colmesh_field_t* field)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
+
+  int num_components = colmesh_field_num_components(field);
+  char* field_names[num_components];
+  field_metadata_t* md = colmesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_read_field_metadata(file, md_name, md);
+
   colmesh_chunk_data_t* data;
   int pos = 0, xy, z;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
+    for (int c = 0; c < num_components; ++c)
+    {
+      char field_comp_name[FILENAME_MAX];
+      snprintf(field_comp_name, FILENAME_MAX-1, "%s_%d", field_name, c);
+      field_names[c] = string_dup(field_comp_name);
+    }
     char chunk_grid_name[FILENAME_MAX+1];
     snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
-    read_colmesh_chunk_data(file, field_component_names, chunk_grid_name, 
-                            data->num_components, data, field_metadata);
+    read_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name, 
+                            data->num_components, data);
+
+    for (int c = 0; c < num_components; ++c)
+      string_free(field_names[c]);
   }
+
   silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
 }
@@ -1105,36 +1079,14 @@ bool silo_file_contains_colmesh_field(silo_file_t* file,
                                       const char* mesh_name,
                                       colmesh_centering_t centering)
 {
-  silo_file_push_domain_dir(file);
-  DBfile* dbfile = silo_file_dbfile(file);
-
-  // Read in the indices of the locally stored chunks:
-  // (xy0, z0), (xy1, z1), ...
-  size_t num_chunk_indices;
-  int* chunk_indices;
+  bool result = false;
+  if (silo_file_contains_colmesh(file, mesh_name))  // mesh exists...
   {
-    char array_name[FILENAME_MAX+1];
-    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
-    chunk_indices = silo_file_read_int_array(file, array_name, 
-                                             &num_chunk_indices);
+    // Look for the field's metadata array.
+    char md_name[FILENAME_MAX+1];
+    snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+    result = silo_file_contains_field_metadata(file, md_name);
   }
-  bool exists = (chunk_indices != NULL);
-  if (exists)
-  {
-    // Now make sure the field data exists locally.
-    for (size_t i = 0; i < num_chunk_indices/2; ++i)
-    {
-      int xy = chunk_indices[2*i];
-      int z = chunk_indices[2*i+1];
-      char data_name[FILENAME_MAX+1];
-      snprintf(data_name, FILENAME_MAX, "%s_%d_%d_%s_real_array", mesh_name, xy, z, field_name);
-      exists = DBInqVarExists(dbfile, data_name);
-      if (!exists) break;
-    }
-  }
-  polymec_free(chunk_indices);
-
-  silo_file_pop_dir(file);
-  return exists;
+  return result;
 }
 

@@ -8,6 +8,7 @@
 #ifndef POLYMEC_UNIMESH_FIELD_H
 #define POLYMEC_UNIMESH_FIELD_H
 
+#include "geometry/field_metadata.h"
 #include "geometry/unimesh_patch.h"
 
 /// \addtogroup geometry geometry
@@ -53,12 +54,17 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
 /// \memberof unimesh_field
 void unimesh_field_free(unimesh_field_t* field);
 
-/// Copies all data in this field to the destination field.
+/// Copies all data and metadata in this field to the destination field.
 /// The destination object must share the same underlying mesh and 
 /// centering.
 /// \memberof unimesh_field
 void unimesh_field_copy(unimesh_field_t* field,
                         unimesh_field_t* dest);
+
+/// Returns the metadata associated with this field. Every field has a 
+/// metadata object that is empty until its properties are specified.
+/// \memberof unimesh_field
+field_metadata_t* unimesh_field_metadata(unimesh_field_t* field);
 
 /// Returns the centering of the unimesh_field.
 /// \memberof unimesh_field

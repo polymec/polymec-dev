@@ -24,16 +24,16 @@ void tensor2_fprintf(tensor2_t* t, FILE* stream)
   fprintf(stream, "[%g, %g, %g]\n", t->zx, t->zy, t->zz);
 }
 
-sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
-                                          real_t yy, real_t yz,
-                                                     real_t zz)
+symtensor2_t* symtensor2_new(real_t xx, real_t xy, real_t xz,
+                                        real_t yy, real_t yz,
+                                                   real_t zz)
 {
-  sym_tensor2_t* t = polymec_refcounted_malloc(sizeof(sym_tensor2_t), NULL);
-  sym_tensor2_set(t, xx, xy, xz, yy, yz, zz);
+  symtensor2_t* t = polymec_refcounted_malloc(sizeof(symtensor2_t), NULL);
+  symtensor2_set(t, xx, xy, xz, yy, yz, zz);
   return t;
 }
 
-void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t eigenvalues[3])
+void symtensor2_get_eigenvalues(symtensor2_t* t, real_t eigenvalues[3])
 {
   char jobz = 'N', uplo = 'L';
   int N = 3, lda = 3, lwork = 5*3, info;
@@ -43,7 +43,7 @@ void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t eigenvalues[3])
   ASSERT(info == 0);
 }
 
-void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t eigenvalues[3], vector_t eigenvectors[3])
+void symtensor2_get_eigenvectors(symtensor2_t* t, real_t eigenvalues[3], vector_t eigenvectors[3])
 {
   char jobz = 'V', uplo = 'L';
   int N = 3, lda = 3, lwork = 5*3, info;
@@ -62,7 +62,7 @@ void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t eigenvalues[3], vecto
   eigenvectors[2].z = A[8];
 }
 
-void sym_tensor2_fprintf(sym_tensor2_t* t, FILE* stream)
+void symtensor2_fprintf(symtensor2_t* t, FILE* stream)
 {
   fprintf(stream, "[%g, %g, %g]\n", t->xx, t->xy, t->xz);
   fprintf(stream, "[%g, %g, %g]\n", t->xy, t->yy, t->yz);

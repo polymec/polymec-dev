@@ -27,13 +27,16 @@
 // here, even though they are not part of polymec's API.
 extern MPI_Comm silo_file_comm(silo_file_t* file);
 extern DBfile* silo_file_dbfile(silo_file_t* file);
-extern DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata);
+extern DBoptlist* optlist_from_metadata(field_metadata_t* metadata, int component);
 extern void optlist_free(DBoptlist* optlist);
 extern void silo_file_add_subdomain_mesh(silo_file_t* file, const char* mesh_name, int silo_mesh_type, DBoptlist* optlist);
 extern void silo_file_add_subdomain_field(silo_file_t* file, const char* mesh_name, const char* field_name, int silo_field_type, DBoptlist* optlist);
 extern void silo_file_push_domain_dir(silo_file_t* file);
 extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
+extern void silo_file_write_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern void silo_file_read_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern bool silo_file_contains_field_metadata(silo_file_t* file, const char* md_name);
 
 static void write_unimesh_patch_grid(silo_file_t* file,
                                      const char* patch_grid_name,
@@ -355,37 +358,30 @@ bool silo_file_contains_unimesh(silo_file_t* file,
 }
 
 static void query_unimesh_vector_comps(unimesh_patch_t* patch,
-                                       silo_field_metadata_t** field_metadata,
+                                       field_metadata_t* md,
                                        coord_mapping_t* mapping,
                                        bool* is_vector_comp,
                                        int* first_vector_comp)
 {
-  int num_vector_comps = 0;
-  *first_vector_comp = -1;
-  if ((mapping != NULL) && (field_metadata != NULL))
+  if ((mapping != NULL) && (field_metadata_has_vectors(md)))
   {
-    for (int c = 0; c < patch->nc; ++c)
+    int pos = 0, start;
+    while (field_metadata_next_vector(md, &pos, first_vector_comp))
     {
-      if ((field_metadata[c] != NULL) && 
-          (field_metadata[c]->vector_component != -1))
-      {
-        if ((num_vector_comps % 3) == 0)
-        {
-          ASSERT(patch->nc >= c + 3); // If you start a vector, you better finish your vector.
-          *first_vector_comp = c;
-        }
-        is_vector_comp[c] = true;
-        ++num_vector_comps;
-      }
+      is_vector_comp[start] = true;
+      is_vector_comp[start+1] = true;
+      is_vector_comp[start+2] = true;
     }
   }
   else
+  {
     memset(is_vector_comp, 0, sizeof(bool) * patch->nc);
-  ASSERT((num_vector_comps % 3) == 0); // We should have complete sets of vector triples.
+    *first_vector_comp = -1;
+  }
 }
 
 static void copy_out_unimesh_node_component(unimesh_patch_t* patch,
-                                            silo_field_metadata_t** field_metadata,
+                                            field_metadata_t* md,
                                             int c,
                                             bbox_t* bbox,
                                             coord_mapping_t* mapping,
@@ -395,8 +391,7 @@ static void copy_out_unimesh_node_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
@@ -446,7 +441,7 @@ static void copy_out_unimesh_node_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_xedge_component(unimesh_patch_t* patch,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              bbox_t* bbox,
                                              coord_mapping_t* mapping,
@@ -456,8 +451,7 @@ static void copy_out_unimesh_xedge_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
@@ -506,7 +500,7 @@ static void copy_out_unimesh_xedge_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_yedge_component(unimesh_patch_t* patch,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              bbox_t* bbox,
                                              coord_mapping_t* mapping,
@@ -516,8 +510,7 @@ static void copy_out_unimesh_yedge_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   int l = (patch->nx+1)*(patch->ny+1)*(patch->nz+1);
@@ -566,7 +559,7 @@ static void copy_out_unimesh_yedge_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_zedge_component(unimesh_patch_t* patch,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              bbox_t* bbox,
                                              coord_mapping_t* mapping,
@@ -576,8 +569,7 @@ static void copy_out_unimesh_zedge_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   int l = 2*(patch->nx+1)*(patch->ny+1)*(patch->nz+1);
@@ -626,7 +618,7 @@ static void copy_out_unimesh_zedge_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_xface_component(unimesh_patch_t* patch,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              bbox_t* bbox,
                                              coord_mapping_t* mapping,
@@ -636,8 +628,7 @@ static void copy_out_unimesh_xface_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   int l = 0;
@@ -686,7 +677,7 @@ static void copy_out_unimesh_xface_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_yface_component(unimesh_patch_t* patch,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              bbox_t* bbox,
                                              coord_mapping_t* mapping,
@@ -696,8 +687,7 @@ static void copy_out_unimesh_yface_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   int l = (patch->nx+1)*(patch->ny+1)*(patch->nz+1);
@@ -746,7 +736,7 @@ static void copy_out_unimesh_yface_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_zface_component(unimesh_patch_t* patch,
-                                             silo_field_metadata_t** field_metadata,
+                                             field_metadata_t* md,
                                              int c,
                                              bbox_t* bbox,
                                              coord_mapping_t* mapping,
@@ -756,8 +746,7 @@ static void copy_out_unimesh_zface_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data from the patch.
   int l = 2*(patch->nx+1)*(patch->ny+1)*(patch->nz+1);
@@ -806,7 +795,7 @@ static void copy_out_unimesh_zface_component(unimesh_patch_t* patch,
 }
 
 static void copy_out_unimesh_cell_component(unimesh_patch_t* patch,
-                                            silo_field_metadata_t** field_metadata,
+                                            field_metadata_t* md,
                                             int c,
                                             bbox_t* bbox,
                                             coord_mapping_t* mapping,
@@ -816,8 +805,7 @@ static void copy_out_unimesh_cell_component(unimesh_patch_t* patch,
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
-  query_unimesh_vector_comps(patch, field_metadata, mapping,
-                             is_vector_comp, &first_vector_comp);
+  query_unimesh_vector_comps(patch, md, mapping, is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -1072,7 +1060,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
                                      const char** field_component_names,
                                      const char* patch_grid_name,
                                      unimesh_patch_t* patch,
-                                     silo_field_metadata_t** field_metadata,
+                                     field_metadata_t* md,
                                      bbox_t* bbox,
                                      coord_mapping_t* mapping)
 {
@@ -1098,14 +1086,14 @@ static void write_unimesh_patch_data(silo_file_t* file,
   for (int c = 0; c < patch->nc; ++c)
   {
     // Copy the data in the component into our array.
-    DBoptlist* optlist = (field_metadata != NULL) ? optlist_from_metadata(field_metadata[c]) : DBMakeOptlist(1);
+    DBoptlist* optlist = optlist_from_metadata(md, c);
     int one = 1;
     DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
     bool ready_to_write = false;
     if (patch->centering == UNIMESH_NODE) 
     {
       centering = DB_NODECENT;
-      copy_out_unimesh_node_component(patch, field_metadata, c, bbox, mapping, data);
+      copy_out_unimesh_node_component(patch, md, c, bbox, mapping, data);
       ready_to_write = true;
     }
     else if ((patch->centering == UNIMESH_XEDGE) || 
@@ -1115,11 +1103,11 @@ static void write_unimesh_patch_data(silo_file_t* file,
       centering = DB_EDGECENT;
       copy_out_other_centerings(file, patch, field_component_names[c], c, data, &ready_to_write);
       if (patch->centering == UNIMESH_XEDGE)
-        copy_out_unimesh_xedge_component(patch, field_metadata, c, bbox, mapping, data);
+        copy_out_unimesh_xedge_component(patch, md, c, bbox, mapping, data);
       else if (patch->centering == UNIMESH_YEDGE)
-        copy_out_unimesh_yedge_component(patch, field_metadata, c, bbox, mapping, data);
+        copy_out_unimesh_yedge_component(patch, md, c, bbox, mapping, data);
       else
-        copy_out_unimesh_zedge_component(patch, field_metadata, c, bbox, mapping, data);
+        copy_out_unimesh_zedge_component(patch, md, c, bbox, mapping, data);
     }
     else if ((patch->centering == UNIMESH_XFACE) || 
              (patch->centering == UNIMESH_YFACE) ||
@@ -1128,17 +1116,17 @@ static void write_unimesh_patch_data(silo_file_t* file,
       centering = DB_FACECENT;
       copy_out_other_centerings(file, patch, field_component_names[c], c, data, &ready_to_write);
       if (patch->centering == UNIMESH_XFACE)
-        copy_out_unimesh_xface_component(patch, field_metadata, c, bbox, mapping, data);
+        copy_out_unimesh_xface_component(patch, md, c, bbox, mapping, data);
       else if (patch->centering == UNIMESH_YFACE)
-        copy_out_unimesh_yface_component(patch, field_metadata, c, bbox, mapping, data);
+        copy_out_unimesh_yface_component(patch, md, c, bbox, mapping, data);
       else
-        copy_out_unimesh_zface_component(patch, field_metadata, c, bbox, mapping, data);
+        copy_out_unimesh_zface_component(patch, md, c, bbox, mapping, data);
     }
     else
     {
       ASSERT(patch->centering == UNIMESH_CELL);
       centering = DB_ZONECENT;
-      copy_out_unimesh_cell_component(patch, field_metadata, c, bbox, mapping, data);
+      copy_out_unimesh_cell_component(patch, md, c, bbox, mapping, data);
       ready_to_write = true;
     }
     
@@ -1156,10 +1144,9 @@ static void write_unimesh_patch_data(silo_file_t* file,
 }
 
 void silo_file_write_unimesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
+                                   const char* field_name,
                                    const char* mesh_name,
                                    unimesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata,
                                    coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
@@ -1178,6 +1165,11 @@ void silo_file_write_unimesh_field(silo_file_t* file,
   char* multi_field_names[num_components][num_local_patches];
   int multi_field_types[num_local_patches];
 
+  field_metadata_t* md = unimesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_write_field_metadata(file, md_name, md);
+
   unimesh_patch_t* patch;
   int pos = 0, i, j, k, l = 0;
   bbox_t bbox;
@@ -1186,15 +1178,15 @@ void silo_file_write_unimesh_field(silo_file_t* file,
     // Write out the patch data itself.
     for (int c = 0; c < num_components; ++c)
     {
-      char field_name[FILENAME_MAX];
-      snprintf(field_name, FILENAME_MAX-1, "%s_%d_%d_%d", field_component_names[c], i, j, k);
-      field_names[c] = string_dup(field_name);
-      multi_field_names[c][l] = string_dup(field_name);
+      char field_comp_name[FILENAME_MAX+1];
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d_%d_%d_%d", field_name, c, i, j, k);
+      field_names[c] = string_dup(field_comp_name);
+      multi_field_names[c][l] = string_dup(field_comp_name);
     }
-    char patch_grid_name[FILENAME_MAX];
-    snprintf(patch_grid_name, FILENAME_MAX-1, "%s_%d_%d_%d", mesh_name, i, j, k);
+    char patch_grid_name[FILENAME_MAX+1];
+    snprintf(patch_grid_name, FILENAME_MAX, "%s_%d_%d_%d", mesh_name, i, j, k);
     write_unimesh_patch_data(file, (const char**)field_names, patch_grid_name,  
-                             patch, field_metadata, &bbox, mapping);
+                             patch, md, &bbox, mapping);
     multi_field_types[l] = DB_QUADVAR;
     ++l;
 
@@ -1210,11 +1202,13 @@ void silo_file_write_unimesh_field(silo_file_t* file,
     // We need to associate this multi-variable with our multi-mesh.
     DBoptlist* optlist = DBMakeOptlist(4);
     DBAddOption(optlist, DBOPT_MMESH_NAME, (void*)mesh_name);
-    DBPutMultivar(dbfile, field_component_names[c], num_local_patches, (const char* const*)multi_field_names[c], multi_field_types, NULL);
+    char field_comp_name[FILENAME_MAX+1];
+    snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c);
+    DBPutMultivar(dbfile, field_comp_name, num_local_patches, (const char* const*)multi_field_names[c], multi_field_types, NULL);
     DBFreeOptlist(optlist);
 
     // Add subdomain information for this component.
-    silo_file_add_subdomain_mesh(file, field_component_names[c], DB_QUAD_RECT, NULL);
+    silo_file_add_subdomain_mesh(file, field_comp_name, DB_QUAD_RECT, NULL);
   }
 
   // Clean up.
@@ -1360,7 +1354,7 @@ static void read_unimesh_patch_data(silo_file_t* file,
                                     const char* patch_grid_name,
                                     int num_components,
                                     unimesh_patch_t* patch,
-                                    silo_field_metadata_t** field_metadata)
+                                    field_metadata_t* md)
 {
   DBfile* dbfile = silo_file_dbfile(file);
 
@@ -1400,26 +1394,28 @@ static void read_unimesh_patch_data(silo_file_t* file,
     }
 
     // Extract metadata.
-    if ((field_metadata != NULL) && (field_metadata[c] != NULL))
-    {
-      field_metadata[c]->label = string_dup(var->label);
-      field_metadata[c]->units = string_dup(var->units);
-      field_metadata[c]->conserved = (var->conserved != 0);
-      field_metadata[c]->extensive = (var->extensive != 0);
-    }
+    field_metadata_set_name(md, c, var->label);
+    field_metadata_set_units(md, c, var->units);
+    field_metadata_set_conserved(md, c, (var->conserved != 0));
+    field_metadata_set_extensive(md, c, (var->extensive != 0));
 
     DBFreeQuadvar(var);
   }
 }
 
 void silo_file_read_unimesh_field(silo_file_t* file, 
-                                  const char** field_component_names,
+                                  const char* field_name,
                                   const char* mesh_name,
-                                  unimesh_field_t* field,
-                                  silo_field_metadata_t** field_metadata)
+                                  unimesh_field_t* field)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
+
+  field_metadata_t* md = unimesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_read_field_metadata(file, md_name, md);
+
   unimesh_patch_t* patch;
   int pos = 0, i, j, k;
   while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
@@ -1427,12 +1423,12 @@ void silo_file_read_unimesh_field(silo_file_t* file,
     char* field_names[patch->nc];
     for (int c = 0; c < patch->nc; ++c)
     {
-      char field_name[FILENAME_MAX+1];
-      snprintf(field_name, FILENAME_MAX, "%s_%d_%d_%d", field_component_names[c], i, j, k);
-      field_names[c] = string_dup(field_name);
+      char field_comp_name[FILENAME_MAX+1];
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d_%d_%d_%d", field_name, c, i, j, k);
+      field_names[c] = string_dup(field_comp_name);
     }
     read_unimesh_patch_data(file, (const char**)field_names, mesh_name, 
-                            patch->nc, patch, field_metadata);
+                            patch->nc, patch, md);
     for (int c = 0; c < patch->nc; ++c)
       string_free(field_names[c]);
   }
@@ -1445,12 +1441,14 @@ bool silo_file_contains_unimesh_field(silo_file_t* file,
                                       const char* mesh_name,
                                       unimesh_centering_t centering)
 {
-  // FIXME
-  silo_file_push_domain_dir(file);
-  DBfile* dbfile = silo_file_dbfile(file);
-  bool exists = (DBInqVarExists(dbfile, mesh_name) && 
-                 (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
-  silo_file_pop_dir(file);
-  return exists;
+  bool result = false;
+  if (silo_file_contains_unimesh(file, mesh_name))  // mesh exists...
+  {
+    // Look for the field's metadata array.
+    char md_name[FILENAME_MAX+1];
+    snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+    result = silo_file_contains_field_metadata(file, md_name);
+  }
+  return result;
 }
 

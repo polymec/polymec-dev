@@ -119,10 +119,10 @@ static void test_within_radius(void** state)
 // Returns true if y is in the given ellipse centered at x.
 static bool point_in_ellipse(void* context, point_t* x, point_t* y)
 {
-  sym_tensor2_t* E = context;
+  symtensor2_t* E = context;
   vector_t d;
   point_displacement(x, y, &d);
-  return (sym_tensor2_ddot(E, &d, &d) < 1.0);
+  return (symtensor2_ddot(E, &d, &d) < 1.0);
 }
 
 static void test_within_ellipse(void** state) 
@@ -138,7 +138,7 @@ static void test_within_ellipse(void** state)
 
   // Now use a predicate query and compare it to the results of a brute force 
   // calculation.
-  sym_tensor2_t E = {0.2, 0.0, 0.0, 
+  symtensor2_t E = {0.2, 0.0, 0.0, 
                           0.3, 0.0,
                                0.4};
   for (int i = 0; i < 10; ++i) // 10 queries.

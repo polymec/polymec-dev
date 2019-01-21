@@ -44,7 +44,7 @@ MPI_Comm silo_file_comm(silo_file_t* file);
 DBfile* silo_file_dbfile(silo_file_t* file);
 
 // Creates a SILO options list from the given metadata object.
-DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata);
+DBoptlist* optlist_from_metadata(field_metadata_t* metadata, int component);
 
 // Clones a metadata-related SILO options list.
 DBoptlist* optlist_clone(DBoptlist* optlist);
@@ -82,6 +82,19 @@ void silo_file_pop_dir(silo_file_t* file);
 // temporary data to be stored and passed between methods. 
 string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
+// Writes field metadata to a file.
+void silo_file_write_field_metadata(silo_file_t* file,
+                                    const char* md_name,
+                                    field_metadata_t* md);
+// Reads field metadata from a file. 
+void silo_file_read_field_metadata(silo_file_t* file,
+                                   const char* md_name,
+                                   field_metadata_t* md);
+
+// Checks for the existence of field metadata.
+bool silo_file_contains_field_metadata(silo_file_t* file,
+                                       const char* md_name);
+
 //-------------------------------------------------------------------------
 // End unpublished functions
 //-------------------------------------------------------------------------
@@ -118,107 +131,22 @@ void silo_enable_compression(int level)
   }
 }
 
-static void silo_field_metadata_free(void* ctx)
-{
-  silo_field_metadata_t* metadata = ctx;
-  if (metadata->label)
-    string_free(metadata->label);
-  if (metadata->units)
-    string_free(metadata->units);
-}
-
-silo_field_metadata_t* silo_field_metadata_new()
-{
-  silo_field_metadata_t* metadata = polymec_refcounted_malloc(sizeof(silo_field_metadata_t),
-                                                              silo_field_metadata_free);
-  metadata->label = NULL;
-  metadata->units = NULL;
-  metadata->conserved = false;
-  metadata->extensive = false;
-  metadata->vector_component = -1;
-  return metadata;
-}
-
-// These helpers are used in the read/write operations.
-static void read_polymesh_metadata(DBfile* db, 
-                                   DBucdvar* var, 
-                                   silo_field_metadata_t* metadata)
-{
-  if (metadata != NULL)
-  {
-    if (metadata->label != NULL)
-      string_free(metadata->label);
-    if (var->label != NULL)
-      metadata->label = string_dup(var->label);
-    else
-      metadata->label = NULL;
-    if (metadata->units != NULL)
-      string_free(metadata->units);
-    if (var->units != NULL)
-      metadata->units = string_dup(var->units);
-    else
-      metadata->units = NULL;
-    metadata->conserved = var->conserved;
-    metadata->extensive = var->extensive;
-
-    // Read the vector component for this field.
-    char vec_comp_var[FILENAME_MAX+1];
-    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", var->name);
-    if (DBInqVarExists(db, vec_comp_var))
-      DBReadVar(db, vec_comp_var, &metadata->vector_component);
-    else
-      metadata->vector_component = -1;
-  }
-}
-
-static void read_point_metadata(DBfile* db, 
-                                DBmeshvar* var, 
-                                silo_field_metadata_t* metadata)
-{
-  if (metadata != NULL)
-  {
-    if (metadata->label != NULL)
-      string_free(metadata->label);
-    if (var->label != NULL)
-      metadata->label = string_dup(var->label);
-    else
-      metadata->label = NULL;
-    if (metadata->units != NULL)
-      string_free(metadata->units);
-    if (var->units != NULL)
-      metadata->units = string_dup(var->units);
-    else
-      metadata->units = NULL;
-    metadata->conserved = var->conserved;
-    metadata->extensive = var->extensive;
-
-    // Read the vector component for this field.
-    char vec_comp_var[FILENAME_MAX+1];
-    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", var->name);
-    if (DBInqVarExists(db, vec_comp_var))
-      DBReadVar(db, vec_comp_var, &metadata->vector_component);
-    else
-      metadata->vector_component = -1;
-  }
-}
-
-DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata)
+DBoptlist* optlist_from_metadata(field_metadata_t* md, int component)
 {
   DBoptlist* optlist = NULL;
-  if (metadata != NULL)
-  {
-    optlist = DBMakeOptlist(4);
-    if (metadata->label != NULL)
-      DBAddOption(optlist, DBOPT_LABEL, string_dup(metadata->label));
-    if (metadata->units != NULL)
-      DBAddOption(optlist, DBOPT_UNITS, string_dup(metadata->units));
-    int* conserved = polymec_malloc(sizeof(int));
-    *conserved = metadata->conserved;
-    int* extensive = polymec_malloc(sizeof(int));
-    *extensive = metadata->extensive;
-    DBAddOption(optlist, DBOPT_CONSERVED, conserved);
-    DBAddOption(optlist, DBOPT_EXTENSIVE, extensive);
-  }
+  optlist = DBMakeOptlist(4);
+  const char* name = field_metadata_name(md, component);
+  if (name != NULL)
+    DBAddOption(optlist, DBOPT_LABEL, string_dup(name));
+  const char* units = field_metadata_units(md, component);
+  if (units != NULL)
+    DBAddOption(optlist, DBOPT_UNITS, string_dup(units));
+  int* conserved = polymec_malloc(sizeof(int));
+  *conserved = field_metadata_conserved(md, component);
+  int* extensive = polymec_malloc(sizeof(int));
+  *extensive = field_metadata_extensive(md, component);
+  DBAddOption(optlist, DBOPT_CONSERVED, conserved);
+  DBAddOption(optlist, DBOPT_EXTENSIVE, extensive);
   return optlist;
 }
 
@@ -1730,9 +1658,10 @@ bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name)
 static void silo_file_write_polymesh_field_comp(silo_file_t* file,
                                                 const char* field_name,
                                                 const char* mesh_name,
+                                                int component,
                                                 polymesh_centering_t centering,
                                                 real_t* field_data,
-                                                silo_field_metadata_t* field_metadata)
+                                                field_metadata_t* md)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1752,17 +1681,14 @@ static void silo_file_write_polymesh_field_comp(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
-  DBoptlist* optlist = optlist_from_metadata(field_metadata);
-  DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
 
-  // Store the vector component if needed.
-  if ((field_metadata != NULL) && (field_metadata->vector_component != -1))
-  {
-    char vec_comp_var[FILENAME_MAX+1];
-    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", field_name);
-    int one = 1;
-    DBWrite(file->dbfile, vec_comp_var, &field_metadata->vector_component, &one, 1, DB_INT);
-  }
+  // Create an optlist from our field metadata.
+  DBoptlist* optlist = optlist_from_metadata(md, component);
+
+  char var_name[FILENAME_MAX+1];
+  snprintf(var_name, FILENAME_MAX, "%s_%d_%s", field_name, component, mesh_name);
+  DBPutUcdvar1(file->dbfile, var_name, mesh_name, field_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
+
 #if POLYMEC_HAVE_MPI
   // Add a subdomain entry for parallel environments.
   if (file->nproc > 1)
@@ -1776,10 +1702,9 @@ static void silo_file_write_polymesh_field_comp(silo_file_t* file,
 }
 
 void silo_file_write_polymesh_field(silo_file_t* file,
-                                    const char** field_component_names,
+                                    const char* field_name,
                                     const char* mesh_name,
-                                    polymesh_field_t* field,
-                                    silo_field_metadata_t** field_metadata)
+                                    polymesh_field_t* field)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1800,15 +1725,20 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
   silo_file_pop_dir(file);
 
+  // Write the field metadata.
+  field_metadata_t* md = polymesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_write_field_metadata(file, md_name, md);
+
   DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
   real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems);
   for (int c = 0; c < field->num_components; ++c)
   {
-    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     for (int i = 0; i < num_elems; ++i)
       comp_data[i] = field_data[i][c];
-    silo_file_write_polymesh_field_comp(file, field_component_names[c], mesh_name,
-                                        field->centering, comp_data, metadata);
+    silo_file_write_polymesh_field_comp(file, field_name, mesh_name, c, 
+                                        field->centering, comp_data, md);
   }
   polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
@@ -1817,9 +1747,9 @@ void silo_file_write_polymesh_field(silo_file_t* file,
 static bool silo_file_read_polymesh_field_comp(silo_file_t* file,
                                                const char* field_name,
                                                const char* mesh_name,
+                                               int component,
                                                polymesh_centering_t centering,
-                                               real_t* field_data,
-                                               silo_field_metadata_t* field_metadata)
+                                               real_t* field_data)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1839,10 +1769,13 @@ static bool silo_file_read_polymesh_field_comp(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
-  DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
+
+  char var_name[FILENAME_MAX+1];
+  snprintf(var_name, FILENAME_MAX, "%s_%d_%s", field_name, component, mesh_name);
+  DBucdvar* var = DBGetUcdvar(file->dbfile, var_name);
   if (var == NULL)
   {
-    log_urgent("Field '%s' was not found in the Silo file.", field_name);
+    log_urgent("Component %d of field '%s' was not found in the Silo file.", component, field_name);
     silo_file_pop_dir(file);
     STOP_FUNCTION_TIMER();
     return false;
@@ -1855,7 +1788,6 @@ static bool silo_file_read_polymesh_field_comp(silo_file_t* file,
     return false;
   }
   memcpy(field_data, var->vals[0], sizeof(real_t) * num_elems);
-  read_polymesh_metadata(file->dbfile, var, field_metadata);
   DBFreeUcdvar(var);
 
   silo_file_pop_dir(file);
@@ -1864,10 +1796,9 @@ static bool silo_file_read_polymesh_field_comp(silo_file_t* file,
 }
 
 void silo_file_read_polymesh_field(silo_file_t* file,
-                                   const char** field_component_names,
+                                   const char* field_name,
                                    const char* mesh_name,
-                                   polymesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata)
+                                   polymesh_field_t* field)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1890,13 +1821,17 @@ void silo_file_read_polymesh_field(silo_file_t* file,
 
   silo_file_pop_dir(file);
 
+  // Read the field metadata.
+  field_metadata_t* md = polymesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_read_field_metadata(file, md_name, md);
+
   DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
   real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems);
   for (int c = 0; c < field->num_components; ++c)
   {
-    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    silo_file_read_polymesh_field_comp(file, field_component_names[c], mesh_name, 
-                                       field->centering, comp_data, metadata);
+    silo_file_read_polymesh_field_comp(file, field_name, mesh_name, c, field->centering, comp_data);
     for (int i = 0; i < num_elems; ++i)
       field_data[i][c] = comp_data[i];
   }
@@ -1913,38 +1848,10 @@ bool silo_file_contains_polymesh_field(silo_file_t* file,
   bool result = false;
   if (silo_file_contains_polymesh(file, mesh_name)) // mesh exists...
   {
-    silo_file_push_domain_dir(file);
-
-    result = ((DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH) &&  // mesh is a UCD mesh...
-              (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
-              (DBInqVarType(file->dbfile, field_name) == DB_UCDVAR))); // field is actually a variable.
-
-    if (result)
-    {
-      // Make sure that our field is associated with our mesh.
-      char field_mesh_name[FILENAME_MAX+1];
-      int stat = DBInqMeshname(file->dbfile, field_name, field_mesh_name);
-      result = ((stat == 0) && (strcmp(mesh_name, field_mesh_name) == 0));
-#if 0
-      // DBGetVarLength only works on simple variables, not on fields. :-(
-      if (result)
-      {
-        // Make sure the field has the right size.
-        char num_elems_var[FILENAME_MAX+1];
-        switch(centering)
-        {
-          case POLYMESH_CELL: snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;
-          case POLYMESH_FACE: snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name); break;
-          case POLYMESH_EDGE: snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name); break;
-          case POLYMESH_NODE: snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
-        }
-        int num_elems;
-        int stat1 = DBReadVar(file->dbfile, num_elems_var, &num_elems);
-        result = ((stat1 == 0) && (num_elems == DBGetVarLength(file->dbfile, field_name)));
-      }
-#endif
-    }
-    silo_file_pop_dir(file);
+    // Look for the field's metadata array.
+    char md_name[FILENAME_MAX+1];
+    snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+    result = silo_file_contains_field_metadata(file, md_name);
   }
 
   STOP_FUNCTION_TIMER();
@@ -2310,8 +2217,9 @@ bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name)
 static void silo_file_write_point_field_comp(silo_file_t* file,
                                              const char* field_name,
                                              const char* cloud_name,
+                                             int component,
                                              real_t* field_data,
-                                             silo_field_metadata_t* field_metadata)
+                                             field_metadata_t* md)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -2325,18 +2233,12 @@ static void silo_file_write_point_field_comp(silo_file_t* file,
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
 
-  // Write the field.
-  DBoptlist* optlist = optlist_from_metadata(field_metadata);
-  DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, optlist);
+  DBoptlist* optlist = optlist_from_metadata(md, component);
 
-  // Store the vector component if needed.
-  if ((field_metadata != NULL) && (field_metadata->vector_component != -1))
-  {
-    char vec_comp_var[FILENAME_MAX+1];
-    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", field_name);
-    int one = 1;
-    DBWrite(file->dbfile, vec_comp_var, &field_metadata->vector_component, &one, 1, DB_INT);
-  }
+  // Write the field.
+  char var_name[FILENAME_MAX+1];
+  snprintf(var_name, FILENAME_MAX, "%s_%d_%s", field_name, component, cloud_name);
+  DBPutPointvar1(file->dbfile, var_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, optlist);
 
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
@@ -2351,24 +2253,26 @@ static void silo_file_write_point_field_comp(silo_file_t* file,
 static bool silo_file_read_point_field_comp(silo_file_t* file,
                                             const char* field_name,
                                             const char* cloud_name,
-                                            real_t* field_data,
-                                            silo_field_metadata_t* field_metadata)
+                                            int component, 
+                                            real_t* field_data)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   silo_file_push_domain_dir(file);
 
-  DBmeshvar* var = DBGetPointvar(file->dbfile, (char*)field_name);
+  char var_name[FILENAME_MAX+1];
+  snprintf(var_name, FILENAME_MAX, "%s_%d_%s", field_name, component, cloud_name);
+  DBmeshvar* var = DBGetPointvar(file->dbfile, var_name);
   if (var == NULL)
   {
-    log_urgent("Field '%s' was not found in the Silo file.", field_name);
+    log_urgent("Component %d of field '%s' was not found in the Silo file.", 
+               component, field_name);
     silo_file_pop_dir(file);
     STOP_FUNCTION_TIMER();
     return false;
   }
   memcpy(field_data, var->vals[0], sizeof(real_t) * var->nels);
-  read_point_metadata(file->dbfile, var, field_metadata);
   DBFreePointvar(var);
   silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
@@ -2376,10 +2280,9 @@ static bool silo_file_read_point_field_comp(silo_file_t* file,
 }
 
 void silo_file_write_point_field(silo_file_t* file,
-                                 const char** field_component_names,
+                                 const char* field_name,
                                  const char* cloud_name,
-                                 point_cloud_field_t* field,
-                                 silo_field_metadata_t** field_metadata)
+                                 point_cloud_field_t* field)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -2395,21 +2298,25 @@ void silo_file_write_point_field(silo_file_t* file,
 
   silo_file_pop_dir(file);
 
+  // Write the field metadata.
+  field_metadata_t* md = point_cloud_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, cloud_name);
+  silo_file_write_field_metadata(file, md_name, md);
+
   DECLARE_POINT_CLOUD_FIELD_ARRAY(field_data, field);
   for (int c = 0; c < field->num_components; ++c)
   {
-    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    silo_file_write_point_field_comp(file, field_component_names[c], 
-                                     cloud_name, (real_t*)(field_data[c]), metadata);
+    silo_file_write_point_field_comp(file, field_name, cloud_name, c, 
+                                     (real_t*)(field_data[c]), md);
   }
   STOP_FUNCTION_TIMER();
 }
 
 void silo_file_read_point_field(silo_file_t* file,
-                                const char** field_component_names,
+                                const char* field_name,
                                 const char* cloud_name,
-                                point_cloud_field_t* field,
-                                silo_field_metadata_t** field_metadata)
+                                point_cloud_field_t* field)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -2422,12 +2329,16 @@ void silo_file_read_point_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
+
+  // Read the field metadata.
+  field_metadata_t* md = point_cloud_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, cloud_name);
+  silo_file_read_field_metadata(file, md_name, md);
+
   DECLARE_POINT_CLOUD_FIELD_ARRAY(field_data, field);
   for (int c = 0; c < field->num_components; ++c)
-  {
-    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    silo_file_read_point_field_comp(file, field_component_names[c], cloud_name, (real_t*)(field_data[c]), metadata);
-  }
+    silo_file_read_point_field_comp(file, field_name, cloud_name, c, (real_t*)(field_data[c]));
 
   silo_file_pop_dir(file);
 
@@ -2441,11 +2352,10 @@ bool silo_file_contains_point_field(silo_file_t* file,
   bool result = false;
   if (silo_file_contains_point_cloud(file, cloud_name))  // point cloud exists...
   {
-    silo_file_push_domain_dir(file);
-    result = ((DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH) &&  // cloud is a point cloud...
-              (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
-              (DBInqVarType(file->dbfile, field_name) == DB_POINTVAR))); // field is actually a variable.
-    silo_file_pop_dir(file);
+    // Look for the field's metadata array.
+    char md_name[FILENAME_MAX+1];
+    snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, cloud_name);
+    result = silo_file_contains_field_metadata(file, md_name);
   }
   return result;
 }
@@ -2859,3 +2769,158 @@ neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
   return p;
 }
 
+void silo_file_write_field_metadata(silo_file_t* file,
+                                    const char* md_name,
+                                    field_metadata_t* md)
+{
+  silo_file_push_domain_dir(file);
+
+  // Pack any metadata into an array.
+  size_t md_size = 1;
+  int num_comps = field_metadata_num_components(md);
+  for (int c = 0; c < num_comps; ++c)
+  {
+    const char* name = field_metadata_name(md, c);
+    size_t name_size = (name != NULL) ? strlen(name) : 0;
+    const char* units = field_metadata_units(md, c);
+    size_t units_size = (units != NULL) ? strlen(units) : 0;
+    md_size += 4 + name_size + units_size;
+  }
+
+  int pos = 0, comp, num_vectors = 0;
+  ++md_size;
+  while (field_metadata_next_vector(md, &pos, &comp)) 
+  {
+    ++num_vectors;
+    ++md_size;
+  }
+
+  int num_tensor2s = 0;
+  pos = 0;
+  ++md_size;
+  while (field_metadata_next_tensor2(md, &pos, &comp)) 
+  {
+    ++num_tensor2s;
+    ++md_size;
+  }
+
+  int num_symtensor2s = 0;
+  pos = 0;
+  ++md_size;
+  while (field_metadata_next_symtensor2(md, &pos, &comp)) 
+  {
+    ++num_symtensor2s;
+    ++md_size;
+  }
+
+  int mda[md_size];
+  memset(mda, 0, sizeof(int) * md_size);
+  mda[0] = num_comps;
+  int offset = 1;
+  for (int c = 0; c < num_comps; ++c)
+  {
+    const char* name = field_metadata_name(md, c);
+    int name_size = (int)((name != NULL) ? strlen(name) : 0);
+    mda[offset++] = name_size; 
+    for (int cc = 0; cc < name_size; ++cc, ++offset)
+      mda[offset] = (int)(name[cc]);
+
+    const char* units = field_metadata_units(md, c);
+    int units_size = (int)((units != NULL) ? strlen(units) : 0);
+    mda[offset++] = units_size; 
+    for (int cc = 0; cc < units_size; ++cc, ++offset)
+      mda[offset] = (int)(units[cc]);
+
+    mda[offset++] = (int)(field_metadata_conserved(md, c));
+    mda[offset++] = (int)(field_metadata_extensive(md, c));
+  }
+  mda[offset++] = num_vectors;
+  pos = 0;
+  while (field_metadata_next_vector(md, &pos, &comp))
+    mda[offset++] = comp;
+  mda[offset++] = num_tensor2s;
+  pos = 0;
+  while (field_metadata_next_tensor2(md, &pos, &comp))
+    mda[offset++] = comp;
+  mda[offset++] = num_symtensor2s;
+  pos = 0;
+  while (field_metadata_next_symtensor2(md, &pos, &comp))
+    mda[offset++] = comp;
+  ASSERT(offset == md_size);
+  silo_file_write_int_array(file, md_name, mda, md_size);
+
+  silo_file_pop_dir(file);
+}
+
+void silo_file_read_field_metadata(silo_file_t* file,
+                                   const char* md_name,
+                                   field_metadata_t* md)
+{
+  silo_file_push_domain_dir(file);
+
+  size_t mda_size;
+  int* mda = silo_file_read_int_array(file, md_name, &mda_size);
+  if (mda != NULL)
+  {
+    int num_comps = mda[0];
+    if (num_comps != field_metadata_num_components(md))
+    {
+      polymec_free(mda);
+      polymec_error("silo_file_read_field_metadata: Inconsistent metadata size: %d components read, %d expected", 
+                    num_comps, field_metadata_num_components(md));
+    }
+    int offset = 1;
+    for (int c = 0; c < num_comps; ++c)
+    {
+      int name_size = mda[offset++];
+      if (name_size > 0)
+      {
+        char name[name_size+1];
+        for (int i = 0; i < name_size; ++i, ++offset)
+          name[i] = (char)mda[offset];
+        name[name_size] = '\0';
+        field_metadata_set_name(md, c, name);
+      }
+      else
+        field_metadata_set_name(md, c, NULL);
+
+      int units_size = mda[offset++];
+      if (name_size > 0)
+      {
+        char units[units_size+1];
+        for (int i = 0; i < units_size; ++i, ++offset)
+          units[i] = (char)mda[offset];
+        units[units_size] = '\0';
+        field_metadata_set_units(md, c, units);
+      }
+      else
+        field_metadata_set_units(md, c, NULL);
+
+      field_metadata_set_conserved(md, c, mda[offset++]);
+      field_metadata_set_extensive(md, c, mda[offset++]);
+    }
+    int num_vectors = mda[offset++];
+    for (int i = 0; i < num_vectors; ++i)
+      field_metadata_set_vector(md, mda[offset++]);
+    int num_tensor2s = mda[offset++];
+    for (int i = 0; i < num_tensor2s; ++i)
+      field_metadata_set_tensor2(md, mda[offset++]);
+    int num_symtensor2s = mda[offset++];
+    for (int i = 0; i < num_symtensor2s; ++i)
+      field_metadata_set_symtensor2(md, mda[offset++]);
+    polymec_free(mda);
+  }
+
+  silo_file_pop_dir(file);
+}
+
+bool silo_file_contains_field_metadata(silo_file_t* file,
+                                       const char* md_name)
+{
+  silo_file_push_domain_dir(file);
+  char arr_name[FILENAME_MAX+1];
+  snprintf(arr_name, FILENAME_MAX, "%s_int_array", md_name);
+  int result = DBInqVarExists(file->dbfile, arr_name);
+  silo_file_pop_dir(file);
+  return (result != 0);
+}

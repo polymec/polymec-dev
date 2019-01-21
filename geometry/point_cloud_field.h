@@ -9,6 +9,7 @@
 #define POLYMEC_POINT_CLOUD_FIELD_H
 
 #include "core/declare_nd_array.h"
+#include "geometry/field_metadata.h"
 #include "geometry/point_cloud.h"
 
 /// \addtogroup geometry geometry
@@ -35,6 +36,9 @@ typedef struct
   /// Data for the field, and its storage capacity.
   real_t* data;
   size_t capacity;
+
+  /// Metadata.
+  field_metadata_t* md;
 } point_cloud_field_t;
 
 /// Constructs a new point cloud field with the given number of components
@@ -46,6 +50,11 @@ point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
 /// Destroys the given point cloud field.
 /// \memberof point_cloud_field
 void point_cloud_field_free(point_cloud_field_t* field);
+
+/// Returns the metadata associated with this field. Every field has a 
+/// metadata object that is empty until its properties are specified.
+/// \memberof unimesh_field
+field_metadata_t* point_cloud_field_metadata(point_cloud_field_t* field);
 
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 

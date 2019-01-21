@@ -29,46 +29,40 @@ static void test_plot_rectilinear_mesh(void** state)
 
   polymesh_field_t* cfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
   DECLARE_POLYMESH_FIELD_ARRAY(cvals, cfield);
-  const char* cnames[] = {"solution"};
   for (int c = 0; c < mesh->num_cells; ++c)
     cvals[c][0] = 1.0*c;
-  silo_field_metadata_t* metadata = silo_field_metadata_new();
-  metadata->label = string_dup("solution");
-  metadata->units = string_dup("quatloo");
-  metadata->conserved = true;
-  metadata->extensive = false;
-  metadata->vector_component = 2;
-  silo_file_write_polymesh_field(silo, cnames, "mesh", cfield, &metadata);
+  field_metadata_t* c_md = polymesh_field_metadata(cfield);
+  field_metadata_set_name(c_md, 0, "solution");
+  field_metadata_set_units(c_md, 0, "quatloo");
+  field_metadata_set_conserved(c_md, 0, true);
+  field_metadata_set_extensive(c_md, 0, false);
+  silo_file_write_polymesh_field(silo, "solution", "mesh", cfield);
 
   // Add some fields with different centerings.
   polymesh_field_t* nfield = polymesh_field_new(mesh, POLYMESH_NODE, 3);
   DECLARE_POLYMESH_FIELD_ARRAY(nvals, nfield);
-  const char* nnames[] = {"nx", "ny", "nz"};
   for (int n = 0; n < mesh->num_nodes; ++n)
   {
     nvals[n][0] = mesh->nodes[n].x;
     nvals[n][1] = mesh->nodes[n].y;
     nvals[n][2] = mesh->nodes[n].z;
   }
-  silo_file_write_polymesh_field(silo, nnames, "mesh", nfield, NULL);
+  silo_file_write_polymesh_field(silo, "nvals", "mesh", nfield);
   
   polymesh_field_t* ffield = polymesh_field_new(mesh, POLYMESH_FACE, 1);
   DECLARE_POLYMESH_FIELD_ARRAY(fvals, ffield);
-  const char* fnames[] = {"fvals"};
   for (int f = 0; f < mesh->num_faces; ++f)
     fvals[f][0] = 1.0 * f;
-  silo_file_write_polymesh_field(silo, fnames, "mesh", ffield, NULL);
+  silo_file_write_polymesh_field(silo, "fvals", "mesh", ffield);
 
   polymesh_field_t* efield = polymesh_field_new(mesh, POLYMESH_EDGE, 1);
   DECLARE_POLYMESH_FIELD_ARRAY(evals, efield);
-  const char* enames[] = {"evals"};
   for (int e = 0; e < mesh->num_edges; ++e)
     evals[e][0] = 1.0 * e;
-  silo_file_write_polymesh_field(silo, enames, "mesh", efield, NULL);
+  silo_file_write_polymesh_field(silo, "evals", "mesh", efield);
   silo_file_close(silo);
 
   // Now read the mesh from the file.
-  metadata = silo_field_metadata_new();
   real_t t;
   silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, &t);
   assert_true(reals_equal(t, 0.0));
@@ -81,25 +75,22 @@ static void test_plot_rectilinear_mesh(void** state)
   // cell field
   assert_true(silo_file_contains_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL));
   polymesh_field_t* cfield1 = polymesh_field_new(mesh, POLYMESH_CELL, 1);
-  silo_file_read_polymesh_field(silo, cnames, "mesh", cfield1, &metadata);
+  silo_file_read_polymesh_field(silo, "solution", "mesh", cfield1);
   assert_true(ALL(compare_values(polymesh_field_enumerate(cfield1), 
                                  polymesh_field_enumerate(cfield), 
                                  reals_equal)));
 
   // cell field metadata
-  assert_int_equal(0, strcmp(metadata->label, "solution"));
-  assert_int_equal(0, strcmp(metadata->units, "quatloo"));
-  assert_true(metadata->conserved);
-  assert_false(metadata->extensive);
-  assert_int_equal(2, metadata->vector_component);
-  release_ref(metadata);
+  field_metadata_t* c1_md = polymesh_field_metadata(cfield1);
+  assert_int_equal(0, strcmp(field_metadata_name(c1_md, 0), "solution"));
+  assert_int_equal(0, strcmp(field_metadata_units(c1_md, 0), "quatloo"));
+  assert_true(field_metadata_conserved(c1_md, 0));
+  assert_false(field_metadata_extensive(c1_md, 0));
 
   // node field
-  assert_true(silo_file_contains_polymesh_field(silo, "nx", "mesh", POLYMESH_NODE));
-  assert_true(silo_file_contains_polymesh_field(silo, "ny", "mesh", POLYMESH_NODE));
-  assert_true(silo_file_contains_polymesh_field(silo, "nz", "mesh", POLYMESH_NODE));
+  assert_true(silo_file_contains_polymesh_field(silo, "nvals", "mesh", POLYMESH_NODE));
   polymesh_field_t* nfield1 = polymesh_field_new(mesh, POLYMESH_NODE, 3);
-  silo_file_read_polymesh_field(silo, nnames, "mesh", nfield1, NULL);
+  silo_file_read_polymesh_field(silo, "nvals", "mesh", nfield1);
   assert_true(ALL(compare_values(polymesh_field_enumerate(nfield1), 
                                  polymesh_field_enumerate(nfield), 
                                  reals_equal)));
@@ -107,7 +98,7 @@ static void test_plot_rectilinear_mesh(void** state)
   // face field
   assert_true(silo_file_contains_polymesh_field(silo, "fvals", "mesh", POLYMESH_FACE));
   polymesh_field_t* ffield1 = polymesh_field_new(mesh, POLYMESH_FACE, 1);
-  silo_file_read_polymesh_field(silo, fnames, "mesh", ffield1, NULL);
+  silo_file_read_polymesh_field(silo, "fvals", "mesh", ffield1);
   assert_true(ALL(compare_values(polymesh_field_enumerate(ffield1), 
                                  polymesh_field_enumerate(ffield), 
                                  reals_equal)));
@@ -115,7 +106,7 @@ static void test_plot_rectilinear_mesh(void** state)
   // edge field
   assert_true(silo_file_contains_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE));
   polymesh_field_t* efield1 = polymesh_field_new(mesh, POLYMESH_EDGE, 1);
-  silo_file_read_polymesh_field(silo, enames, "mesh", efield1, NULL);
+  silo_file_read_polymesh_field(silo, "evals", "mesh", efield1);
   assert_true(ALL(compare_values(polymesh_field_enumerate(efield1), 
                                  polymesh_field_enumerate(efield), 
                                  reals_equal)));

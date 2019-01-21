@@ -9,6 +9,7 @@
 #define POLYMEC_POLYMESH_FIELD_H
 
 #include "core/declare_nd_array.h"
+#include "geometry/field_metadata.h"
 #include "geometry/polymesh.h"
 
 /// \addtogroup geometry geometry
@@ -43,6 +44,9 @@ typedef struct
   /// Parallel exchanger / token.
   exchanger_t* ex;
   int ex_token;
+
+  // Metadata.
+  field_metadata_t* md;
 } polymesh_field_t;
 
 /// Constructs a new polymesh field with the given number of components
@@ -55,6 +59,11 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
 /// Destroys the given polymesh field.
 /// \memberof polymesh_field
 void polymesh_field_free(polymesh_field_t* field);
+
+/// Returns the metadata associated with this field. Every field has a 
+/// metadata object that is empty until its properties are specified.
+/// \memberof unimesh_field
+field_metadata_t* polymesh_field_metadata(polymesh_field_t* field);
 
 /// Synchronously exchanges boundary data in this field with that of 
 /// adjoining subdomains. For cell-centered data, this 

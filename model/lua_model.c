@@ -255,6 +255,22 @@ static lua_module_function model_funcs[] = {
   {NULL, NULL, NULL}
 };
 
+static int m_get_name(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_pushstring(L, model_name(m));
+  return 1;
+}
+
+static int m_get_context(lua_State* L)
+{
+  // Fetch our context from the Lua table.
+  // It's nil if it's not implemented in Lua.
+  model_t* m = lua_to_model(L, 1);
+  lua_pushlightuserdata(L, model_context(m));
+  lua_gettable(L, LUA_REGISTRYINDEX);
+  return 1;
+}
 static int m_get_step(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -269,9 +285,77 @@ static int m_get_time(lua_State* L)
   return 1;
 }
 
+static int m_get_min_dt(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_push_real(L, model_min_dt(m));
+  return 1;
+}
+
+static int m_set_min_dt(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  if (!lua_is_real(L, 2))
+    return luaL_error(L, "Argument must be a positive time interval.");
+  real_t dt = lua_to_real(L, 2);
+  if (dt <= 0.0)
+    return luaL_error(L, "Argument must be a positive time interval.");
+  char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
+  if (dt > model_max_dt(m, reason))
+    return luaL_error(L, "Model min_dt must not exceed max_dt.");
+  model_set_min_dt(m, dt);
+  return 0;
+}
+
+static int m_get_max_dt(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
+  lua_push_real(L, model_max_dt(m, reason));
+  return 1;
+}
+
+static int m_set_max_dt(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  if (!lua_is_real(L, 2))
+    return luaL_error(L, "Argument must be a positive time interval.");
+  real_t dt = lua_to_real(L, 2);
+  if (dt <= 0.0)
+    return luaL_error(L, "Argument must be a positive time interval.");
+  if (dt < model_min_dt(m))
+    return luaL_error(L, "Model max_dt must not be smaller than min_dt.");
+  model_set_max_dt(m, dt);
+  return 0;
+}
+
+static int m_get_initial_dt(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_push_real(L, model_initial_dt(m));
+  return 1;
+}
+
+static int m_set_initial_dt(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  if (!lua_is_real(L, 2))
+    return luaL_error(L, "Argument must be a positive time interval.");
+  real_t dt = lua_to_real(L, 2);
+  if (dt <= 0.0)
+    return luaL_error(L, "Argument must be a positive time interval.");
+  model_set_initial_dt(m, dt);
+  return 0;
+}
+
 static lua_class_field model_fields[] = {
+  {"name", m_get_name, NULL},
+  {"context", m_get_context, NULL},
   {"step", m_get_step, NULL},
   {"time", m_get_time, NULL},
+  {"min_dt", m_get_min_dt, m_set_min_dt},
+  {"max_dt", m_get_max_dt, m_set_max_dt},
+  {"initial_dt", m_get_initial_dt, m_set_initial_dt},
   {NULL, NULL, NULL}
 };
 
@@ -756,19 +840,10 @@ static void lp_acquire(void* context, real_t t, probe_data_t* data)
   lua_pushlightuserdata(p->L, p);
   lua_gettable(p->L, LUA_REGISTRYINDEX);
 
-  // If it's an object, call thing thing with itself as the first argument.
-  if (lua_istable(p->L, -1))
-  {
-    lua_push_real(p->L, t);
-    lua_call(p->L, 2, 1);
-  }
-  // Otherwise, just call it with t.
-  else 
-  {
-    ASSERT(lua_isfunction(p->L, -1));
-    lua_push_real(p->L, t);
-    lua_call(p->L, 1, 1);
-  }
+  // Call the thing with t as the argument.
+  ASSERT(lua_istable(p->L, -1) || lua_isfunction(p->L, -1));
+  lua_push_real(p->L, t);
+  lua_call(p->L, 1, 1);
 
   // The return value is a table, which we use to fill our probe_data.
   table_to_probe_data(p->L, -1, data);

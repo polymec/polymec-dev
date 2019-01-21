@@ -41,6 +41,8 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
   field->capacity = field->num_local_values + field->num_ghost_values;
   field->data = polymec_calloc(sizeof(real_t) * num_components * field->capacity);
 
+  field->md = field_metadata_new(num_components);
+
   return field;
 }
 
@@ -49,7 +51,13 @@ void polymesh_field_free(polymesh_field_t* field)
   if (field->ex != NULL)
     release_ref(field->ex);
   polymec_free(field->data);
+  release_ref(field->md);
   polymec_free(field);
+}
+
+field_metadata_t* polymesh_field_metadata(polymesh_field_t* field)
+{
+  return field->md;
 }
 
 void polymesh_field_exchange(polymesh_field_t* field)

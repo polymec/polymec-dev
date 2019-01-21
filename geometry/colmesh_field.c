@@ -91,6 +91,9 @@ struct colmesh_field_t
   // Exchangers.
   exchanger_t *ex;
   int ex_token;
+
+  // Metadata.
+  field_metadata_t* md;
 };
 
 static inline int chunk_index(colmesh_field_t* field, int xy_index, int z_index)
@@ -144,6 +147,9 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
   // Use the given buffer.
   colmesh_field_set_buffer(field, buffer, assume_control);
 
+  // Set up metadata.
+  field->md = field_metadata_new(num_components);
+
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -166,8 +172,9 @@ void colmesh_field_free(colmesh_field_t* field)
   chunk_data_map_free(field->chunks);
   if ((field->buffer != NULL) && field->owns_buffer)
     polymec_free(field->buffer);
-  if (field->ex != NULL) // FIXME: Remove this test when all exchangers are complete!
+  if (field->ex != NULL) 
     release_ref(field->ex);
+  release_ref(field->md);
   polymec_free(field);
 }
 
@@ -238,7 +245,17 @@ void colmesh_field_copy(colmesh_field_t* field,
     ASSERT(dest_data->chunk == src_data->chunk);
     colmesh_chunk_data_copy(src_data, dest_data);
   }
+
+  // Copy metadata.
+  release_ref(dest->md);
+  dest->md = field_metadata_clone(field->md);
+
   STOP_FUNCTION_TIMER();
+}
+
+field_metadata_t* colmesh_field_metadata(colmesh_field_t* field)
+{
+  return field->md;
 }
 
 colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field, 

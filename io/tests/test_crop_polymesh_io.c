@@ -67,8 +67,7 @@ static void test_cylindrical_crop(void** state)
   DECLARE_POLYMESH_FIELD_ARRAY(data, ones);
   for (int c = 0; c < cropped_mesh->num_cells; ++c)
     data[c][0] = 1.0*c;
-  const char* ones_name[] = {"ones"};
-  silo_file_write_polymesh_field(silo, ones_name, "mesh", ones, NULL);
+  silo_file_write_polymesh_field(silo, "ones", "mesh", ones);
   silo_file_close(silo);
 
   polymesh_field_free(ones);
@@ -96,8 +95,7 @@ static void test_spherical_crop(void** state)
   DECLARE_POLYMESH_FIELD_ARRAY(data, ones);
   for (int c = 0; c < cropped_mesh->num_cells; ++c)
     data[c][0] = 1.0*c;
-  const char* ones_name[] = {"ones"};
-  silo_file_write_polymesh_field(silo, ones_name, "mesh", ones, NULL);
+  silo_file_write_polymesh_field(silo, "ones", "mesh", ones);
   silo_file_close(silo);
 
   polymesh_field_free(ones);

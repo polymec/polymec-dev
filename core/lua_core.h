@@ -101,15 +101,15 @@ bool lua_is_tensor2(lua_State* L, int index);
 tensor2_t* lua_to_tensor2(lua_State* L, int index);
 
 /// Pushes a (3D) symmetric rank-2 tensor t onto L's stack.
-void lua_push_sym_tensor2(lua_State* L, sym_tensor2_t* t);
+void lua_push_symtensor2(lua_State* L, symtensor2_t* t);
 
 /// Returns true if the item at the given index on L's stack is a symmetric 
 /// rank-2 tensor, false if not.
-bool lua_is_sym_tensor2(lua_State* L, int index);
+bool lua_is_symtensor2(lua_State* L, int index);
 
 /// Returns the symmetric rank-2 tensor at the given index on L's stack, or 
 /// NULL if the item there is not a symmetric rank-2 tensor.
-sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index);
+symtensor2_t* lua_to_symtensor2(lua_State* L, int index);
 
 /// Pushes an MPI communicator onto L's stack.
 void lua_push_mpi_comm(lua_State* L, MPI_Comm comm);
@@ -137,7 +137,7 @@ typedef enum
   LUA_ARRAY_POINT,       // 3D points
   LUA_ARRAY_VECTOR,      // 3D vectors
   LUA_ARRAY_TENSOR2,     // 3D rank-2 tensors
-  LUA_ARRAY_SYM_TENSOR2  // 3D symmetric rank-2 tensors
+  LUA_ARRAY_SYMTENSOR2   // 3D symmetric rank-2 tensors
 } lua_array_data_t;
 
 /// Pushes an array of the given type onto L's stack. If free_data is true, 
@@ -191,9 +191,14 @@ void lua_push_sp_func(lua_State* L, sp_func_t* f);
 /// function, false if not.
 bool lua_is_sp_func(lua_State* L, int index);
 
-/// Returns the spatial function at the given index on L's stack, or NULL if the 
-/// item there is not a spatial function.
+/// Returns the spatial function at the given index on L's stack, or NULL if 
+/// the item there is not a spatial function. 
 sp_func_t* lua_to_sp_func(lua_State* L, int index);
+
+/// Constructs a spatial function from the Lua function at the given index on 
+/// L's stack, or returns NULL if the item there is not a Lua function.
+/// \param [in] num_comp The number of components in the function.
+sp_func_t* lua_as_sp_func(lua_State* L, int index, int num_comp);
 
 /// Pushes a space-time function f onto L's stack.
 void lua_push_st_func(lua_State* L, st_func_t* f);
@@ -203,8 +208,13 @@ void lua_push_st_func(lua_State* L, st_func_t* f);
 bool lua_is_st_func(lua_State* L, int index);
 
 /// Returns the space-time function at the given index on L's stack, or NULL 
-/// if the item there is not a space-time function.
+/// if the item there is not a space-time function. 
 st_func_t* lua_to_st_func(lua_State* L, int index);
+
+/// Constructs a space-time function from the Lua function at the given index 
+/// on L's stack, or returns NULL if the item there is not a Lua function.
+/// \param [in] num_comp The number of components in the function.
+st_func_t* lua_as_st_func(lua_State* L, int index, int num_comp);
 
 /// Pushes a random number generator r onto L's stack.
 void lua_push_rng(lua_State* L, rng_t* r);
