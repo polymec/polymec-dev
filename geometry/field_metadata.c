@@ -182,10 +182,11 @@ bool field_metadata_next_vector(field_metadata_t* md,
 {
   if (*pos >= md->num_comps)
     return false;
-  while ((md->comp_types[*pos] != FIELD_VECTOR) && (*pos < md->num_comps))
+  while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_VECTOR))
     ++(*pos);
-  if (md->comp_types[*pos] == FIELD_VECTOR)
+  if (*pos < md->num_comps) 
   {
+    ASSERT(md->comp_types[*pos] == FIELD_VECTOR);
     *comp = *pos;
     return true;
   }
@@ -216,10 +217,11 @@ bool field_metadata_next_tensor2(field_metadata_t* md,
 {
   if (*pos >= md->num_comps)
     return false;
-  while ((md->comp_types[*pos] != FIELD_TENSOR2) && (*pos < md->num_comps))
+  while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_TENSOR2))
     ++(*pos);
-  if (md->comp_types[*pos] == FIELD_TENSOR2)
+  if (*pos < md->num_comps) 
   {
+    ASSERT(md->comp_types[*pos] == FIELD_TENSOR2);
     *comp = *pos;
     return true;
   }
@@ -250,10 +252,11 @@ bool field_metadata_next_symtensor2(field_metadata_t* md,
 {
   if (*pos >= md->num_comps)
     return false;
-  while ((md->comp_types[*pos] != FIELD_SYMTENSOR2) && (*pos < md->num_comps))
+  while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_SYMTENSOR2))
     ++(*pos);
-  if (md->comp_types[*pos] == FIELD_SYMTENSOR2)
+  if (*pos < md->num_comps) 
   {
+    ASSERT(md->comp_types[*pos] == FIELD_TENSOR2);
     *comp = *pos;
     return true;
   }
