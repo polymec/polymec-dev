@@ -32,6 +32,9 @@ extern void silo_file_add_subdomain_field(silo_file_t* file, const char* mesh_na
 extern void silo_file_push_domain_dir(silo_file_t* file);
 extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
+extern void silo_file_write_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern void silo_file_read_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern bool silo_file_contains_field_metadata(silo_file_t* file, const char* md_name);
 
 extern exchanger_proc_map_t* colmesh_xy_data_send_map(colmesh_t* mesh, int xy_index);
 extern exchanger_proc_map_t* colmesh_xy_data_receive_map(colmesh_t* mesh, int xy_index);
@@ -876,26 +879,6 @@ static void write_colmesh_chunk_data(silo_file_t* file,
       char data_name[FILENAME_MAX+1];
       snprintf(data_name, FILENAME_MAX, "%s_%s", chunk_grid_name, field_component_names[c]);
       silo_file_write_real_array(file, data_name, data, data_size);
-
-      // Pack any metadata into an array.
-      char mda_name[FILENAME_MAX+1];
-      snprintf(mda_name, FILENAME_MAX, "%s_md", data_name);
-      const char* name = field_metadata_name(md, c);
-      size_t label_size = (name != NULL) ? strlen(name) : 0;
-      const char* units = field_metadata_units(md, c);
-      size_t units_size = (units != NULL) ? strlen(units) : 0;
-      size_t mda_size = 5 + label_size + units_size;
-      int mda[mda_size];
-      memset(mda, 0, sizeof(int) * mda_size);
-      mda[0] = (int)label_size; 
-      for (size_t i = 0; i < label_size; ++i)
-        mda[1+i] = (int)(name[i]);
-      mda[label_size+1] = (int)units_size; 
-      for (size_t i = 0; i < units_size; ++i)
-        mda[1+label_size+1+i] = (int)(units[i]);
-      mda[1+label_size+1+units_size] = (int)(field_metadata_conserved(md, c));
-      mda[1+label_size+1+units_size+1] = (int)(field_metadata_extensive(md, c));
-      silo_file_write_int_array(file, mda_name, mda, mda_size);
     }
   }
 
@@ -904,7 +887,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
 }
 
 void silo_file_write_colmesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
+                                   const char* field_name,
                                    const char* mesh_name,
                                    colmesh_field_t* field,
                                    coord_mapping_t* mapping)
@@ -912,18 +895,34 @@ void silo_file_write_colmesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
 
+  int num_components = colmesh_field_num_components(field);
+  char* field_names[num_components];
+
   field_metadata_t* md = colmesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_write_field_metadata(file, md_name, md);
 
   colmesh_chunk_data_t* data;
   int pos = 0, xy, z, l = 0;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
     // Write out the chunk data itself.
+    for (int c = 0; c < num_components; ++c)
+    {
+      char field_comp_name[FILENAME_MAX+1];
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c, xy, z);
+      field_names[c] = string_dup(field_comp_name);
+    }
+
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
-    write_colmesh_chunk_data(file, field_component_names, chunk_grid_name,  
+    write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
                              data, md, mapping);
     ++l;
+
+    for (int c = 0; c < num_components; ++c)
+      string_free(field_names[c]);
   }
   ASSERT(l == colmesh_field_num_chunks(field));
 
@@ -1002,8 +1001,7 @@ static void read_colmesh_chunk_data(silo_file_t* file,
                                     const char** field_component_names,
                                     const char* chunk_grid_name,
                                     size_t num_components,
-                                    colmesh_chunk_data_t* chunk_data,
-                                    field_metadata_t* md)
+                                    colmesh_chunk_data_t* chunk_data)
 {
   // Fetch each component from the file.
   for (int c = 0; c < (int)num_components; ++c)
@@ -1034,54 +1032,44 @@ static void read_colmesh_chunk_data(silo_file_t* file,
       default:
         copy_in_colmesh_cell_component(data, c, chunk_data);
     }
-
-    // Extract metadata.
-    char md_name[FILENAME_MAX+1];
-    snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
-    size_t mda_size;
-    int* mda = silo_file_read_int_array(file, md_name, &mda_size);
-    if (mda != NULL)
-    {
-      size_t label_size = (int)mda[0];
-      char name[label_size+1];
-      for (size_t i = 0; i < label_size; ++i)
-        name[i] = (char)mda[1+i];
-      name[label_size] = '\0';
-      field_metadata_set_name(md, c, name);
-      size_t units_size = (int)mda[1+label_size];
-      char units[units_size+1];
-      for (size_t i = 0; i < units_size; ++i)
-        units[i] = (char)mda[1+label_size+1+i];
-      units[units_size] = '\0';
-      field_metadata_set_units(md, c, units);
-      field_metadata_set_conserved(md, c, (int)(mda[1+label_size+1+units_size]));
-      field_metadata_set_extensive(md, c, (int)(mda[1+label_size+1+units_size+1]));
-      polymec_free(mda);
-    }
-
     polymec_free(data);
   }
 }
 
 void silo_file_read_colmesh_field(silo_file_t* file, 
-                                  const char** field_component_names,
+                                  const char* field_name,
                                   const char* mesh_name,
                                   colmesh_field_t* field)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
 
+  int num_components = colmesh_field_num_components(field);
+  char* field_names[num_components];
   field_metadata_t* md = colmesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_read_field_metadata(file, md_name, md);
 
   colmesh_chunk_data_t* data;
   int pos = 0, xy, z;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
+    for (int c = 0; c < num_components; ++c)
+    {
+      char field_comp_name[FILENAME_MAX];
+      snprintf(field_comp_name, FILENAME_MAX-1, "%s_%d", field_name, c);
+      field_names[c] = string_dup(field_comp_name);
+    }
     char chunk_grid_name[FILENAME_MAX+1];
     snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
-    read_colmesh_chunk_data(file, field_component_names, chunk_grid_name, 
-                            data->num_components, data, md);
+    read_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name, 
+                            data->num_components, data);
+
+    for (int c = 0; c < num_components; ++c)
+      string_free(field_names[c]);
   }
+
   silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
 }
@@ -1091,36 +1079,14 @@ bool silo_file_contains_colmesh_field(silo_file_t* file,
                                       const char* mesh_name,
                                       colmesh_centering_t centering)
 {
-  silo_file_push_domain_dir(file);
-  DBfile* dbfile = silo_file_dbfile(file);
-
-  // Read in the indices of the locally stored chunks:
-  // (xy0, z0), (xy1, z1), ...
-  size_t num_chunk_indices;
-  int* chunk_indices;
+  bool result = false;
+  if (silo_file_contains_colmesh(file, mesh_name))  // mesh exists...
   {
-    char array_name[FILENAME_MAX+1];
-    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
-    chunk_indices = silo_file_read_int_array(file, array_name, 
-                                             &num_chunk_indices);
+    // Look for the field's metadata array.
+    char md_name[FILENAME_MAX+1];
+    snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+    result = silo_file_contains_field_metadata(file, md_name);
   }
-  bool exists = (chunk_indices != NULL);
-  if (exists)
-  {
-    // Now make sure the field data exists locally.
-    for (size_t i = 0; i < num_chunk_indices/2; ++i)
-    {
-      int xy = chunk_indices[2*i];
-      int z = chunk_indices[2*i+1];
-      char data_name[FILENAME_MAX+1];
-      snprintf(data_name, FILENAME_MAX, "%s_%d_%d_%s_real_array", mesh_name, xy, z, field_name);
-      exists = DBInqVarExists(dbfile, data_name);
-      if (!exists) break;
-    }
-  }
-  polymec_free(chunk_indices);
-
-  silo_file_pop_dir(file);
-  return exists;
+  return result;
 }
 

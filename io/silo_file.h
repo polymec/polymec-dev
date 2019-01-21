@@ -133,9 +133,9 @@ bool silo_file_contains_unimesh(silo_file_t* file,
 ///                     before it is stored.
 /// \memberof silo_file
 void silo_file_write_unimesh_field(silo_file_t* file, 
-                                   unimesh_field_t* field,
                                    const char* field_name,
                                    const char* mesh_name,
+                                   unimesh_field_t* field,
                                    coord_mapping_t* mapping);
 
 /// Reads a uniform cartesian mesh field with the given component names from 
@@ -203,9 +203,9 @@ bool silo_file_contains_colmesh(silo_file_t* file,
 ///                     before it is stored.
 /// \memberof silo_file
 void silo_file_write_colmesh_field(silo_file_t* file, 
-                                   colmesh_field_t* field,
                                    const char* field_name,
                                    const char* mesh_name,
+                                   colmesh_field_t* field,
                                    coord_mapping_t* mapping);
 
 /// Reads a prism mesh field with the given component names from 

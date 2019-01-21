@@ -102,21 +102,17 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   // Write out the mesh and the fields.
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, prefix, "", 1, 0, 0.0);
   silo_file_write_colmesh(silo, "mesh", mesh, NULL);
-  const char* cnames[] = {"solution"};
   field_metadata_t* c_md = colmesh_field_metadata(cfield);
   field_metadata_set_name(c_md, 0, "solution");
   field_metadata_set_units(c_md, 0, "quatloo");
   field_metadata_set_conserved(c_md, 0, true);
   field_metadata_set_extensive(c_md, 0, false);
-  silo_file_write_colmesh_field(silo, cnames, "mesh", cfield, NULL);
-  const char* nnames[] = {"nx", "ny", "nz"};
-  silo_file_write_colmesh_field(silo, nnames, "mesh", nfield, NULL);
-  const char* fnames[] = {"fvals"};
-  silo_file_write_colmesh_field(silo, fnames, "mesh", fxyfield, NULL);
-  silo_file_write_colmesh_field(silo, fnames, "mesh", fzfield, NULL);
-  const char* enames[] = {"evals"};
-  silo_file_write_colmesh_field(silo, enames, "mesh", exyfield, NULL);
-  silo_file_write_colmesh_field(silo, enames, "mesh", ezfield, NULL);
+  silo_file_write_colmesh_field(silo, "solution", "mesh", cfield, NULL);
+  silo_file_write_colmesh_field(silo, "nvals", "mesh", nfield, NULL);
+  silo_file_write_colmesh_field(silo, "fvals", "mesh", fxyfield, NULL);
+  silo_file_write_colmesh_field(silo, "fvals", "mesh", fzfield, NULL);
+  silo_file_write_colmesh_field(silo, "evals", "mesh", exyfield, NULL);
+  silo_file_write_colmesh_field(silo, "evals", "mesh", ezfield, NULL);
   silo_file_close(silo);
 
   // Now read the mesh from the file.
@@ -146,7 +142,7 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   // cell field
   assert_true(silo_file_contains_colmesh_field(silo, "solution", "mesh", COLMESH_CELL));
   colmesh_field_t* cfield1 = colmesh_field_new(mesh, COLMESH_CELL, 1);
-  silo_file_read_colmesh_field(silo, cnames, "mesh", cfield1);
+  silo_file_read_colmesh_field(silo, "solution", "mesh", cfield1);
   assert_true(ALL(compare_values(colmesh_field_enumerate(cfield1), 
                                  colmesh_field_enumerate(cfield), 
                                  reals_equal)));
@@ -159,11 +155,9 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   assert_false(field_metadata_extensive(c1_md, 0));
 
   // node field
-  assert_true(silo_file_contains_colmesh_field(silo, "nx", "mesh", COLMESH_NODE));
-  assert_true(silo_file_contains_colmesh_field(silo, "ny", "mesh", COLMESH_NODE));
-  assert_true(silo_file_contains_colmesh_field(silo, "nz", "mesh", COLMESH_NODE));
+  assert_true(silo_file_contains_colmesh_field(silo, "nvals", "mesh", COLMESH_NODE));
   colmesh_field_t* nfield1 = colmesh_field_new(mesh, COLMESH_NODE, 3);
-  silo_file_read_colmesh_field(silo, nnames, "mesh", nfield1);
+  silo_file_read_colmesh_field(silo, "nvals", "mesh", nfield1);
   assert_true(ALL(compare_values(colmesh_field_enumerate(nfield1), 
                                  colmesh_field_enumerate(nfield), 
                                  reals_equal)));
@@ -171,14 +165,14 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   // face fields
   assert_true(silo_file_contains_colmesh_field(silo, "fvals", "mesh", COLMESH_XYFACE));
   colmesh_field_t* fxyfield1 = colmesh_field_new(mesh, COLMESH_XYFACE, 1);
-  silo_file_read_colmesh_field(silo, fnames, "mesh", fxyfield1);
+  silo_file_read_colmesh_field(silo, "fvals", "mesh", fxyfield1);
   assert_true(ALL(compare_values(colmesh_field_enumerate(fxyfield1), 
                                  colmesh_field_enumerate(fxyfield), 
                                  reals_equal)));
 
   assert_true(silo_file_contains_colmesh_field(silo, "fvals", "mesh", COLMESH_ZFACE));
   colmesh_field_t* fzfield1 = colmesh_field_new(mesh, COLMESH_ZFACE, 1);
-  silo_file_read_colmesh_field(silo, fnames, "mesh", fzfield1);
+  silo_file_read_colmesh_field(silo, "fvals", "mesh", fzfield1);
   assert_true(ALL(compare_values(colmesh_field_enumerate(fzfield1), 
                                  colmesh_field_enumerate(fzfield), 
                                  reals_equal)));
@@ -186,14 +180,14 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   // edge fields
   assert_true(silo_file_contains_colmesh_field(silo, "evals", "mesh", COLMESH_XYEDGE));
   colmesh_field_t* exyfield1 = colmesh_field_new(mesh, COLMESH_XYEDGE, 1);
-  silo_file_read_colmesh_field(silo, enames, "mesh", exyfield1);
+  silo_file_read_colmesh_field(silo, "evals", "mesh", exyfield1);
   assert_true(ALL(compare_values(colmesh_field_enumerate(exyfield1), 
                                  colmesh_field_enumerate(exyfield), 
                                  reals_equal)));
 
   assert_true(silo_file_contains_colmesh_field(silo, "evals", "mesh", COLMESH_ZEDGE));
   colmesh_field_t* ezfield1 = colmesh_field_new(mesh, COLMESH_ZEDGE, 1);
-  silo_file_read_colmesh_field(silo, enames, "mesh", ezfield1);
+  silo_file_read_colmesh_field(silo, "evals", "mesh", ezfield1);
   assert_true(ALL(compare_values(colmesh_field_enumerate(ezfield1), 
                                  colmesh_field_enumerate(ezfield), 
                                  reals_equal)));

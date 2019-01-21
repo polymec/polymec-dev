@@ -34,6 +34,9 @@ extern void silo_file_add_subdomain_field(silo_file_t* file, const char* mesh_na
 extern void silo_file_push_domain_dir(silo_file_t* file);
 extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
+extern void silo_file_write_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern void silo_file_read_field_metadata(silo_file_t* file, const char* md_name, field_metadata_t* md);
+extern bool silo_file_contains_field_metadata(silo_file_t* file, const char* md_name);
 
 static void write_unimesh_patch_grid(silo_file_t* file,
                                      const char* patch_grid_name,
@@ -1141,7 +1144,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
 }
 
 void silo_file_write_unimesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
+                                   const char* field_name,
                                    const char* mesh_name,
                                    unimesh_field_t* field,
                                    coord_mapping_t* mapping)
@@ -1163,6 +1166,9 @@ void silo_file_write_unimesh_field(silo_file_t* file,
   int multi_field_types[num_local_patches];
 
   field_metadata_t* md = unimesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_write_field_metadata(file, md_name, md);
 
   unimesh_patch_t* patch;
   int pos = 0, i, j, k, l = 0;
@@ -1172,13 +1178,13 @@ void silo_file_write_unimesh_field(silo_file_t* file,
     // Write out the patch data itself.
     for (int c = 0; c < num_components; ++c)
     {
-      char field_name[FILENAME_MAX];
-      snprintf(field_name, FILENAME_MAX-1, "%s_%d_%d_%d", field_component_names[c], i, j, k);
-      field_names[c] = string_dup(field_name);
-      multi_field_names[c][l] = string_dup(field_name);
+      char field_comp_name[FILENAME_MAX+1];
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d_%d_%d_%d", field_name, c, i, j, k);
+      field_names[c] = string_dup(field_comp_name);
+      multi_field_names[c][l] = string_dup(field_comp_name);
     }
-    char patch_grid_name[FILENAME_MAX];
-    snprintf(patch_grid_name, FILENAME_MAX-1, "%s_%d_%d_%d", mesh_name, i, j, k);
+    char patch_grid_name[FILENAME_MAX+1];
+    snprintf(patch_grid_name, FILENAME_MAX, "%s_%d_%d_%d", mesh_name, i, j, k);
     write_unimesh_patch_data(file, (const char**)field_names, patch_grid_name,  
                              patch, md, &bbox, mapping);
     multi_field_types[l] = DB_QUADVAR;
@@ -1196,11 +1202,13 @@ void silo_file_write_unimesh_field(silo_file_t* file,
     // We need to associate this multi-variable with our multi-mesh.
     DBoptlist* optlist = DBMakeOptlist(4);
     DBAddOption(optlist, DBOPT_MMESH_NAME, (void*)mesh_name);
-    DBPutMultivar(dbfile, field_component_names[c], num_local_patches, (const char* const*)multi_field_names[c], multi_field_types, NULL);
+    char field_comp_name[FILENAME_MAX+1];
+    snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c);
+    DBPutMultivar(dbfile, field_comp_name, num_local_patches, (const char* const*)multi_field_names[c], multi_field_types, NULL);
     DBFreeOptlist(optlist);
 
     // Add subdomain information for this component.
-    silo_file_add_subdomain_mesh(file, field_component_names[c], DB_QUAD_RECT, NULL);
+    silo_file_add_subdomain_mesh(file, field_comp_name, DB_QUAD_RECT, NULL);
   }
 
   // Clean up.
@@ -1396,7 +1404,7 @@ static void read_unimesh_patch_data(silo_file_t* file,
 }
 
 void silo_file_read_unimesh_field(silo_file_t* file, 
-                                  const char** field_component_names,
+                                  const char* field_name,
                                   const char* mesh_name,
                                   unimesh_field_t* field)
 {
@@ -1404,6 +1412,9 @@ void silo_file_read_unimesh_field(silo_file_t* file,
   silo_file_push_domain_dir(file);
 
   field_metadata_t* md = unimesh_field_metadata(field);
+  char md_name[FILENAME_MAX+1];
+  snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+  silo_file_read_field_metadata(file, md_name, md);
 
   unimesh_patch_t* patch;
   int pos = 0, i, j, k;
@@ -1412,9 +1423,9 @@ void silo_file_read_unimesh_field(silo_file_t* file,
     char* field_names[patch->nc];
     for (int c = 0; c < patch->nc; ++c)
     {
-      char field_name[FILENAME_MAX+1];
-      snprintf(field_name, FILENAME_MAX, "%s_%d_%d_%d", field_component_names[c], i, j, k);
-      field_names[c] = string_dup(field_name);
+      char field_comp_name[FILENAME_MAX+1];
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d_%d_%d_%d", field_name, c, i, j, k);
+      field_names[c] = string_dup(field_comp_name);
     }
     read_unimesh_patch_data(file, (const char**)field_names, mesh_name, 
                             patch->nc, patch, md);
@@ -1430,12 +1441,14 @@ bool silo_file_contains_unimesh_field(silo_file_t* file,
                                       const char* mesh_name,
                                       unimesh_centering_t centering)
 {
-  // FIXME
-  silo_file_push_domain_dir(file);
-  DBfile* dbfile = silo_file_dbfile(file);
-  bool exists = (DBInqVarExists(dbfile, mesh_name) && 
-                 (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
-  silo_file_pop_dir(file);
-  return exists;
+  bool result = false;
+  if (silo_file_contains_unimesh(file, mesh_name))  // mesh exists...
+  {
+    // Look for the field's metadata array.
+    char md_name[FILENAME_MAX+1];
+    snprintf(md_name, FILENAME_MAX, "%s_%s_md", field_name, mesh_name);
+    result = silo_file_contains_field_metadata(file, md_name);
+  }
+  return result;
 }
 
