@@ -2908,6 +2908,7 @@ void silo_file_read_field_metadata(silo_file_t* file,
     int num_symtensor2s = mda[offset++];
     for (int i = 0; i < num_symtensor2s; ++i)
       field_metadata_set_symtensor2(md, mda[offset++]);
+    polymec_free(mda);
   }
 
   silo_file_pop_dir(file);
