@@ -22,7 +22,7 @@ typedef struct field_metadata_t field_metadata_t;
 /// Creates a new empty object for storing field metadata.
 /// \param [in] num_components The number of components in the associated field.
 /// \memberof field_metadata
-field_metadata_t* field_metadata_new(int num_components);
+field_metadata_t* field_metadata_new(size_t num_components);
 
 /// Creates a new copy of the given metadata object.
 /// \param [in] md The metadata object to be cloned.

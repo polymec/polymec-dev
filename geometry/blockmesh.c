@@ -345,9 +345,9 @@ MPI_Comm blockmesh_comm(blockmesh_t* mesh)
   return mesh->comm;
 }
 
-size_t blockmesh_num_blocks(blockmesh_t* mesh)
+int blockmesh_num_blocks(blockmesh_t* mesh)
 {
-  return mesh->blocks->size;
+  return (int)(mesh->blocks->size);
 }
 
 unimesh_t* blockmesh_block(blockmesh_t* mesh, int index)

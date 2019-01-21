@@ -37,8 +37,8 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
   field->num_components = num_components;
 
   // Add fields for the blocks within the mesh.
-  size_t num_blocks = blockmesh_num_blocks(mesh);
-  for (size_t i = 0; i < num_blocks; ++i)
+  int num_blocks = blockmesh_num_blocks(mesh);
+  for (int i = 0; i < num_blocks; ++i)
   {
     unimesh_t* block = blockmesh_block(mesh, i);
     unimesh_field_t* block_field = unimesh_field_new(block, centering, num_components);

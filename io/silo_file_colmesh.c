@@ -302,12 +302,12 @@ static void query_colmesh_vector_comps(colmesh_chunk_data_t* chunk_data,
 {
   if ((mapping != NULL) && (field_metadata_has_vectors(md)))
   {
-    int pos = 0, start;
+    int pos = 0;
     while (field_metadata_next_vector(md, &pos, first_vector_comp))
     {
-      is_vector_comp[start] = true;
-      is_vector_comp[start+1] = true;
-      is_vector_comp[start+2] = true;
+      is_vector_comp[*first_vector_comp] = true;
+      is_vector_comp[*first_vector_comp+1] = true;
+      is_vector_comp[*first_vector_comp+2] = true;
     }
   }
   else
@@ -895,7 +895,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
 
-  int num_components = colmesh_field_num_components(field);
+  size_t num_components = colmesh_field_num_components(field);
   char* field_names[num_components];
 
   field_metadata_t* md = colmesh_field_metadata(field);
@@ -911,7 +911,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
     for (int c = 0; c < num_components; ++c)
     {
       char field_comp_name[FILENAME_MAX+1];
-      snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c, xy, z);
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c);
       field_names[c] = string_dup(field_comp_name);
     }
 
@@ -1044,7 +1044,7 @@ void silo_file_read_colmesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
 
-  int num_components = colmesh_field_num_components(field);
+  size_t num_components = colmesh_field_num_components(field);
   char* field_names[num_components];
   field_metadata_t* md = colmesh_field_metadata(field);
   char md_name[FILENAME_MAX+1];

@@ -141,7 +141,7 @@ MPI_Comm blockmesh_comm(blockmesh_t* mesh);
 
 /// Returns the number of blocks within the mesh.
 /// \memberof blockmesh
-size_t blockmesh_num_blocks(blockmesh_t* mesh);
+int blockmesh_num_blocks(blockmesh_t* mesh);
 
 /// Returns the block with the given index within the mesh.
 /// \param [in] index The index of the requested block.

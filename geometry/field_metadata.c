@@ -50,12 +50,12 @@ static void field_metadata_free(void* context)
   polymec_free(md->comp_types);
 }
 
-field_metadata_t* field_metadata_new(int num_comps)
+field_metadata_t* field_metadata_new(size_t num_comps)
 {
   ASSERT(num_comps > 0);
   field_metadata_t* md = polymec_refcounted_malloc(sizeof(field_metadata_t),
                                                    field_metadata_free);
-  md->num_comps = num_comps;
+  md->num_comps = (int)num_comps;
   md->names = polymec_calloc(sizeof(char*) * num_comps);
   md->units = polymec_calloc(sizeof(char*) * num_comps);
   md->conserved = polymec_calloc(sizeof(bool) * num_comps);
