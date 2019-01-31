@@ -11,6 +11,8 @@
 #include "core/unordered_map.h"
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_field.h"
+#include "geometry/unimesh.h"
+#include "geometry/unimesh_patch_bc.h"
 
 #if POLYMEC_HAVE_MPI
 #include "core/partitioning.h"
@@ -21,43 +23,7 @@
 #endif
 
 DEFINE_ARRAY(unimesh_array, unimesh_t*)
-
-// This type represents counterclockwise "twists" between connected blocks.
-typedef enum
-{
-  NO_TURN = 0,
-  QUARTER_TURN = 1,
-  HALF_TURN = 2,
-  THREE_QUARTERS_TURN = 3,
-  INVALID_TWIST
-} cxn_twist_t;
-
-// This type represents a connection between two blocks.
-typedef struct
-{
-  int blocks[6];
-  int boundaries[6]; 
-  cxn_twist_t twists[6];
-} cxn_t;
-
-static cxn_t* cxn_new()
-{
-  cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
-  for (int b = 0; b < 6; ++b)
-  {
-    cxn->blocks[b] = -1;
-    cxn->boundaries[b] = -1;
-    cxn->twists[b] = INVALID_TWIST;
-  }
-  return cxn;
-}
-
-static void cxn_free(cxn_t* cxn)
-{
-  polymec_free(cxn);
-}
-
-DEFINE_UNORDERED_MAP(cxn_map, int, cxn_t*, int_hash, int_equals)
+DEFINE_ARRAY(patch_bc_array, unimesh_patch_bc_t*)
 
 struct blockmesh_t
 {
@@ -65,14 +31,14 @@ struct blockmesh_t
   MPI_Comm comm;
   int nproc, rank;
 
-  // Blocks.
-  unimesh_array_t* blocks;
-
   // Patch dimensions.
   int patch_nx, patch_ny, patch_nz;
 
-  // Mapping of block indices to connection structs.
-  cxn_map_t* cxns;
+  // Blocks.
+  unimesh_array_t* blocks;
+
+  // Inter-block boundary conditions.
+  patch_bc_array_t* bcs;
 
   // This flag is set by blockmesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -91,33 +57,19 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   mesh->comm = comm;
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
-  mesh->blocks = unimesh_array_new();
   mesh->patch_nx = patch_nx;
   mesh->patch_ny = patch_ny;
   mesh->patch_nz = patch_nz;
-  mesh->cxns = cxn_map_new();
+  mesh->blocks = unimesh_array_new();
+  mesh->bcs = patch_bc_array_new();
   mesh->finalized = false;
 
   return mesh;
 }
 
-int blockmesh_add_block(blockmesh_t* mesh, 
-                        int num_x_patches, 
-                        int num_y_patches, 
-                        int num_z_patches)
+static void free_bc(unimesh_patch_bc_t* bc)
 {
-  ASSERT(!mesh->finalized);
-  ASSERT(num_x_patches > 0);
-  ASSERT(num_x_patches > 1);
-  ASSERT(num_x_patches > 2);
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  unimesh_t* block = create_empty_unimesh(mesh->comm, &bbox,
-                                          num_x_patches, num_y_patches, num_z_patches,
-                                          mesh->patch_nx, mesh->patch_ny, mesh->patch_nz,
-                                          false, false, false);
-  int index = (int)mesh->blocks->size;
-  unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
-  return index;
+  release_ref(bc);
 }
 
 // Only certain combos of block faces are acceptible.
@@ -157,165 +109,63 @@ int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
   return face;
 }
 
-static cxn_twist_t determine_twist(int block1_face,
-                                   int block1_nodes[4],
-                                   int block2_face,
-                                   int block2_nodes[4])
+extern unimesh_patch_bc_t* interblock_bc_new(unimesh_t* block);
+int blockmesh_add_block(blockmesh_t* mesh, 
+                        int num_x_patches, 
+                        int num_y_patches, 
+                        int num_z_patches)
 {
-  // By the time this function gets called, we know that both sets of nodes 
-  // correspond to valid block faces. So we need only identify which nodes 
-  // are identified between the two block faces.
-
-  // We calculate "twists" for each pair of nodes. If all the twists are the same,
-  // that's the valid twist. Otherwise, the twist is invalid.
-  cxn_twist_t twists[4];
-  for (int i = 0; i < 4; ++i)
-  {
-    int n1 = block1_nodes[i];
-    int* valid_nodes1 = _valid_block_face_nodes[block1_face];
-    int offset1 = (int)(int_lsearch(valid_nodes1, 4, n1) - valid_nodes1);
-    int n2 = block2_nodes[i];
-    int* valid_nodes2 = _valid_block_face_nodes[block2_face];
-    int offset2 = (int)(int_lsearch(valid_nodes2, 4, n2) - valid_nodes2);
-    int diff = (offset2 - offset1 + 4) % 4;
-    twists[i] = (cxn_twist_t)diff;
-    if ((i > 0) && (twists[i] != twists[0]))
-      return INVALID_TWIST;
-  }
-  return twists[0];
+  ASSERT(!mesh->finalized);
+  ASSERT(num_x_patches > 0);
+  ASSERT(num_x_patches > 1);
+  ASSERT(num_x_patches > 2);
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  unimesh_t* block = create_empty_unimesh(mesh->comm, &bbox,
+                                          num_x_patches, num_y_patches, num_z_patches,
+                                          mesh->patch_nx, mesh->patch_ny, mesh->patch_nz,
+                                          false, false, false);
+  int index = (int)mesh->blocks->size;
+  unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
+  patch_bc_array_append_with_dtor(mesh->bcs, interblock_bc_new(block), free_bc);
+  return index;
 }
 
+extern bool interblock_bcs_can_connect(unimesh_patch_bc_t* bc1, int bnodes1[4],
+                                       unimesh_patch_bc_t* bc2, int bnodes2[4]);
 bool blockmesh_blocks_can_connect(blockmesh_t* mesh, 
                                   int block1_index, 
                                   int block1_nodes[4],
                                   int block2_index,
                                   int block2_nodes[4])
 {
-  int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);
-  if (b1 == -1) return false;
-  int b2 = blockmesh_block_boundary_for_nodes(mesh, block2_nodes);
-  if (b2 == -1) return false;
-
-  // A block can connect to itself, but only if the connection is between two 
-  // different block faces.
-  if ((block1_index == block2_index) && (b1 == b2))
-    return false;
-
-  // Now make sure the patch dimensions between the two blocks are compatible on 
-  // the shared boundary.
-  cxn_twist_t twist = determine_twist(b1, block1_nodes, b2, block2_nodes);
-  if (twist == INVALID_TWIST)
-    return false;
-
-  // Fetch the patch extents.
-  unimesh_t* block1 = mesh->blocks->data[block1_index];
-  int npx1, npy1, npz1;
-  unimesh_get_extents(block1, &npx1, &npy1, &npz1);
-  unimesh_t* block2 = mesh->blocks->data[block2_index];
-  int npx2, npy2, npz2;
-  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
-
-  // All patches within the mesh are the same size.
-  int nx = mesh->patch_nx, ny = mesh->patch_ny, nz = mesh->patch_nz;
-
-  // Identify the relevant patch extents/sizes and make sure they're compatible.
-  int N1, NP1_1, NP1_2;
-  if ((b1 == 0) || (b1 == 1)) 
-  {
-    N1 = nx;
-    NP1_1 = npy1;
-    NP1_2 = npz1;
-  }
-  else if ((b1 == 2) || (b1 == 3))
-  {
-    N1 = ny;
-    NP1_1 = npz1;
-    NP1_2 = npx1;
-  }
-  else
-  {
-    N1 = nz;
-    NP1_1 = npx1;
-    NP1_2 = npy1;
-  }
-
-  int N2, NP2_1, NP2_2;
-  if ((b2 == 0) || (b2 == 1)) 
-  {
-    N2 = nx;
-    NP2_1 = npy2;
-    NP2_2 = npz2;
-  }
-  else if ((b2 == 2) || (b2 == 3))
-  {
-    N2 = ny;
-    NP2_1 = npz2;
-    NP2_2 = npx2;
-  }
-  else
-  {
-    N2 = nz;
-    NP2_1 = npx2;
-    NP2_2 = npy2;
-  }
-
-  if (((twist == NO_TURN) || (twist == HALF_TURN)) && 
-      ((N1 != N2) || (NP1_1 != NP2_1) || (NP1_2 != NP2_2)))
-    return false;
-  else if ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1))
-    return false;
-
-  // I guess everything's okay.
-  return true;
+  // Fetch the inter-block boundary conditions for the given blocks, and ask them 
+  // whether they can connect.
+  unimesh_patch_bc_t* bc1 = mesh->bcs->data[block1_index];
+  unimesh_patch_bc_t* bc2 = mesh->bcs->data[block2_index];
+  return interblock_bcs_can_connect(bc1, block1_nodes, bc2, block2_nodes);
 }
 
+extern void interblock_bcs_connect(unimesh_patch_bc_t* bc1, int bnodes1[4],
+                                   unimesh_patch_bc_t* bc2, int bnodes2[4]);
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, int block1_nodes[4],
                               int block2_index, int block2_nodes[4])
 {
   ASSERT(blockmesh_blocks_can_connect(mesh, block1_index, block1_nodes,
                                             block2_index, block2_nodes));
-  int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);
-  int b2 = blockmesh_block_boundary_for_nodes(mesh, block2_nodes);
-  cxn_twist_t twist = determine_twist(b1, block1_nodes, b2, block2_nodes);
-
-  // Find or add a connection for each block.
-  cxn_t** cxn1_p = cxn_map_get(mesh->cxns, block1_index);
-  cxn_t* cxn1 = NULL;
-  if (cxn1_p == NULL)
-  {
-    cxn1 = cxn_new();
-    cxn_map_insert_with_v_dtor(mesh->cxns, block1_index, cxn1, cxn_free);
-  }
-  else
-    cxn1 = *cxn1_p;
-  cxn1->blocks[b1] = block2_index;
-  cxn1->boundaries[b1] = b2;
-  cxn1->twists[b1] = (int)twist;
-
-  cxn_t** cxn2_p = cxn_map_get(mesh->cxns, block2_index);
-  cxn_t* cxn2 = NULL;
-  if (cxn2_p == NULL)
-  {
-    cxn2 = cxn_new();
-    cxn_map_insert_with_v_dtor(mesh->cxns, block2_index, cxn2, cxn_free);
-  }
-  else
-    cxn2 = *cxn2_p;
-  cxn2->blocks[b2] = block1_index;
-  cxn2->boundaries[b2] = b1;
-
-  // The twist for block1 w.r.t. block2 is reversed.
-  if ((twist == NO_TURN) || (twist == HALF_TURN))
-    cxn2->twists[b2] = twist;
-  else 
-    cxn2->twists[b2] = ((((int)twist) + 2) % 4);
+  unimesh_patch_bc_t* bc1 = mesh->bcs->data[block1_index];
+  unimesh_patch_bc_t* bc2 = mesh->bcs->data[block2_index];
+  interblock_bcs_connect(bc1, block1_nodes, bc2, block2_nodes);
 }
 
+extern void interblock_bcs_finalize(unimesh_patch_bc_t** bcs, size_t num_bcs);
 void blockmesh_finalize(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
   ASSERT(!mesh->finalized);
+
+  // Finalize the inter-block bcs.
+  interblock_bcs_finalize(mesh->bcs->data, mesh->bcs->size);
 
   // The boundary conditions for a given field at a block boundary depends on 
   // the structure of that field, since there's likely a change in coordinate
@@ -335,7 +185,7 @@ bool blockmesh_is_finalized(blockmesh_t* mesh)
 
 void blockmesh_free(blockmesh_t* mesh)
 {
-  cxn_map_free(mesh->cxns);
+  patch_bc_array_free(mesh->bcs);
   unimesh_array_free(mesh->blocks);
   polymec_free(mesh);
 }
@@ -370,79 +220,119 @@ bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block)
 }
 
 #if POLYMEC_HAVE_MPI
+extern void interblock_bc_get_connected_blocks(unimesh_patch_bc_t* bc, int block_index, int connected_block_indices[6]);
 static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
-  // Create a graph whose vertices are the mesh's blocks. NOTE
-  // that we associate this graph with the MPI_COMM_SELF communicator 
-  // because it's a global graph.
-  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, mesh->blocks->size);
 
-#if 0
-  // Allocate space in the graph for the edges (patch boundaries).
-  for (int i = 0; i < mesh->npx; ++i)
+  // Create a graph whose vertices are all of the patches within the mesh's 
+  // blocks. NOTE that we associate this graph with the MPI_COMM_SELF 
+  // communicator because it's a global graph.
+  int num_blocks = (int)mesh->blocks->size, num_patches = 0;
+  int patch_offsets[num_blocks+1]; // patch offsets by block
+  patch_offsets[0] = 0;
+  int pos = 0;
+  unimesh_t* block;
+  while (blockmesh_next_block(mesh, &pos, &block))
   {
-    int num_x_edges = (i == 0) ? mesh->periodic_in_x ? 2 : 1
-                               : (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 : 1 
-                                                    : 2;
-    for (int j = 0; j < mesh->npy; ++j)
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+    num_patches += npx * npy * npz;
+    patch_offsets[pos] = num_patches;
+  }
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_patches);
+
+  // Allocate storage for graph edges (patch boundaries) in the graph.
+  pos = 0;
+  while (blockmesh_next_block(mesh, &pos, &block))
+  {
+    int b = pos - 1;
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+
+    int connected_blocks[6];
+    interblock_bc_get_connected_blocks(mesh->bcs->data[b], b, connected_blocks);
+
+    for (int i = 0; i < npx; ++i)
     {
-      int num_y_edges = (j == 0) ? mesh->periodic_in_y ? 2 : 1
-                                 : (j == mesh->npy-1) ? mesh->periodic_in_z ? 2 : 1 
-                                                      : 2;
-      for (int k = 0; k < mesh->npz; ++k)
+      int num_x_edges = 0;
+      if ((i > 0) || (connected_blocks[0] != -1)) ++num_x_edges;
+      if ((i < npz-1) || (connected_blocks[1] != -1)) ++num_x_edges;
+      for (int j = 0; j < npy; ++j)
       {
-        int num_z_edges = (k == 0) ? mesh->periodic_in_z ? 2 : 1
-                                   : (k == mesh->npz-1) ? mesh->periodic_in_z ? 2 : 1 
-                                                        : 2;
-        int num_edges = num_x_edges + num_y_edges + num_z_edges;
-        int p_index = patch_index(mesh, i, j, k);
-        adj_graph_set_num_edges(g, p_index, num_edges);
+        int num_y_edges = 0;
+        if ((j > 0) || (connected_blocks[2] != -1)) ++num_y_edges;
+        if ((j < npy-1) || (connected_blocks[3] != -1)) ++num_y_edges;
+        for (int k = 0; k < npz; ++k)
+        {
+          int num_z_edges = 0;
+          if ((k > 0) || (connected_blocks[4] != -1)) ++num_z_edges;
+          if ((k < npz-1) || (connected_blocks[5] != -1)) ++num_z_edges;
+          int num_edges = num_x_edges + num_y_edges + num_z_edges;
+          int index = patch_offsets[b] + npy*npz*i + npz*j + k;
+          adj_graph_set_num_edges(g, index, num_edges);
+        }
       }
     }
   }
 
   // Now fill in the edges.
-  for (int i = 0; i < mesh->npx; ++i)
+  pos = 0;
+  while (blockmesh_next_block(mesh, &pos, &block))
   {
-    for (int j = 0; j < mesh->npy; ++j)
+    int b = pos - 1;
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+
+    int connected_blocks[6];
+    interblock_bc_get_connected_blocks(mesh->bcs->data[b], b, connected_blocks);
+    int npxs[6], npys[6], npzs[6];
+    for (int f = 0; f < 6; ++f)
     {
-      for (int k = 0; k < mesh->npz; ++k)
+      unimesh_t* nblock = mesh->blocks->data[connected_blocks[f]];
+      unimesh_get_extents(nblock, &npxs[f], &npys[f], &npzs[f]);
+    }
+
+    for (int i = 0; i < npx; ++i)
+    {
+      for (int j = 0; j < npy; ++j)
       {
-        int p_index = patch_index(mesh, i, j, k);
-        int* edges = adj_graph_edges(g, p_index);
-        int offset = 0;
+        for (int k = 0; k < npz; ++k)
+        {
+          int index = patch_offsets[b] + npy*npz*i + npz*j + k;
+          int* edges = adj_graph_edges(g, index);
+          int offset = 0;
 
-        if ((i == 0) && mesh->periodic_in_x)
-          edges[offset++] = patch_index(mesh, mesh->npx-1, j, k);
-        else if (i > 0)
-          edges[offset++] = patch_index(mesh, i-1, j, k);
-        if ((i == mesh->npx-1) && mesh->periodic_in_x)
-          edges[offset++] = patch_index(mesh, 0, j, k);
-        else if (i < mesh->npx-1)
-          edges[offset++] = patch_index(mesh, i+1, j, k);
+          if ((i == 0) && (connected_blocks[0] != -1))
+            edges[offset++] = patch_offsets[connected_blocks[0]] + npy*npz*(npxs[0]-1) + npz*j + k;
+          else if (i > 0)
+            edges[offset++] = patch_offsets[b] + npy*npz*(i-1) + npz*j + k;
+          if ((i == npx-1) && (connected_blocks[1] != -1))
+            edges[offset++] = patch_offsets[connected_blocks[1]] + npz*j + k;
+          else if (i < npx-1)
+            edges[offset++] = patch_offsets[b] + npy*npz*(i+1) + npz*j + k;
 
-        if ((j == 0) && mesh->periodic_in_y)
-          edges[offset++] = patch_index(mesh, i, mesh->npy-1, k);
-        else if (j > 0)
-          edges[offset++] = patch_index(mesh, i, j-1, k);
-        if ((j == mesh->npy-1) && mesh->periodic_in_y)
-          edges[offset++] = patch_index(mesh, i, 0, k);
-        else if (j < mesh->npy-1)
-          edges[offset++] = patch_index(mesh, i, j+1, k);
+          if ((j == 0) && (connected_blocks[2] != -1))
+            edges[offset++] = patch_offsets[connected_blocks[2]] + npy*npz*i + npz*(npys[1]-1) + k;
+          else if (j > 0)
+            edges[offset++] = patch_offsets[b] + npy*npz*i + npz*(j-1) + k;
+          if ((j == npy-1) && (connected_blocks[3] != -1))
+            edges[offset++] = patch_offsets[connected_blocks[3]] + npy*npz*i + k;
+          else if (j < npy-1)
+            edges[offset++] = patch_offsets[b] + npy*npz*i + npz*(j+1) + k;
 
-        if ((k == 0) && mesh->periodic_in_z)
-          edges[offset++] = patch_index(mesh, i, j, mesh->npz-1);
-        else if (k > 0)
-          edges[offset++] = patch_index(mesh, i, j, k-1);
-        if ((k == mesh->npz-1) && mesh->periodic_in_z)
-          edges[offset++] = patch_index(mesh, i, j, 0);
-        else if (k < mesh->npz-1)
-          edges[offset++] = patch_index(mesh, i, j, k+1);
+          if ((k == 0) && (connected_blocks[4] != -1))
+            edges[offset++] = patch_offsets[connected_blocks[4]] + npy*npz*i + npz*j + npzs[4]-1;
+          else if (k > 0)
+            edges[offset++] = patch_offsets[b] + npy*npz*i + npz*j + k-1;
+          if ((k == npz-1) && (connected_blocks[5] != -1))
+            edges[offset++] = patch_offsets[connected_blocks[5]] + npy*npz*i + npz*j;
+          else if (k < npz-1)
+            edges[offset++] = patch_offsets[b] + npy*npz*i + npz*j + k+1;
+        }
       }
     }
   }
-#endif
 
   STOP_FUNCTION_TIMER();
   return g;

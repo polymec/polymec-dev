@@ -30,6 +30,10 @@
 /// Nodes 4-7 traverse the top block face in the same way. This is the standard
 /// way that nodes are indexed in hexahedral elements in the finite element 
 /// method.
+///
+/// There are no periodic blocks in a block mesh. If you want a periodic block, 
+/// you can always connectg the opposite faces of that block to get the same
+/// effect.
 typedef struct blockmesh_t blockmesh_t;
 
 //------------------------------------------------------------------------
