@@ -230,7 +230,20 @@ typedef struct
                                   real_t t, 
                                   unimesh_patch_t* patch);
 
-  /// Called just before boundary updates is completed for a field on the mesh.
+  /// Called just after boundary updates have all been started for a field on 
+  /// the mesh. Yes, this is kind of a silly name for a method.
+  /// Arguments passed:
+  /// * mesh - the mesh on which the boundary update is triggered
+  /// * token - a unique integer token identifying the boundary update
+  /// * centering - the centering of the field being updated
+  /// * num_components - the number of components in the field being updated
+  void (*finished_starting_boundary_updates)(void* context, 
+                                             unimesh_t* mesh, 
+                                             int token,
+                                             unimesh_centering_t centering,
+                                             int num_components);
+
+  /// Called just before boundary updates are completed for a field on the mesh.
   /// Arguments passed:
   /// * mesh - the mesh on which the boundary update is triggered
   /// * token - a unique integer token identifying the boundary update

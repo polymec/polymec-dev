@@ -897,6 +897,29 @@ void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token)
   STOP_FUNCTION_TIMER();
 }
 
+void unimesh_finish_starting_patch_boundary_updates(unimesh_t* mesh, int token);
+void unimesh_finish_starting_patch_boundary_updates(unimesh_t* mesh, int token)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < mesh->boundary_buffers->buffers->size);
+
+  // Inform our observers that we've finished starting updates for all patch
+  // boundaries.
+  boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    unimesh_observer_t* obs = mesh->observers->data[i];
+    if (obs->vtable.finished_starting_boundary_updates != NULL)
+    {
+      obs->vtable.finished_starting_boundary_updates(obs->context, mesh, token, 
+                                                     buffer->centering, buffer->nc);
+    }
+  }
+
+  STOP_FUNCTION_TIMER();
+}
+
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token);
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 {
