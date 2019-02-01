@@ -282,6 +282,7 @@ extern void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
                                                   int i, int j, int k,
                                                   real_t t, 
                                                   unimesh_boundary_t boundary,
+                                                  field_metadata_t* md,
                                                   unimesh_patch_t* patch);
 extern void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, 
                                                     int token);
@@ -320,14 +321,16 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
       {
         // Found a BC for the field. Begin the update.
         unimesh_patch_bc_t* bc = *bc_p;
-        unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
+        unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, 
+                                      field->md, patch);
       }
       else
       {
         // This field has no BC for this patch/boundary. Fall back on the 
         // mesh boundary condition.
         unimesh_start_updating_patch_boundary(field->mesh, token, 
-                                              i, j, k, t, boundary, patch);
+                                              i, j, k, t, boundary, 
+                                              field->md, patch);
       }
     }
   }
@@ -361,7 +364,7 @@ void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field)
         // Found a BC for the field. Finish the update.
         unimesh_patch_bc_t* bc = *bc_p;
         unimesh_patch_bc_finish_update(bc, i, j, k, field->update_t, 
-                                       boundary, patch);
+                                       boundary, field->md, patch);
       }
     }
   }

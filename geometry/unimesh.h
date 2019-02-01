@@ -48,6 +48,9 @@ typedef enum
 // Patch data itself.
 typedef struct unimesh_patch_t unimesh_patch_t;
 
+// Field metadata.
+typedef struct field_metadata_t field_metadata_t;
+
 //------------------------------------------------------------------------
 //                          Construction methods
 //------------------------------------------------------------------------
@@ -219,15 +222,17 @@ typedef struct
   /// * mesh - the mesh on which the boundary update is triggered
   /// * token - a unique integer token identifying the boundary update
   /// * i, j, k - the indices identifying the updated patch.
-  /// * boundary - the patch boundary being updated.
   /// * t - the time at which the patch is updated.
+  /// * boundary - the patch boundary being updated.
+  /// * md - the metadata associated with the updated field
   /// * patch - the patch being updated.
   void (*started_boundary_update)(void* context, 
                                   unimesh_t* mesh, 
                                   int token,
                                   int i, int j, int k,
-                                  unimesh_boundary_t boundary,
                                   real_t t, 
+                                  unimesh_boundary_t boundary,
+                                  field_metadata_t* md,
                                   unimesh_patch_t* patch);
 
   /// Called just after boundary updates have all been started for a field on 

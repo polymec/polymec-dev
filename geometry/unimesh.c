@@ -788,10 +788,12 @@ typedef struct
   real_t t;
   unimesh_boundary_t boundary;
   unimesh_patch_t* patch;
+  field_metadata_t* md;
 } boundary_update_t;
 
 static boundary_update_t* boundary_update_new(int i, int j, int k, real_t t,
                                               unimesh_boundary_t boundary,
+                                              field_metadata_t* md,
                                               unimesh_patch_t* patch)
 {
   ASSERT(patch != NULL);
@@ -801,6 +803,7 @@ static boundary_update_t* boundary_update_new(int i, int j, int k, real_t t,
   update->k = k;
   update->t = t;
   update->boundary = boundary;
+  update->md = md;
   update->patch = patch;
   return update;
 }
@@ -824,10 +827,12 @@ int unimesh_boundary_update_token(unimesh_t* mesh)
 void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
                                            int i, int j, int k, real_t t,
                                            unimesh_boundary_t boundary,
+                                           field_metadata_t* md,
                                            unimesh_patch_t* patch);
 void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
                                            int i, int j, int k, real_t t,
                                            unimesh_boundary_t boundary,
+                                           field_metadata_t* md,
                                            unimesh_patch_t* patch)
 {
   START_FUNCTION_TIMER();
@@ -844,7 +849,7 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   mesh->boundary_update_token = token;
 
   // Start the update.
-  unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
+  unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, md, patch);
 
   // Stash information for this patch in our boundary updates.
   boundary_update_array_t** updates_p = (boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token);
@@ -857,7 +862,7 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   }
   else
     updates = *updates_p;
-  boundary_update_t* update = boundary_update_new(i, j, k, t, boundary, patch);
+  boundary_update_t* update = boundary_update_new(i, j, k, t, boundary, md, patch);
   boundary_update_array_append_with_dtor(updates, update, boundary_update_free);
 
   // Inform our observers that we've started this boundary update. 
@@ -868,7 +873,8 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
     {
       obs->vtable.started_boundary_update(obs->context, mesh, token, 
                                           update->i, update->j, update->k,
-                                          update->boundary, update->t, update->patch);
+                                          update->t, update->boundary, 
+                                          update->md, update->patch);
     }
   }
 
@@ -966,7 +972,8 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 
     unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
     unimesh_patch_bc_finish_update(bc, update->i, update->j, update->k, 
-                                   update->t, update->boundary, update->patch);
+                                   update->t, update->boundary, update->md, 
+                                   update->patch);
 
     // Inform our observers that we've just finished updating this particular
     // patch boundary.

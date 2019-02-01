@@ -452,6 +452,7 @@ static void intermesh_bc_free(intermesh_bc_t* bc)
 static void start_update(void* context, unimesh_t* mesh,
                          int i, int j, int k, real_t t,
                          unimesh_boundary_t boundary,
+                         field_metadata_t* md,
                          unimesh_patch_t* patch)
 {
   intermesh_bc_t* bc = context;
@@ -469,6 +470,7 @@ static void start_update(void* context, unimesh_t* mesh,
 static void finish_update(void* context, unimesh_t* mesh,
                           int i, int j, int k, real_t t,
                           unimesh_boundary_t boundary,
+                          field_metadata_t* md,
                           unimesh_patch_t* patch)
 {
   intermesh_bc_t* ibc = context;

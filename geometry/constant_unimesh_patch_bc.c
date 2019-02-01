@@ -16,6 +16,7 @@ typedef struct
 
 static void update_x1_cells(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -30,6 +31,7 @@ static void update_x1_cells(void* context, unimesh_t* mesh,
 
 static void update_x2_cells(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -44,6 +46,7 @@ static void update_x2_cells(void* context, unimesh_t* mesh,
 
 static void update_y1_cells(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -58,6 +61,7 @@ static void update_y1_cells(void* context, unimesh_t* mesh,
 
 static void update_y2_cells(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -72,6 +76,7 @@ static void update_y2_cells(void* context, unimesh_t* mesh,
 
 static void update_z1_cells(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -86,6 +91,7 @@ static void update_z1_cells(void* context, unimesh_t* mesh,
 
 static void update_z2_cells(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -100,6 +106,7 @@ static void update_z2_cells(void* context, unimesh_t* mesh,
 
 static void update_x1_xfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -114,6 +121,7 @@ static void update_x1_xfaces(void* context, unimesh_t* mesh,
 
 static void update_x2_xfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -128,6 +136,7 @@ static void update_x2_xfaces(void* context, unimesh_t* mesh,
 
 static void update_y1_xfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // X faces aren't communicated across y boundaries.
@@ -135,6 +144,7 @@ static void update_y1_xfaces(void* context, unimesh_t* mesh,
 
 static void update_y2_xfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // X faces aren't communicated across y boundaries.
@@ -142,6 +152,7 @@ static void update_y2_xfaces(void* context, unimesh_t* mesh,
 
 static void update_z1_xfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // X faces aren't communicated across z boundaries.
@@ -149,6 +160,7 @@ static void update_z1_xfaces(void* context, unimesh_t* mesh,
 
 static void update_z2_xfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // X faces aren't communicated across z boundaries.
@@ -156,6 +168,7 @@ static void update_z2_xfaces(void* context, unimesh_t* mesh,
 
 static void update_x1_yfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Y faces aren't communicated across x boundaries.
@@ -163,6 +176,7 @@ static void update_x1_yfaces(void* context, unimesh_t* mesh,
 
 static void update_x2_yfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Y faces aren't communicated across x boundaries.
@@ -170,6 +184,7 @@ static void update_x2_yfaces(void* context, unimesh_t* mesh,
 
 static void update_y1_yfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -184,6 +199,7 @@ static void update_y1_yfaces(void* context, unimesh_t* mesh,
 
 static void update_y2_yfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -198,6 +214,7 @@ static void update_y2_yfaces(void* context, unimesh_t* mesh,
 
 static void update_z1_yfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Y faces aren't communicated across z boundaries.
@@ -205,6 +222,7 @@ static void update_z1_yfaces(void* context, unimesh_t* mesh,
 
 static void update_z2_yfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Y faces aren't communicated across z boundaries.
@@ -212,6 +230,7 @@ static void update_z2_yfaces(void* context, unimesh_t* mesh,
 
 static void update_x1_zfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Z faces aren't communicated across x boundaries.
@@ -219,6 +238,7 @@ static void update_x1_zfaces(void* context, unimesh_t* mesh,
 
 static void update_x2_zfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Z faces aren't communicated across x boundaries.
@@ -226,6 +246,7 @@ static void update_x2_zfaces(void* context, unimesh_t* mesh,
 
 static void update_y1_zfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Z faces aren't communicated across y boundaries.
@@ -233,6 +254,7 @@ static void update_y1_zfaces(void* context, unimesh_t* mesh,
 
 static void update_y2_zfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Z faces aren't communicated across y boundaries.
@@ -240,6 +262,7 @@ static void update_y2_zfaces(void* context, unimesh_t* mesh,
 
 static void update_z1_zfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -254,6 +277,7 @@ static void update_z1_zfaces(void* context, unimesh_t* mesh,
 
 static void update_z2_zfaces(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -268,6 +292,7 @@ static void update_z2_zfaces(void* context, unimesh_t* mesh,
 
 static void update_x1_xedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // X edges aren't communicated across x boundaries.
@@ -275,6 +300,7 @@ static void update_x1_xedges(void* context, unimesh_t* mesh,
 
 static void update_x2_xedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // X edges aren't communicated across x boundaries.
@@ -282,6 +308,7 @@ static void update_x2_xedges(void* context, unimesh_t* mesh,
 
 static void update_y1_xedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -296,6 +323,7 @@ static void update_y1_xedges(void* context, unimesh_t* mesh,
 
 static void update_y2_xedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -310,6 +338,7 @@ static void update_y2_xedges(void* context, unimesh_t* mesh,
 
 static void update_z1_xedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -324,6 +353,7 @@ static void update_z1_xedges(void* context, unimesh_t* mesh,
 
 static void update_z2_xedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -338,6 +368,7 @@ static void update_z2_xedges(void* context, unimesh_t* mesh,
 
 static void update_x1_yedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -352,6 +383,7 @@ static void update_x1_yedges(void* context, unimesh_t* mesh,
 
 static void update_x2_yedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -366,6 +398,7 @@ static void update_x2_yedges(void* context, unimesh_t* mesh,
 
 static void update_y1_yedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Y edges aren't communicated across y boundaries.
@@ -373,6 +406,7 @@ static void update_y1_yedges(void* context, unimesh_t* mesh,
 
 static void update_y2_yedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Y edges aren't communicated across y boundaries.
@@ -380,6 +414,7 @@ static void update_y2_yedges(void* context, unimesh_t* mesh,
 
 static void update_z1_yedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -394,6 +429,7 @@ static void update_z1_yedges(void* context, unimesh_t* mesh,
 
 static void update_z2_yedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -408,6 +444,7 @@ static void update_z2_yedges(void* context, unimesh_t* mesh,
 
 static void update_x1_zedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -422,6 +459,7 @@ static void update_x1_zedges(void* context, unimesh_t* mesh,
 
 static void update_x2_zedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -436,6 +474,7 @@ static void update_x2_zedges(void* context, unimesh_t* mesh,
 
 static void update_y1_zedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -450,6 +489,7 @@ static void update_y1_zedges(void* context, unimesh_t* mesh,
 
 static void update_y2_zedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -464,6 +504,7 @@ static void update_y2_zedges(void* context, unimesh_t* mesh,
 
 static void update_z1_zedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Z edges aren't communicated across z boundaries.
@@ -471,6 +512,7 @@ static void update_z1_zedges(void* context, unimesh_t* mesh,
 
 static void update_z2_zedges(void* context, unimesh_t* mesh,
                              int i, int j, int k, real_t t,
+                             field_metadata_t* md,
                              unimesh_patch_t* patch)
 {
   // Z edges aren't communicated across z boundaries.
@@ -478,6 +520,7 @@ static void update_z2_zedges(void* context, unimesh_t* mesh,
 
 static void update_x1_nodes(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -492,6 +535,7 @@ static void update_x1_nodes(void* context, unimesh_t* mesh,
 
 static void update_x2_nodes(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -506,6 +550,7 @@ static void update_x2_nodes(void* context, unimesh_t* mesh,
 
 static void update_y1_nodes(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -520,6 +565,7 @@ static void update_y1_nodes(void* context, unimesh_t* mesh,
 
 static void update_y2_nodes(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -534,6 +580,7 @@ static void update_y2_nodes(void* context, unimesh_t* mesh,
 
 static void update_z1_nodes(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;
@@ -548,6 +595,7 @@ static void update_z1_nodes(void* context, unimesh_t* mesh,
 
 static void update_z2_nodes(void* context, unimesh_t* mesh,
                             int i, int j, int k, real_t t,
+                            field_metadata_t* md,
                             unimesh_patch_t* patch)
 {
   constant_bc_t* bc = context;

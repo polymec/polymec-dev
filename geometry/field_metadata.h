@@ -8,6 +8,9 @@
 #ifndef POLYMEC_FIELD_METADATA_H
 #define POLYMEC_FIELD_METADATA_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
 /// \addtogroup geometry geometry
 ///@{
 
