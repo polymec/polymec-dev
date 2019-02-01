@@ -72,9 +72,135 @@ typedef struct
   bool finalized;
 } interblock_bc_t;
 
-unimesh_patch_bc_t* intermesh_bc_new(unimesh_t* block)
+static void interblock_bc_free(interblock_bc_t* bc)
 {
-  return NULL;
+  int_ptr_unordered_map_free(bc->cxns);
+  im_buffer_array_free(bc->buffers);
+  polymec_free(bc);
+}
+
+static void start_update(void* context, unimesh_t* mesh,
+                         int i, int j, int k, real_t t,
+                         unimesh_boundary_t boundary,
+                         unimesh_patch_t* patch)
+{
+  interblock_bc_t* bc = context;
+
+  // Find our list of connections for this patch boundary.
+  int p_index = patch_index(mesh, i, j, k);
+  int b = (int)boundary;
+  cxn_array_t** cxns_p = (cxn_array_t**)int_ptr_unordered_map_get(bc->cxns, 6*p_index+b);
+  ASSERT(cxns_p != NULL);
+
+  // Step through the list and start the updates.
+  cxn_array_t* cxns = *cxns_p;
+  for (size_t c = 0; c < cxns->size; ++c)
+    cxn_start_update(cxns->data[c], patch);
+}
+
+static void finish_update(void* context, unimesh_t* mesh,
+                          int i, int j, int k, real_t t,
+                          unimesh_boundary_t boundary,
+                          unimesh_patch_t* patch)
+{
+  interblock_bc_t* ibc = context;
+
+  // Find our list of connections for this patch boundary.
+  int p_index = patch_index(mesh, i, j, k);
+  int b = (int)boundary;
+  cxn_array_t** cxns_p = (cxn_array_t**)int_ptr_unordered_map_get(ibc->cxns, 6*p_index+b);
+  ASSERT(cxns_p != NULL);
+
+  // Step through the list and finish the updates.
+  cxn_array_t* cxns = *cxns_p;
+  for (size_t c = 0; c < cxns->size; ++c)
+    cxn_finish_update(cxns->data[c], patch);
+}
+
+// This observer method is called when a field starts a set of boundary 
+// updates on the mesh. We use it to initialize our buffer.
+static void ibc_started_boundary_updates(void* context, 
+                                         unimesh_t* mesh, int token, 
+                                         unimesh_centering_t centering,
+                                         int num_components)
+{
+  interblock_bc_t* bc = context;
+
+  // Create the buffer for this token if it doesn't yet exist.
+  while ((size_t)token >= bc->buffers->size)
+    im_buffer_array_append(bc->buffers, NULL);
+  im_buffer_t* buffer = bc->buffers->data[token];
+  if (buffer == NULL)
+  {
+    buffer = im_buffer_new(mesh, centering, num_components);
+    im_buffer_array_assign_with_dtor(bc->buffers, token, 
+                                     buffer, im_buffer_free);
+  }
+  else
+    im_buffer_reset(buffer, centering, num_components);
+}
+
+// This observer method is called when a field finishes starting a set of boundary 
+// updates on the mesh. We use it to wait for sends to finish.
+static void ibc_finished_starting_boundary_updates(void* context, 
+                                                   unimesh_t* mesh, int token, 
+                                                   unimesh_centering_t centering,
+                                                   int num_components)
+{
+  interblock_bc_t* ibc = context;
+
+  // Fetch the buffer that we're using to store data for this update.
+  ASSERT((size_t)token < ibc->buffers->size);
+  ASSERT(ibc->buffers->data[token] != NULL);
+  im_buffer_t* buffer = ibc->buffers->data[token];
+
+  // Send messages.
+  im_buffer_send(buffer, token);
+}
+
+// This observer method is called right before a interblock boundary update is 
+// finished for a particular patch. We use it to wait for messages to be 
+// received for a given process.
+static void ibc_about_to_finish_boundary_updates(void* context, 
+                                                 unimesh_t* mesh, 
+                                                 int token,
+                                                 unimesh_centering_t centering,
+                                                 int num_components)
+{
+  interblock_bc_t* ibc = context;
+
+  // Fetch the buffer that we're using to store data for this update.
+  ASSERT((size_t)token < ibc->buffers->size);
+  ASSERT(ibc->buffers->data[token] != NULL);
+  im_buffer_t* buffer = ibc->buffers->data[token];
+
+  // Finish receiving the data.
+  im_buffer_finish_receiving(buffer, token);
+}
+
+unimesh_patch_bc_t* interblock_bc_new(unimesh_t* block)
+{
+  // We use the easy version of the vtable, since our logic doesn't differ
+  // for different centerings.
+  unimesh_patch_bc_easy_vtable vtable = {.start_update = start_update,
+                                         .finish_update = finish_update,
+                                         .dtor = DTOR(interblock_bc_free)};
+  interblock_bc_t* bc = polymec_malloc(sizeof(interblock_bc_t));
+  bc->mesh = mesh;
+  bc->buffers = im_buffer_array_new();
+  bc->cxns = int_ptr_unordered_map_new();
+
+  // Register the interblock BC as a unimesh observer.
+  unimesh_observer_vtable obs_vtable = {
+    .started_boundary_updates = ibc_started_boundary_updates,
+    .finished_starting_boundary_updates = ibc_finished_starting_boundary_updates,
+    .about_to_finish_boundary_updates = ibc_about_to_finish_boundary_updates
+  };
+  unimesh_observer_t* obs = unimesh_observer_new(bc, obs_vtable);
+  unimesh_add_observer(mesh, obs);
+
+  // Create the patch BC.
+  return unimesh_patch_bc_new_easy("interblock patch BC", bc, vtable, mesh);
 }
 
 static cxn_twist_t determine_twist(int block1_face,

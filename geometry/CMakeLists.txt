@@ -10,7 +10,7 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     unimesh_patch_fill_boundary.c unimesh_patch_copy_bvalues.c 
                     unimesh_patch_copy_box.c unimesh_copy_bc.c unimesh_periodic_bc.c 
                     unimesh_remote_bc.c constant_unimesh_patch_bc.c
-                    blockmesh.c blockmesh_field.c
+                    blockmesh.c blockmesh_field.c intermesh_bc.c
                     polymesh.c polymesh_field.c partition_polymesh.c 
                     create_rectilinear_polymesh.c create_uniform_polymesh.c 
                     crop_polymesh.c colmesh.c colmesh_field.c planar_polymesh.c
