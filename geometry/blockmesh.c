@@ -37,8 +37,8 @@ struct blockmesh_t
   // Blocks.
   unimesh_array_t* blocks;
 
-  // Inter-block boundary conditions.
-  patch_bc_array_t* bcs;
+  // Inter-block boundary condition.
+  unimesh_patch_bc_t* interblock_bc;
 
   // This flag is set by blockmesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -61,7 +61,7 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   mesh->patch_ny = patch_ny;
   mesh->patch_nz = patch_nz;
   mesh->blocks = unimesh_array_new();
-  mesh->bcs = patch_bc_array_new();
+  mesh->bc = blockmesh_interblock_bc_new(mesh);
   mesh->finalized = false;
 
   return mesh;
@@ -126,7 +126,6 @@ int blockmesh_add_block(blockmesh_t* mesh,
                                           false, false, false);
   int index = (int)mesh->blocks->size;
   unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
-  patch_bc_array_append_with_dtor(mesh->bcs, interblock_bc_new(block), free_bc);
   return index;
 }
 
@@ -185,7 +184,7 @@ bool blockmesh_is_finalized(blockmesh_t* mesh)
 
 void blockmesh_free(blockmesh_t* mesh)
 {
-  patch_bc_array_free(mesh->bcs);
+  release_ref(mesh->interblock_bc);
   unimesh_array_free(mesh->blocks);
   polymec_free(mesh);
 }
