@@ -1159,20 +1159,26 @@ unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh)
   return mesh->remote_bc;
 }
 
+static void unimesh_observer_free(void* ctx)
+{
+  unimesh_observer_t* observer = ctx;
+  if ((observer->vtable.dtor != NULL) && (observer->context != NULL))
+    observer->vtable.dtor(observer->context);
+}
+
 unimesh_observer_t* unimesh_observer_new(void* context,
                                          unimesh_observer_vtable vtable)
 {
-  unimesh_observer_t* observer = polymec_malloc(sizeof(unimesh_observer_t));
+  unimesh_observer_t* observer = polymec_refcounted_malloc(sizeof(unimesh_observer_t),
+                                                           unimesh_observer_free);
   observer->context = context;
   observer->vtable = vtable;
   return observer;
 }
 
-void unimesh_observer_free(unimesh_observer_t* observer)
+static void release_observer(unimesh_observer_t* observer)
 {
-  if ((observer->vtable.dtor != NULL) && (observer->context != NULL))
-    observer->vtable.dtor(observer->context);
-  polymec_free(observer);
+  release_ref(observer);
 }
 
 void unimesh_add_observer(unimesh_t* mesh,
@@ -1184,8 +1190,9 @@ void unimesh_add_observer(unimesh_t* mesh,
       return;
   }
 
+  retain_ref(observer);
   unimesh_observer_array_append_with_dtor(mesh->observers, observer,
-                                          unimesh_observer_free);
+                                          release_observer);
 }
 
 void unimesh_remove_observer(unimesh_t* mesh,
@@ -1196,7 +1203,6 @@ void unimesh_remove_observer(unimesh_t* mesh,
     if (mesh->observers->data[i] == observer) 
     {
       unimesh_observer_array_remove(mesh->observers, i);
-      unimesh_observer_free(observer);
       return;
     }
   }

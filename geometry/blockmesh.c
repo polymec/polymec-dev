@@ -10,6 +10,7 @@
 #include "core/timer.h"
 #include "core/unordered_map.h"
 #include "geometry/blockmesh.h"
+#include "geometry/blockmesh_interblock_bc.h"
 #include "geometry/blockmesh_field.h"
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_patch_bc.h"
@@ -23,7 +24,6 @@
 #endif
 
 DEFINE_ARRAY(unimesh_array, unimesh_t*)
-DEFINE_ARRAY(patch_bc_array, unimesh_patch_bc_t*)
 
 struct blockmesh_t
 {
@@ -34,8 +34,9 @@ struct blockmesh_t
   // Patch dimensions.
   int patch_nx, patch_ny, patch_nz;
 
-  // Blocks.
+  // Blocks and coordinate mappings.
   unimesh_array_t* blocks;
+  ptr_array_t* coords;
 
   // Inter-block boundary condition.
   unimesh_patch_bc_t* interblock_bc;
@@ -61,15 +62,11 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   mesh->patch_ny = patch_ny;
   mesh->patch_nz = patch_nz;
   mesh->blocks = unimesh_array_new();
-  mesh->bc = blockmesh_interblock_bc_new(mesh);
+  mesh->coords = ptr_array_new();
+  mesh->interblock_bc = blockmesh_interblock_bc_new(mesh);
   mesh->finalized = false;
 
   return mesh;
-}
-
-static void free_bc(unimesh_patch_bc_t* bc)
-{
-  release_ref(bc);
 }
 
 // Only certain combos of block faces are acceptible.
@@ -109,16 +106,18 @@ int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
   return face;
 }
 
-extern unimesh_patch_bc_t* interblock_bc_new(unimesh_t* block);
 int blockmesh_add_block(blockmesh_t* mesh, 
+                        coord_mapping_t* block_coords,
                         int num_x_patches, 
                         int num_y_patches, 
                         int num_z_patches)
 {
   ASSERT(!mesh->finalized);
+  ASSERT(block_coords != NULL);
   ASSERT(num_x_patches > 0);
   ASSERT(num_x_patches > 1);
   ASSERT(num_x_patches > 2);
+
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   unimesh_t* block = create_empty_unimesh(mesh->comm, &bbox,
                                           num_x_patches, num_y_patches, num_z_patches,
@@ -126,45 +125,174 @@ int blockmesh_add_block(blockmesh_t* mesh,
                                           false, false, false);
   int index = (int)mesh->blocks->size;
   unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
+  ptr_array_append_with_dtor(mesh->coords, block_coords, release_ref);
   return index;
 }
 
-extern bool interblock_bcs_can_connect(unimesh_patch_bc_t* bc1, int bnodes1[4],
-                                       unimesh_patch_bc_t* bc2, int bnodes2[4]);
+static blockmesh_diffeomorphism_t create_diffeomorphism(coord_mapping_t* block1_coords,
+                                                        int block1_boundary,
+                                                        int block1_nodes[4],
+                                                        coord_mapping_t* block2_coords,
+                                                        int block2_boundary,
+                                                        int block2_nodes[4])
+{
+  blockmesh_diffeomorphism_t diff = {.block1_coords = block1_coords,
+                                     .block2_coords = block2_coords};
+  // We calculate "twists" for each pair of nodes, consisting of an integer number of 
+  // counter-clockwise turns from 0 to 3. If all the twists are the same, that's the 
+  // valid twist. Otherwise, the twist is invalid.
+  int twists[4];
+  for (int i = 0; i < 4; ++i)
+  {
+    int n1 = block1_nodes[i];
+    int* valid_nodes1 = _valid_block_face_nodes[block1_boundary];
+    int offset1 = (int)(int_lsearch(valid_nodes1, 4, n1) - valid_nodes1);
+    int n2 = block2_nodes[i];
+    int* valid_nodes2 = _valid_block_face_nodes[block2_boundary];
+    int offset2 = (int)(int_lsearch(valid_nodes2, 4, n2) - valid_nodes2);
+    int twist = (offset2 - offset1 + 4) % 4;
+    twists[i] = twist;
+    if ((i > 0) && (twists[i] != twists[0]))
+    {
+      diff.rotation = INVALID_ROTATION; 
+      return diff;
+    }
+  }
+  switch (twists[0])
+  {
+    case 0: diff.rotation = NO_ROTATION; break;
+    case 1: diff.rotation = QUARTER_TURN; break;
+    case 2: diff.rotation = HALF_TURN; break;
+    case 3: diff.rotation = THREE_QUARTERS_TURN;
+  }
+  return diff;
+}
+
 bool blockmesh_blocks_can_connect(blockmesh_t* mesh, 
                                   int block1_index, 
                                   int block1_nodes[4],
                                   int block2_index,
                                   int block2_nodes[4])
 {
-  // Fetch the inter-block boundary conditions for the given blocks, and ask them 
-  // whether they can connect.
-  unimesh_patch_bc_t* bc1 = mesh->bcs->data[block1_index];
-  unimesh_patch_bc_t* bc2 = mesh->bcs->data[block2_index];
-  return interblock_bcs_can_connect(bc1, block1_nodes, bc2, block2_nodes);
+  int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);
+  if (b1 == -1) return false;
+  int b2 = blockmesh_block_boundary_for_nodes(mesh, block2_nodes);
+  if (b2 == -1) return false;
+
+  // A block can connect to itself, but only if the connection is between two 
+  // different block faces.
+  if ((block1_index == block2_index) && (b1 == b2))
+    return false;
+
+  // Now make sure the patch dimensions between the two blocks are compatible on 
+  // the shared boundary.
+  coord_mapping_t* block1_coords = mesh->coords->data[block1_index];
+  coord_mapping_t* block2_coords = mesh->coords->data[block2_index];
+  blockmesh_diffeomorphism_t diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
+                                                          block2_coords, b2, block2_nodes);
+  if (diff.rotation == INVALID_ROTATION)
+    return false;
+
+  unimesh_t* block1 = mesh->blocks->data[block1_index];
+  unimesh_t* block2 = mesh->blocks->data[block2_index];
+
+  // Fetch the patch extents.
+  int npx1, npy1, npz1;
+  unimesh_get_extents(block1, &npx1, &npy1, &npz1);
+  int npx2, npy2, npz2;
+  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
+
+  // All patches within the mesh are the same size.
+  int nx, ny, nz;
+  unimesh_get_patch_size(block1, &nx, &ny, &nz);
+
+  // Identify the relevant patch extents/sizes and make sure they're compatible.
+  int N1, NP1_1, NP1_2;
+  if ((b1 == 0) || (b1 == 1)) 
+  {
+    N1 = nx;
+    NP1_1 = npy1;
+    NP1_2 = npz1;
+  }
+  else if ((b1 == 2) || (b1 == 3))
+  {
+    N1 = ny;
+    NP1_1 = npz1;
+    NP1_2 = npx1;
+  }
+  else
+  {
+    N1 = nz;
+    NP1_1 = npx1;
+    NP1_2 = npy1;
+  }
+
+  int N2, NP2_1, NP2_2;
+  if ((b2 == 0) || (b2 == 1)) 
+  {
+    N2 = nx;
+    NP2_1 = npy2;
+    NP2_2 = npz2;
+  }
+  else if ((b2 == 2) || (b2 == 3))
+  {
+    N2 = ny;
+    NP2_1 = npz2;
+    NP2_2 = npx2;
+  }
+  else
+  {
+    N2 = nz;
+    NP2_1 = npx2;
+    NP2_2 = npy2;
+  }
+
+  if (((diff.rotation == NO_ROTATION) || (diff.rotation == HALF_TURN)) && 
+      ((N1 != N2) || (NP1_1 != NP2_1) || (NP1_2 != NP2_2)))
+    return false;
+  else if ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1))
+    return false;
+
+  // I guess everything's okay.
+  return true;
 }
 
-extern void interblock_bcs_connect(unimesh_patch_bc_t* bc1, int bnodes1[4],
-                                   unimesh_patch_bc_t* bc2, int bnodes2[4]);
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, int block1_nodes[4],
                               int block2_index, int block2_nodes[4])
 {
   ASSERT(blockmesh_blocks_can_connect(mesh, block1_index, block1_nodes,
                                             block2_index, block2_nodes));
-  unimesh_patch_bc_t* bc1 = mesh->bcs->data[block1_index];
-  unimesh_patch_bc_t* bc2 = mesh->bcs->data[block2_index];
-  interblock_bcs_connect(bc1, block1_nodes, bc2, block2_nodes);
+
+  // Construct a diffeomorphism between the two blocks.
+  int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);
+  int b2 = blockmesh_block_boundary_for_nodes(mesh, block2_nodes);
+  coord_mapping_t* block1_coords = mesh->coords->data[block1_index];
+  coord_mapping_t* block2_coords = mesh->coords->data[block2_index];
+  blockmesh_diffeomorphism_t diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
+                                                          block2_coords, b2, block2_nodes);
+
+  // Figure out all the patches that need to be connected.
+  unimesh_t* block1 = mesh->blocks->data[block1_index];
+  unimesh_t* block2 = mesh->blocks->data[block2_index];
+  {
+    // FIXME
+    int i1 = 0, j1 = 0, k1 = 0;
+    int i2 = 0, j2 = 0, k2 = 0;
+    blockmesh_interblock_bc_connect(mesh->interblock_bc, 
+                                    block1, i1, j1, k1, (unimesh_boundary_t)b1, 
+                                    block2, i2, j2, k2, (unimesh_boundary_t)b2,
+                                    diff);
+  }
 }
 
-extern void interblock_bcs_finalize(unimesh_patch_bc_t** bcs, size_t num_bcs);
 void blockmesh_finalize(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
   ASSERT(!mesh->finalized);
 
-  // Finalize the inter-block bcs.
-  interblock_bcs_finalize(mesh->bcs->data, mesh->bcs->size);
+  // Finalize the inter-block boundaries.
+  blockmesh_interblock_bc_finalize(mesh->interblock_bc);
 
   // The boundary conditions for a given field at a block boundary depends on 
   // the structure of that field, since there's likely a change in coordinate
@@ -219,7 +347,9 @@ bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block)
 }
 
 #if POLYMEC_HAVE_MPI
-extern void interblock_bc_get_connected_blocks(unimesh_patch_bc_t* bc, int block_index, int connected_block_indices[6]);
+extern void blockmesh_interblock_bc_get_block_neighbors(unimesh_patch_bc_t* bc, 
+                                                        int block_index, 
+                                                        int block_neighbor_indices[6]);
 static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
@@ -249,24 +379,24 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
     int npx, npy, npz;
     unimesh_get_extents(block, &npx, &npy, &npz);
 
-    int connected_blocks[6];
-    interblock_bc_get_connected_blocks(mesh->bcs->data[b], b, connected_blocks);
+    int nblocks[6];
+    blockmesh_interblock_bc_get_block_neighbors(mesh->interblock_bc, b, nblocks);
 
     for (int i = 0; i < npx; ++i)
     {
       int num_x_edges = 0;
-      if ((i > 0) || (connected_blocks[0] != -1)) ++num_x_edges;
-      if ((i < npz-1) || (connected_blocks[1] != -1)) ++num_x_edges;
+      if ((i > 0) || (nblocks[0] != -1)) ++num_x_edges;
+      if ((i < npz-1) || (nblocks[1] != -1)) ++num_x_edges;
       for (int j = 0; j < npy; ++j)
       {
         int num_y_edges = 0;
-        if ((j > 0) || (connected_blocks[2] != -1)) ++num_y_edges;
-        if ((j < npy-1) || (connected_blocks[3] != -1)) ++num_y_edges;
+        if ((j > 0) || (nblocks[2] != -1)) ++num_y_edges;
+        if ((j < npy-1) || (nblocks[3] != -1)) ++num_y_edges;
         for (int k = 0; k < npz; ++k)
         {
           int num_z_edges = 0;
-          if ((k > 0) || (connected_blocks[4] != -1)) ++num_z_edges;
-          if ((k < npz-1) || (connected_blocks[5] != -1)) ++num_z_edges;
+          if ((k > 0) || (nblocks[4] != -1)) ++num_z_edges;
+          if ((k < npz-1) || (nblocks[5] != -1)) ++num_z_edges;
           int num_edges = num_x_edges + num_y_edges + num_z_edges;
           int index = patch_offsets[b] + npy*npz*i + npz*j + k;
           adj_graph_set_num_edges(g, index, num_edges);
@@ -283,14 +413,11 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
     int npx, npy, npz;
     unimesh_get_extents(block, &npx, &npy, &npz);
 
-    int connected_blocks[6];
-    interblock_bc_get_connected_blocks(mesh->bcs->data[b], b, connected_blocks);
+    int nblocks[6];
+    blockmesh_interblock_bc_get_block_neighbors(mesh->interblock_bc, b, nblocks);
     int npxs[6], npys[6], npzs[6];
     for (int f = 0; f < 6; ++f)
-    {
-      unimesh_t* nblock = mesh->blocks->data[connected_blocks[f]];
-      unimesh_get_extents(nblock, &npxs[f], &npys[f], &npzs[f]);
-    }
+      unimesh_get_extents(mesh->blocks->data[nblocks[f]], &npxs[f], &npys[f], &npzs[f]);
 
     for (int i = 0; i < npx; ++i)
     {
@@ -302,30 +429,30 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
           int* edges = adj_graph_edges(g, index);
           int offset = 0;
 
-          if ((i == 0) && (connected_blocks[0] != -1))
-            edges[offset++] = patch_offsets[connected_blocks[0]] + npy*npz*(npxs[0]-1) + npz*j + k;
+          if ((i == 0) && (nblocks[0] != -1))
+            edges[offset++] = patch_offsets[nblocks[0]] + npy*npz*(npxs[0]-1) + npz*j + k;
           else if (i > 0)
             edges[offset++] = patch_offsets[b] + npy*npz*(i-1) + npz*j + k;
-          if ((i == npx-1) && (connected_blocks[1] != -1))
-            edges[offset++] = patch_offsets[connected_blocks[1]] + npz*j + k;
+          if ((i == npx-1) && (nblocks[1] != -1))
+            edges[offset++] = patch_offsets[nblocks[1]] + npz*j + k;
           else if (i < npx-1)
             edges[offset++] = patch_offsets[b] + npy*npz*(i+1) + npz*j + k;
 
-          if ((j == 0) && (connected_blocks[2] != -1))
-            edges[offset++] = patch_offsets[connected_blocks[2]] + npy*npz*i + npz*(npys[1]-1) + k;
+          if ((j == 0) && (nblocks[2] != -1))
+            edges[offset++] = patch_offsets[nblocks[2]] + npy*npz*i + npz*(npys[1]-1) + k;
           else if (j > 0)
             edges[offset++] = patch_offsets[b] + npy*npz*i + npz*(j-1) + k;
-          if ((j == npy-1) && (connected_blocks[3] != -1))
-            edges[offset++] = patch_offsets[connected_blocks[3]] + npy*npz*i + k;
+          if ((j == npy-1) && (nblocks[3] != -1))
+            edges[offset++] = patch_offsets[nblocks[3]] + npy*npz*i + k;
           else if (j < npy-1)
             edges[offset++] = patch_offsets[b] + npy*npz*i + npz*(j+1) + k;
 
-          if ((k == 0) && (connected_blocks[4] != -1))
-            edges[offset++] = patch_offsets[connected_blocks[4]] + npy*npz*i + npz*j + npzs[4]-1;
+          if ((k == 0) && (nblocks[4] != -1))
+            edges[offset++] = patch_offsets[nblocks[4]] + npy*npz*i + npz*j + npzs[4]-1;
           else if (k > 0)
             edges[offset++] = patch_offsets[b] + npy*npz*i + npz*j + k-1;
-          if ((k == npz-1) && (connected_blocks[5] != -1))
-            edges[offset++] = patch_offsets[connected_blocks[5]] + npy*npz*i + npz*j;
+          if ((k == npz-1) && (nblocks[5] != -1))
+            edges[offset++] = patch_offsets[nblocks[5]] + npy*npz*i + npz*j;
           else if (k < npz-1)
             edges[offset++] = patch_offsets[b] + npy*npz*i + npz*j + k+1;
         }

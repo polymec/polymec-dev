@@ -45,7 +45,8 @@ typedef struct
     NO_ROTATION,
     QUARTER_TURN,
     HALF_TURN,
-    THREE_QUARTERS_TURN
+    THREE_QUARTERS_TURN,
+    INVALID_ROTATION
   } rotation;
 } blockmesh_diffeomorphism_t;
 

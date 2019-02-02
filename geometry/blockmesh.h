@@ -8,6 +8,7 @@
 #ifndef POLYMEC_BLOCKMESH_H
 #define POLYMEC_BLOCKMESH_H
 
+#include "geometry/coord_mapping.h"
 #include "geometry/unimesh.h"
 
 /// \addtogroup geometry geometry
@@ -55,12 +56,17 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 
 /// Adds a new empty block to the blockmesh with the given numbers of patches in the "x", "y", 
 /// and "z" directions. The block is empty in the sense that it contains no patches.
+/// \param [in] block_coords A coordinate mapping from [0,1]x[0,1]x[0,1] to the new block's 
+///                          local coordinate system. Must be non-NULL, since the coordinate 
+///                          systems for the blocks within the mesh must form a smooth atlas 
+///                          of compatible charts (permitting diffeomorphisms between charts).
 /// \param [in] num_x_patches The number of patches in the "x" direction within the new block.
 /// \param [in] num_y_patches The number of patches in the "y" direction within the new block.
 /// \param [in] num_z_patches The number of patches in the "z" direction within the new block.
 /// \returns the index of the new block within the blockmesh.
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh, 
+                        coord_mapping_t* block_coords,
                         int num_x_patches, 
                         int num_y_patches, 
                         int num_z_patches);

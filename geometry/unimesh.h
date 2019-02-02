@@ -197,6 +197,7 @@ bool unimesh_has_patch_bc(unimesh_t* mesh, int i, int j, int k,
 
 /// \class unimesh_observer
 /// Objects of this type are notified of changes to a unimesh's state.
+/// \refcounted
 typedef struct unimesh_observer_t unimesh_observer_t;
 
 /// \struct unimesh_observer_vtable
@@ -314,17 +315,12 @@ typedef struct
 unimesh_observer_t* unimesh_observer_new(void* context,
                                          unimesh_observer_vtable vtable);
 
-/// Destroys the given observer.
-/// \memberof unimesh_observer
-void unimesh_observer_free(unimesh_observer_t* observer);
-
-/// Add the observer to the given unimesh. The unimesh assumes responsibility
-/// for ownership of the observer.
+/// Add the observer to the given unimesh.
 /// \memberof unimesh
 void unimesh_add_observer(unimesh_t* mesh,
                           unimesh_observer_t* observer);
 
-/// Remove the observer remove the given unimesh, deleting the observer.
+/// Removes the observer from the given unimesh.
 /// \memberof unimesh
 void unimesh_remove_observer(unimesh_t* mesh,
                              unimesh_observer_t* observer);
