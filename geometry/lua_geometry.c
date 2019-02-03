@@ -1800,22 +1800,25 @@ static int bm_add_block(lua_State* L)
   blockmesh_t* m = lua_to_blockmesh(L, 1);
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
-  if (!lua_isinteger(L, 2))
-    return luaL_error(L, "Argument 1 must be a positive number of x patches.");
+  if (!lua_is_coord_mapping(L, 2))
+    return luaL_error(L, "Argument 1 must be a coordinate mapping for the block.");
+  coord_mapping_t* block_coords = lua_to_coord_mapping(L, 2);
+  if (!lua_isinteger(L, 3))
+    return luaL_error(L, "Argument 2 must be a positive number of x patches.");
   int npx = (int)lua_tointeger(L, 2);
   if (npx <= 0)
-    return luaL_error(L, "Argument 1 must be a positive number of x patches.");
-  if (!lua_isinteger(L, 3))
-    return luaL_error(L, "Argument 2 must be a positive number of y patches.");
+    return luaL_error(L, "Argument 2 must be a positive number of x patches.");
+  if (!lua_isinteger(L, 4))
+    return luaL_error(L, "Argument 3 must be a positive number of y patches.");
   int npy = (int)lua_tointeger(L, 3);
   if (npy <= 0)
-    return luaL_error(L, "Argument 2 must be a positive number of y patches.");
-  if (!lua_isinteger(L, 4))
-    return luaL_error(L, "Argument 3 must be a positive number of z patches.");
+    return luaL_error(L, "Argument 3 must be a positive number of y patches.");
+  if (!lua_isinteger(L, 5))
+    return luaL_error(L, "Argument 4 must be a positive number of z patches.");
   int npz = (int)lua_tointeger(L, 4);
   if (npz <= 0)
-    return luaL_error(L, "Argument 3 must be a positive number of z patches.");
-  blockmesh_add_block(m, npx, npy, npz);
+    return luaL_error(L, "Argument 4 must be a positive number of z patches.");
+  blockmesh_add_block(m, block_coords, npx, npy, npz);
   return 0;
 }
 

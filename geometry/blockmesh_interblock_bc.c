@@ -16,6 +16,7 @@
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_interblock_bc.h"
 #include "geometry/unimesh_patch.h"
+#include "geometry/unimesh_patch_bc.h"
 
 //------------------------------------------------------------------------
 //                        Utility functions 
@@ -89,7 +90,11 @@ static inline void* ib_buffer_recv_data(ib_buffer_t* buffer,
                                         unimesh_boundary_t boundary);
 #endif
 
+// Array of ib_buffers.
 DEFINE_ARRAY(ib_buffer_array, ib_buffer_t*)
+
+// Mapping from block pointers to array of ib_buffers.
+DEFINE_UNORDERED_MAP(ib_buffer_map, void*, ib_buffer_array_t*, ptr_hash, ptr_equals)
 
 //------------------------------------------------------------------------
 //                        cxn - an inter-block connection
@@ -149,7 +154,7 @@ struct blockmesh_interblock_bc_t
 {
   blockmesh_t* mesh;
   cxn_map_t* cxns;
-  ib_buffer_array_t* buffers;
+  ib_buffer_map_t* buffers;
 };
 
 static void ibc_start_update(void* context, unimesh_t* block,
@@ -198,13 +203,23 @@ static void ibc_started_boundary_updates(void* context,
   blockmesh_interblock_bc_t* ibc = context;
 
   // Create the buffer for this token if it doesn't yet exist.
-  while ((size_t)token >= ibc->buffers->size)
-    ib_buffer_array_append(ibc->buffers, NULL);
-  ib_buffer_t* buffer = ibc->buffers->data[token];
+  ib_buffer_array_t** buffers_p = ib_buffer_map_get(ibc->buffers, block);
+  ib_buffer_array_t* buffers;
+  if (buffers_p == NULL)
+  {
+    buffers = ib_buffer_array_new();
+    ib_buffer_map_insert_with_v_dtor(ibc->buffers, block, buffers, ib_buffer_array_free);
+  }
+  else
+    buffers = *buffers_p;
+
+  while ((size_t)token >= buffers->size)
+    ib_buffer_array_append(buffers, NULL);
+  ib_buffer_t* buffer = buffers->data[token];
   if (buffer == NULL)
   {
     buffer = ib_buffer_new(ibc, block, centering, num_components);
-    ib_buffer_array_assign_with_dtor(ibc->buffers, token, 
+    ib_buffer_array_assign_with_dtor(buffers, token, 
                                      buffer, ib_buffer_free);
   }
   else
@@ -221,9 +236,10 @@ static void ibc_finished_starting_boundary_updates(void* context,
   blockmesh_interblock_bc_t* ibc = context;
 
   // Fetch the buffer that we're using to store data for this update.
-  ASSERT((size_t)token < ibc->buffers->size);
-  ASSERT(ibc->buffers->data[token] != NULL);
-  ib_buffer_t* buffer = ibc->buffers->data[token];
+  ib_buffer_array_t* buffers = *ib_buffer_map_get(ibc->buffers, block);
+  ASSERT((size_t)token < buffers->size);
+  ASSERT(buffers->data[token] != NULL);
+  ib_buffer_t* buffer = buffers->data[token];
 
   // Send messages.
   ib_buffer_send(buffer, token);
@@ -241,9 +257,10 @@ static void ibc_about_to_finish_boundary_updates(void* context,
   blockmesh_interblock_bc_t* ibc = context;
 
   // Fetch the buffer that we're using to store data for this update.
-  ASSERT((size_t)token < ibc->buffers->size);
-  ASSERT(ibc->buffers->data[token] != NULL);
-  ib_buffer_t* buffer = ibc->buffers->data[token];
+  ib_buffer_array_t* buffers = *ib_buffer_map_get(ibc->buffers, block);
+  ASSERT((size_t)token < buffers->size);
+  ASSERT(buffers->data[token] != NULL);
+  ib_buffer_t* buffer = buffers->data[token];
 
   // Finish receiving the data.
   ib_buffer_finish_receiving(buffer, token);
@@ -257,7 +274,7 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
 {
   blockmesh_interblock_bc_t* bc = polymec_malloc(sizeof(blockmesh_interblock_bc_t));
   bc->mesh = mesh;
-  bc->buffers = ib_buffer_array_new();
+  bc->buffers = ib_buffer_map_new();
   bc->cxns = cxn_map_new();
   return bc;
 }
@@ -265,7 +282,7 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
 void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
 {
   cxn_map_free(bc->cxns);
-  ib_buffer_array_free(bc->buffers);
+  ib_buffer_map_free(bc->buffers);
   polymec_free(bc);
 }
 
@@ -300,7 +317,7 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
   int p_index = patch_index(block1, i1, j1, k1);
   int bb = (int)b1;
   int index = 6*p_index + bb;
-  cxn_t* cxn = cxn_new(bc, block1, i1, j1, k1, b1, block2, i2, j2, k2, b2);
+  cxn_t* cxn = cxn_new(bc, block1, i1, j1, k1, b1, block2, i2, j2, k2, b2, diff);
   cxn_map_insert_with_v_dtor(bc->cxns, index, cxn, cxn_free);
 }
 
@@ -335,11 +352,15 @@ bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
   return result;
 }
 
+extern void unimesh_set_patch_bc(unimesh_t* mesh,
+                                 int i, int j, int k,
+                                 unimesh_boundary_t patch_boundary,
+                                 unimesh_patch_bc_t* patch_bc);
 void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
 {
   // Traverse all the connections for this BC and create 
   // unimesh_patch_bc objects for each block. 
-  int num_blocks = blockmesh_num_blocks(bc);
+  int num_blocks = blockmesh_num_blocks(bc->mesh);
   unimesh_patch_bc_t* patch_bcs[num_blocks];
   memset(patch_bcs, 0, sizeof(unimesh_patch_bc_t*));
 
@@ -359,7 +380,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
 
   int pos = 0, index;
   cxn_t* cxn;
-  while (cxn_map_next(bc->cxns, pos, &index, &cxn))
+  while (cxn_map_next(bc->cxns, &pos, &index, &cxn))
   {
     int block_index = index/6;
     unimesh_patch_bc_t* patch_bc;
@@ -379,16 +400,11 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
       patch_bc = patch_bcs[block_index];
 
     unimesh_set_patch_bc(cxn->block1, cxn->i1, cxn->j1, cxn->k1,
-                         cxn->b1, patch_bc);
+                         cxn->boundary1, patch_bc);
   }
 
 #if POLYMEC_HAVE_MPI
-
-  // Make sure that all the meshes are on the same communicator.
-  MPI_Comm comm = unimesh_comm(meshes[0]);
-  for (size_t m = 1; m < num_meshes; ++m)
-    ASSERT(unimesh_comm(meshes[m]) == comm);
-
+  MPI_Comm comm = blockmesh_comm(bc->mesh);
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
@@ -399,11 +415,11 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     // its block index, i, j, k. In addition to these identifiers, we 
     // provide the rank of the owning process.
     int_array_t* cxn_patches = int_array_new();
-    int pos = 0, index;
-    cxn_t* cxn = NULL;
-    while (cxn_map_next(bc->cxns, &pos1, &index, &cxn))
+    pos = 0;
+    while (cxn_map_next(bc->cxns, &pos, &index, &cxn))
     {
-      int_array_append(cxn_patches, pos-1);
+      int block1_index = index/6;
+      int_array_append(cxn_patches, block1_index);
       int_array_append(cxn_patches, cxn->i1);
       int_array_append(cxn_patches, cxn->j1);
       int_array_append(cxn_patches, cxn->k1);
@@ -451,8 +467,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     // Now fill in the proc2 field in each connection.
     int* key = int_tuple_new(4);
     pos = 0;
-    int num_blocks = blockmesh_num_blocks(bc->mesh);
-    while (cxn_map_next(bc->cxns, &pos1, &index, &cxn))
+    while (cxn_map_next(bc->cxns, &pos, &index, &cxn))
     {
       // Use the far patch to construct a key for 
       // our owner_for_proc map.
@@ -547,10 +562,12 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
 struct ib_buffer_t
 {
   // Metadata
-  blockmesh_interblock_bc* ibc;
   unimesh_t* block;
   unimesh_centering_t centering; // field centering
   int nx, ny, nz, nc; // patch dimensions and number of components
+
+  // Connections specific to this buffer's block.
+  cxn_map_t* cxns;
 
   // Local buffers
   real_t* near_local_storage; 
@@ -585,9 +602,8 @@ ib_buffer_t* ib_buffer_new(blockmesh_interblock_bc_t* bc,
 {
   START_FUNCTION_TIMER();
   ib_buffer_t* buffer = polymec_malloc(sizeof(ib_buffer_t));
-  buffer->ibc = bc;
   buffer->block = block;
-  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
+  unimesh_get_patch_size(block, &buffer->nx, &buffer->ny, &buffer->nz);
   buffer->nc = -1;
   buffer->near_local_size = 0;
   buffer->near_local_storage = NULL;
@@ -603,8 +619,20 @@ ib_buffer_t* ib_buffer_new(blockmesh_interblock_bc_t* bc,
   buffer->recv_storage = NULL;
   buffer->recv_offsets = int_int_unordered_map_new();
 
-  // Get our rank within the mesh's communicator.
-  buffer->comm = unimesh_comm(mesh);
+  // Get connections specific to this buffer's block.
+  buffer->cxns = cxn_map_new();
+  {
+    int pos = 0, index;
+    cxn_t* cxn;
+    while (cxn_map_next(bc->cxns, &pos, &index, &cxn))
+    {
+      if (cxn->block1 == block)
+        cxn_map_insert(buffer->cxns, index, cxn);
+    }
+  }
+
+  // Get our rank within the block's communicator.
+  buffer->comm = unimesh_comm(block);
   MPI_Comm_rank(buffer->comm, &buffer->rank);
 
   // Generate a sorted list of unique remote processes we talk to via connections.
@@ -625,7 +653,7 @@ ib_buffer_t* ib_buffer_new(blockmesh_interblock_bc_t* bc,
   return buffer;
 }
 
-void ib_buffer_free(ib_buffer_t* buffer);
+void ib_buffer_free(ib_buffer_t* buffer)
 {
   if (buffer->near_local_storage != NULL)
     polymec_free(buffer->near_local_storage);
@@ -645,6 +673,7 @@ void ib_buffer_free(ib_buffer_t* buffer);
   polymec_free(buffer->recv_proc_offsets);
   polymec_free(buffer->recv_requests);
 #endif
+  cxn_map_free(buffer->cxns);
   polymec_free(buffer);
 }
 
@@ -721,7 +750,7 @@ static void ib_buffer_compute_local_offsets(ib_buffer_t* buffer)
     // Iterate over all connections for this mesh.
     int pos = 0, index;
     cxn_t* cxn;
-    while (cxn_map_next(buffer->ibc->cxns, &pos, &index, &cxn))
+    while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
     {
       // Near side: is the connection to a local or a remote patch/boundary?
       bool is_local_patch = unimesh_has_patch(cxn->block1, cxn->i1, cxn->j1, cxn->k1);
@@ -767,7 +796,7 @@ static void ib_buffer_compute_send_offsets(ib_buffer_t* buffer)
     // Iterate over all connections for this mesh.
     int pos = 0, index;
     cxn_t* cxn;
-    while (cxn_map_next(buffer->ibc->cxns, &pos, &index, &cxn))
+    while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
     {
       bool is_remote_patch = !unimesh_has_patch(cxn->block2, cxn->i2, cxn->j2, cxn->k2);
       if (is_remote_patch) 
@@ -785,7 +814,7 @@ static void ib_buffer_compute_send_offsets(ib_buffer_t* buffer)
 
         // Stash the offset for this patch/boundary.
         int p_index = patch_index(cxn->block1, cxn->i1, cxn->j1, cxn->k1);
-        int b = (int)cxn->boundary;
+        int b = (int)cxn->boundary1;
         int remote_index = 6*p_index + b;
         int_int_unordered_map_insert(buffer->send_offsets, remote_index, (int)offset);
 
@@ -824,7 +853,7 @@ static void ib_buffer_compute_recv_offsets(ib_buffer_t* buffer)
     // Iterate over all connections for this mesh.
     int pos = 0, index;
     cxn_t* cxn;
-    while (cxn_map_next(buffer->ibc->cxns, &pos, &index, &cxn))
+    while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
     {
       bool is_remote_patch = !unimesh_has_patch(cxn->block2, cxn->i2, cxn->j2, cxn->k2);
       if (is_remote_patch)
@@ -871,7 +900,7 @@ static void ib_buffer_compute_recv_offsets(ib_buffer_t* buffer)
       int_int_unordered_map_insert(buffer->recv_offsets, index, (int)offset);
 
       // Update our running tally.
-      cxn_t** cxn_p = cxn_map_get(buffer->ibc->cxns, index);
+      cxn_t** cxn_p = cxn_map_get(buffer->cxns, index);
       ASSERT(cxn_p != NULL);
       cxn_t* cxn = *cxn_p;
       offset += buffer->nc * cxn_far_boundary_size(cxn, buffer->centering);
@@ -923,7 +952,7 @@ void ib_buffer_reset(ib_buffer_t* buffer,
       for (int b = 0; b < 6; ++b)
       {
         int index = 6*p_index + b;
-        cxn_t** cxn_p = cxn_map_get(buffer->ibc->cxns, index);
+        cxn_t** cxn_p = cxn_map_get(buffer->cxns, index);
         if (cxn_p != NULL)
         {
           cxn_t* cxn = *cxn_p;
@@ -1032,7 +1061,7 @@ void ib_buffer_send(ib_buffer_t* buffer, int tag)
   for (size_t p = 0; p < buffer->procs->size; ++p)
     offsets[p] = buffer->send_proc_offsets[p];
   cxn_t* cxn = NULL;
-  while (cxn_map_next(buffer->ibc->cxns, &pos, &index, &cxn))
+  while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
   {
     // Get the buffer offset for this connection.
     int proc = cxn->proc2;
@@ -1085,30 +1114,28 @@ void ib_buffer_finish_receiving(ib_buffer_t* buffer, int tag)
   // Copy local data from far -> near buffers.
   int pos = 0, index;
   cxn_t* cxn;
-  while (cxn_map_next(buffer->ibc->cxns, &pos, &index, &cxn))
+  while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
   {
     void* near_data = ib_buffer_near_local_data(buffer, cxn->i1, cxn->j1, cxn->k1, cxn->boundary1);
     ASSERT(near_data != NULL);
 
-    // Get the intermesh BC for the far mesh.
-    unimesh_patch_bc_t* far_bc = get_intermesh_bc(cxn->block2);
-    if (far_bc != NULL)
-    {
-      // Get the far buffer.
-      int token = tag;
-      ASSERT((size_t)token < ibc->buffers->size);
-      ASSERT(far_ibc->buffers->data[token] != NULL);
-      ib_buffer_t* far_buffer = far_ibc->buffers->data[token];
-      ASSERT(far_buffer->block == cxn->block2);
+    // Get the buffers for the far block.
+    ib_buffer_array_t* buffers = *ib_buffer_map_get(cxn->ibc->buffers, cxn->block2);
 
-      // Remember: the far buffer's "far" data -> our near data!
-      void* far_data = ib_buffer_far_local_data(far_buffer, cxn->i2, cxn->j2, cxn->k2, cxn->boundary2);
-      if (far_data != NULL)
-      {
-        // Copy the far buffer's "far" data to our near data.
-        size_t boundary_size = buffer->nc * cxn_far_boundary_size(cxn, buffer->centering);
-        memcpy(near_data, far_data, sizeof(real_t) * boundary_size);
-      }
+    // Find the buffer that corresponds to the token.
+    int token = tag;
+    ASSERT((size_t)token < buffers->size);
+    ASSERT(buffers->data[token] != NULL);
+    ib_buffer_t* far_buffer = buffers->data[token];
+    ASSERT(far_buffer->block == cxn->block2);
+
+    // Remember: the far buffer's "far" data -> our near data!
+    void* far_data = ib_buffer_far_local_data(far_buffer, cxn->i2, cxn->j2, cxn->k2, cxn->boundary2);
+    if (far_data != NULL)
+    {
+      // Copy the far buffer's "far" data to our near data.
+      size_t boundary_size = buffer->nc * cxn_far_boundary_size(cxn, buffer->centering);
+      memcpy(near_data, far_data, sizeof(real_t) * boundary_size);
     }
   }
 
@@ -1145,13 +1172,11 @@ void ib_buffer_finish_receiving(ib_buffer_t* buffer, int tag)
   }
 
   // Copy data from our receive buffers to our local buffers.
-  unimesh_patch_bc_t* bc = get_intermesh_bc(cxn->block1);
-  interblock_bc_t* ibc = unimesh_patch_bc_context(bc);
   size_t offsets[buffer->procs->size];
   for (size_t p = 0; p < buffer->procs->size; ++p)
     offsets[p] = buffer->recv_proc_offsets[p];
   pos = 0;
-  while (cxn_map_next(ibc->cxns, &pos, &index, &cxn))
+  while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
   {
     // Get the buffer offset for this connection.
     int proc = cxn->proc2;
@@ -1176,11 +1201,9 @@ void ib_buffer_gather_procs(ib_buffer_t* buffer)
 {
   buffer->procs = int_array_new();
 #if POLYMEC_HAVE_MPI
-  unimesh_patch_bc_t* bc = get_intermesh_bc(buffer->block);
-  interblock_bc_t* ibc = unimesh_patch_bc_context(bc);
   int pos = 0, index;
   cxn_t* cxn = NULL;
-  while (cxn_map_next(ibc->cxns, &pos, &index, &cxn))
+  while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))
   {
     ASSERT(cxn->proc1 == buffer->rank);
     int p_b = cxn->proc2;
@@ -1251,7 +1274,7 @@ void cxn_finish_update(cxn_t* cxn, unimesh_patch_t* patch)
   ASSERT(near != NULL);
 
   // Copy the data from the patch into our buffer.
-  intermesh_copy_bvalues_from_buffer(patch, cxn->boundary, near);
+  intermesh_copy_bvalues_from_buffer(patch, cxn->boundary1, near);
 }
 
 static size_t unimesh_boundary_size(unimesh_t* mesh, 
@@ -1301,26 +1324,23 @@ static size_t unimesh_boundary_size(unimesh_t* mesh,
 size_t cxn_near_boundary_size(cxn_t* cxn,
                               unimesh_centering_t centering)
 {
-  return unimesh_boundary_size(cxn->block1, centering, cxn->boundary);
+  return unimesh_boundary_size(cxn->block1, centering, cxn->boundary1);
 }
 
 size_t cxn_far_boundary_size(cxn_t* cxn,
                              unimesh_centering_t centering)
 {
-  return unimesh_boundary_size(cxn->block2, centering, cxn->boundary1);
+  return unimesh_boundary_size(cxn->block2, centering, cxn->boundary2);
 }
 
 void* cxn_near_buffer(cxn_t* cxn)
 {
-  // Access our intermesh BC object.
-  unimesh_patch_bc_t* bc = get_intermesh_bc(cxn->block1);
-  interblock_bc_t* ibc = unimesh_patch_bc_context(bc);
-
   // Retrieve the near ib_buffer for this update.
+  ib_buffer_array_t* buffers = *ib_buffer_map_get(cxn->ibc->buffers, cxn->block1);
   int token = unimesh_boundary_update_token(cxn->block1);
-  ASSERT((size_t)token < ibc->buffers->size);
-  ASSERT(ibc->buffers->data[token] != NULL);
-  ib_buffer_t* buffer = ibc->buffers->data[token];
+  ASSERT((size_t)token < buffers->size);
+  ASSERT(buffers->data[token] != NULL);
+  ib_buffer_t* buffer = buffers->data[token];
 
   // If the connection's near end is local to the near mesh, return a pointer 
   // to the near mesh's local data.
@@ -1337,10 +1357,11 @@ void* cxn_near_buffer(cxn_t* cxn)
 void* cxn_far_buffer(cxn_t* cxn)
 {
   // Retrieve the near ib_buffer for this update.
+  ib_buffer_array_t* buffers = *ib_buffer_map_get(cxn->ibc->buffers, cxn->block1);
   int token = unimesh_boundary_update_token(cxn->block1);
-  ASSERT((size_t)token < cxn->ibc->buffers->size);
-  ASSERT(cxn->ibc->buffers->data[token] != NULL);
-  ib_buffer_t* buffer = cxn->ibc->buffers->data[token];
+  ASSERT((size_t)token < buffers->size);
+  ASSERT(buffers->data[token] != NULL);
+  ib_buffer_t* buffer = buffers->data[token];
 
   // If the connection's far patch is local to the far mesh, return a pointer 
   // to our far local data buffer.

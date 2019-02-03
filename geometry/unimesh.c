@@ -200,10 +200,14 @@ static void patch_bcs_free(unimesh_patch_bc_t** bcs)
   polymec_free(bcs);
 }
 
-static void unimesh_set_patch_bc(unimesh_t* mesh,
-                                 int i, int j, int k,
-                                 unimesh_boundary_t patch_boundary,
-                                 unimesh_patch_bc_t* patch_bc)
+void unimesh_set_patch_bc(unimesh_t* mesh,
+                          int i, int j, int k,
+                          unimesh_boundary_t patch_boundary,
+                          unimesh_patch_bc_t* patch_bc);
+void unimesh_set_patch_bc(unimesh_t* mesh,
+                          int i, int j, int k,
+                          unimesh_boundary_t patch_boundary,
+                          unimesh_patch_bc_t* patch_bc)
 {
   ASSERT(unimesh_has_patch(mesh, i, j, k));
   int index = patch_index(mesh, i, j, k);
