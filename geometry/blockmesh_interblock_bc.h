@@ -10,7 +10,6 @@
 
 #include "geometry/coord_mapping.h"
 #include "geometry/unimesh.h"
-#include "geometry/unimesh_patch_bc.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -21,6 +20,7 @@ typedef struct blockmesh_t blockmesh_t;
 /// This patch BC connects patches in different unimeshes (blocks) within 
 /// a blockmesh, mapping quantities between these patches with a 
 /// diffeomorphism defined by the respective coordinate systems of the blocks.
+typedef struct blockmesh_interblock_bc_t blockmesh_interblock_bc_t;
 
 /// \struct blockmesh_diffeomorphism_t
 /// This struct represents a diffeomorphism that maps quantities from one 
@@ -53,7 +53,10 @@ typedef struct
 /// Constructs a new inter-block BC for the given mesh (block).
 /// \param [in] mesh The block mesh on which this BC operates.
 /// \memberof blockmesh_interblock_bc
-unimesh_patch_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh);
+blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh);
+
+/// Destroys the given inter-block BC.
+void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc);
 
 /// Establishes a connection between a patch in the block associated with 
 /// this BC and another block.
@@ -70,7 +73,7 @@ unimesh_patch_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh);
 /// \param [in] diff A diffeomorphism defining the mapping of quantities 
 ///                  from block1 to block2.
 /// \memberof blockmesh_interblock_bc
-void blockmesh_interblock_bc_connect(unimesh_patch_bc_t* bc,
+void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
                                      unimesh_t* block1,
                                      int i1, int j1, int k1, 
                                      unimesh_boundary_t b1,
@@ -81,7 +84,7 @@ void blockmesh_interblock_bc_connect(unimesh_patch_bc_t* bc,
 
 /// Finalizes the BC once all connections have been established.
 /// \memberof blockmesh_interblock_bc
-void blockmesh_interblock_bc_finalize(unimesh_patch_bc_t* bc);
+void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc);
 
 /// Traverses the connections in the blockmesh associated with this BC.
 /// \param [out] block1 Stores the first block in the connected pair.
@@ -97,7 +100,7 @@ void blockmesh_interblock_bc_finalize(unimesh_patch_bc_t* bc);
 /// \param [out] diff Stores the diffeomorphism defining the mapping of 
 ///                   quantities from block1 to block2.
 /// \memberof blockmesh_interblock_bc
-bool blockmesh_interblock_bc_next_connection(unimesh_patch_bc_t* bc,
+bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
                                              int* pos,
                                              unimesh_t** block1, 
                                              int* i1, int* j1, int* k1,

@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -39,7 +39,7 @@ struct blockmesh_t
   ptr_array_t* coords;
 
   // Inter-block boundary condition.
-  unimesh_patch_bc_t* interblock_bc;
+  blockmesh_interblock_bc_t* interblock_bc;
 
   // This flag is set by blockmesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -312,7 +312,7 @@ bool blockmesh_is_finalized(blockmesh_t* mesh)
 
 void blockmesh_free(blockmesh_t* mesh)
 {
-  release_ref(mesh->interblock_bc);
+  blockmesh_interblock_bc_free(mesh->interblock_bc);
   unimesh_array_free(mesh->blocks);
   polymec_free(mesh);
 }
@@ -347,7 +347,7 @@ bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block)
 }
 
 #if POLYMEC_HAVE_MPI
-extern void blockmesh_interblock_bc_get_block_neighbors(unimesh_patch_bc_t* bc, 
+extern void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc, 
                                                         int block_index, 
                                                         int block_neighbor_indices[6]);
 static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
