@@ -81,15 +81,6 @@ usilo = {
           'only for use with polymec.'
 },
 
-specfun = {
-  version = '6-30-2012',
-  copyright = 'Copyright 1996, S. Zhang and J. Jin (reproduced by John Burkardt).',
-  license = 'custom',
-  url = 'https://people.sc.fsu.edu/~jburkardt/f_src/special_functions/special_functions.html',
-  date_retrieved = {month=8, day=29, year=2017},
-  citation = 'S. Zhang and J. Jin, Computation of Special Functions, Wiley (1996)'
-},
-
 sundials = {
   version = '4.0.1',
   copyright = 'Copyright (c) 2002-2016, Lawrence Livermore National Security.\n' .. 

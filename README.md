@@ -49,7 +49,6 @@ The polymec library requires the following software:
 * A C compiler that adheres to (or aspires to) the C11 standard. 
   GCC 4.9+ and Clang 3.4+ work well.
 * A reasonable C++ compiler (for the C++ build/link test)
-* A Fortran compiler for LAPACK/BLAS and for special functions
 * MPI (OpenMPI or MPICH), if you plan on doing parallel computation
 * A working set of LAPACK/BLAS libraries
 * CMake 3.10+ 
@@ -73,7 +72,7 @@ where `build_dir` is the directory in which you want to build. Then just
 follow the onscreen directions: you change to that build directory, edit 
 `config.sh` to define your build, and then start the build using your 
 generator's build process. For the default generator (UNIX makefiles), this 
-is just `make`.
+is just `make`. For Ninja (recommended if you have it), it's `ninja`.
 
 ### Installing
 
@@ -86,7 +85,9 @@ make install [-j #threads]
 
 from your build directory. 
 
-### Other Make Targets
+### Other Targets
+
+These all work with Make and Ninja.
 
 ```
 make test 

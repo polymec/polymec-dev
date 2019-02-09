@@ -4,17 +4,10 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.h"
 )
 
-# Make sure our Fortran compiler uses its preprocessor.
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/special_functions.f90.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90"
-)
-
 # Generate the thirdparty Lua module from the metadata in 3rdparty/thirdparty.lua.
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c
                    COMMAND ${PROJECT_BINARY_DIR}/bin/lua ${PROJECT_SOURCE_DIR}/tools/generate_thirdparty_module.lua ${PROJECT_SOURCE_DIR}/3rdparty/thirdparty.lua ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c
-                   DEPENDS ${PROJECT_SOURCE_DIR}/3rdparty/thirdparty.lua;${PROJECT_SOURCE_DIR}/tools/generate_thirdparty_module.lua;all_3rdparty_libs)
+                   DEPENDS ${PROJECT_SOURCE_DIR}/3rdparty/thirdparty.lua;${PROJECT_SOURCE_DIR}/tools/generate_thirdparty_module.lua;lua_proj)
 
 include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
@@ -24,16 +17,13 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     least_squares.c options.c partitioning.c 
                     text_buffer.c serializer.c string_utils.c 
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 
-                    ${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90 
-                    special_functions.c 
                     exchanger.c lua_types.c lua_core.c lua_replace_tostring.c
                     lua_array.c lua_ndarray.c lua_driver.c 
                     ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c)
 set_target_properties(polymec_core PROPERTIES LINKER_LANGUAGE C)
-add_dependencies(polymec_core all_3rdparty_libs)
 
 # polymec.c depends on the creation of polymec_version.h and on the creation
-# of the high-level headers.
+# of the high-level headers
 add_dependencies(polymec_core update_version_h generate_headers)
 
 set(POLYMEC_LIBRARIES polymec_core;${POLYMEC_LIBRARIES} PARENT_SCOPE)

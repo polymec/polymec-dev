@@ -49,9 +49,10 @@ ExternalProject_Add(cmocka_proj
                     CMAKE_ARGS ${CMOCKA_CMAKE_OPTS}
                     LOG_CONFIGURE TRUE
                     LOG_BUILD TRUE
-                    LOG_INSTALL TRUE)
+                    LOG_INSTALL TRUE
+                    BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/libcmocka-static.a)
+list(APPEND ALL_EXT_PROJ cmocka_proj)
 add_library(cmocka STATIC IMPORTED GLOBAL)
-add_dependencies(cmocka cmocka_proj)
 set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka-static.a)
 set(POLYMEC_TP_LIBS cmocka;${POLYMEC_TP_LIBS})
 
@@ -87,35 +88,15 @@ ExternalProject_Add(zlib_proj
                     BUILD_COMMAND make -j${NUM_BUILD_THREADS}
                     LOG_BUILD TRUE
                     INSTALL_COMMAND make install
-                    LOG_INSTALL TRUE)
+                    LOG_INSTALL TRUE
+                    BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/libz.a)
 add_library(z STATIC IMPORTED GLOBAL)
-add_dependencies(z zlib_proj)
 set_target_properties(z PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libz.a)
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
 #----------------------------------------------------------------------------
 # Build the HDF5 parallel I/O library. 
 #----------------------------------------------------------------------------
-if (NOT EXISTS ${HDF5_LIBRARY})
-  set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
-  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
-  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
-  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
-  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
-  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_TOOLS=ON -DBUILD_TESTING=OFF -DHDF5_BUILD_EXAMPLES=OFF)
-  ExternalProject_Add(hdf5_proj
-                      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/hdf5
-                      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                      INSTALL_DIR ${PROJECT_BINARY_DIR}
-                      CMAKE_ARGS ${HDF5_CMAKE_OPTS}
-                      DEPENDS zlib_proj
-                      LOG_CONFIGURE TRUE
-                      LOG_BUILD TRUE
-                      LOG_INSTALL TRUE)
-  install(DIRECTORY ${PROJECT_BINARY_DIR}/share/cmake/hdf5 
-          DESTINATION share/cmake/hdf5)
-endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(HDF5_LIBRARY_BASENAME "hdf5_debug")
   set(HDF5_HL_LIBRARY_BASENAME "hdf5_hl_debug")
@@ -132,10 +113,31 @@ else()
   add_library(${HDF5_LIBRARY_BASENAME} STATIC IMPORTED GLOBAL)
   add_library(${HDF5_HL_LIBRARY_BASENAME} STATIC IMPORTED GLOBAL)
 endif()
-add_dependencies(${HDF5_LIBRARY_BASENAME} hdf5_proj)
 set_target_properties(${HDF5_LIBRARY_BASENAME} PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY})
-add_dependencies(${HDF5_HL_LIBRARY_BASENAME} hdf5_proj)
 set_target_properties(${HDF5_HL_LIBRARY_BASENAME} PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY})
+if (NOT EXISTS ${HDF5_LIBRARY})
+  set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_TOOLS=ON -DBUILD_TESTING=OFF -DHDF5_BUILD_EXAMPLES=OFF)
+  ExternalProject_Add(hdf5_proj
+                      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/hdf5
+                      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                      INSTALL_DIR ${PROJECT_BINARY_DIR}
+                      CMAKE_ARGS ${HDF5_CMAKE_OPTS}
+                      DEPENDS zlib_proj
+                      LOG_CONFIGURE TRUE
+                      LOG_BUILD TRUE
+                      LOG_INSTALL TRUE
+                      BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY})
+  install(DIRECTORY ${PROJECT_BINARY_DIR}/share/cmake/hdf5 
+          DESTINATION share/cmake/hdf5)
+else()
+  ExternalProject_Add(hdf5_proj)
+endif()
 
 # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
 # FIXME: Broken!
@@ -174,13 +176,14 @@ ExternalProject_Add(usilo_proj
                     DEPENDS hdf5_proj zlib_proj
                     LOG_CONFIGURE TRUE
                     LOG_BUILD TRUE
-                    LOG_INSTALL TRUE)
+                    LOG_INSTALL TRUE
+                    BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/libusilo${LIB_SUFFIX})
+list(APPEND ALL_EXT_PROJ usilo_proj)
 if (BUILD_SHARED_LIBS)
   add_library(usilo SHARED IMPORTED GLOBAL)
 else()
   add_library(usilo STATIC IMPORTED GLOBAL)
 endif()
-add_dependencies(usilo usilo_proj)
 set_target_properties(usilo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libusilo${LIB_SUFFIX})
 set(POLYMEC_TP_LIBS usilo;${POLYMEC_TP_LIBS})
 
@@ -205,15 +208,6 @@ if (HAVE_MPI)
 else()
   set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=OFF)
 endif()
-ExternalProject_Add(sundials_proj
-                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sundials
-                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                    INSTALL_DIR ${PROJECT_BINARY_DIR}
-                    CMAKE_ARGS ${SUNDIALS_CMAKE_OPTS}
-                    LOG_CONFIGURE TRUE
-                    LOG_BUILD TRUE
-                    LOG_INSTALL TRUE)
 if (NOT HAVE_MPI)
   set (NVEC_LIBS nvecserial)
 else()
@@ -222,10 +216,21 @@ endif()
 foreach(component arkode;cvode;cvodes;ida;idas;kinsol;${NVEC_LIBS})
   set(lib sundials_${component})
   add_library(${lib} STATIC IMPORTED GLOBAL)
-  add_dependencies(${lib} sundials_proj)
   set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${lib}.a)
   list(APPEND SUNDIALS_LIBS ${lib})
+  list(APPEND SUNDIALS_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/lib${lib}.a)
 endforeach()
+ExternalProject_Add(sundials_proj
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/sundials
+                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sundials
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/sundials
+                    INSTALL_DIR ${PROJECT_BINARY_DIR}
+                    CMAKE_ARGS ${SUNDIALS_CMAKE_OPTS}
+                    LOG_CONFIGURE TRUE
+                    LOG_BUILD TRUE
+                    LOG_INSTALL TRUE
+                    BUILD_BYPRODUCTS ${SUNDIALS_BYPRODUCTS})
+list(APPEND ALL_EXT_PROJ sundials_proj)
 set(POLYMEC_TP_LIBS ${SUNDIALS_LIBS};${POLYMEC_TP_LIBS})
 
 #----------------------------------------------------------------------------
@@ -245,14 +250,15 @@ ExternalProject_Add(lua_proj
                     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a ${PROJECT_BINARY_DIR}/lib
                     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lua/src/lua ${PROJECT_BINARY_DIR}/bin
                     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lua/src/luac ${PROJECT_BINARY_DIR}/bin
-                    LOG_INSTALL TRUE)
+                    LOG_INSTALL TRUE
+                    BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
+list(APPEND ALL_EXT_PROJ lua_proj)
 file(GLOB lua_includes "${CMAKE_CURRENT_SOURCE_DIR}/lua/src/*.h")
 foreach(inc ${lua_includes})
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${inc} ${PROJECT_BINARY_DIR}/include)
 endforeach()
 add_library(lua STATIC IMPORTED GLOBAL)
 set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
-add_dependencies(lua lua_proj)
 set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 
 #----------------------------------------------------------------------------
@@ -272,13 +278,6 @@ endif()
 set_target_properties(jrs_predicates PROPERTIES FOLDER Libraries)
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 install(TARGETS jrs_predicates DESTINATION lib)
-
-#----------------------------------------------------------------------------
-# Build specfun, a Fortran library implementing special functions.
-#----------------------------------------------------------------------------
-add_library(specfun specfun/special_functions.f90)
-set(POLYMEC_TP_LIBS specfun;${POLYMEC_TP_LIBS})
-install(TARGETS specfun DESTINATION lib)
 
 #----------------------------------------------------------------------------
 # If we're using MPI, build INRIA's Scotch library.
@@ -327,7 +326,8 @@ if (HAVE_MPI)
                       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/ptscotch.h ${PROJECT_BINARY_DIR}/include
                       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libscotch.a ${PROJECT_BINARY_DIR}/lib
                       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libptscotch.a ${PROJECT_BINARY_DIR}/lib
-                      LOG_INSTALL TRUE)
+                      LOG_INSTALL TRUE
+                      BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/libscotch.a ${PROJECT_BINARY_DIR}/lib/libptscotch.a)
   if (BUILD_SHARED_LIBS)
     add_library(scotch SHARED IMPORTED GLOBAL)
     add_library(ptscotch SHARED IMPORTED GLOBAL)
@@ -335,11 +335,10 @@ if (HAVE_MPI)
     add_library(scotch STATIC IMPORTED GLOBAL)
     add_library(ptscotch STATIC IMPORTED GLOBAL)
   endif()
-  add_dependencies(scotch scotch_proj)
   set_target_properties(scotch PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libscotch.a)
-  add_dependencies(ptscotch scotch_proj)
   set_target_properties(ptscotch PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libptscotch.a)
   set(POLYMEC_TP_LIBS ptscotch;scotch;${POLYMEC_TP_LIBS})
+  list(APPEND ALL_EXT_PROJ scotch_proj)
 endif()
 
 # This target expresses a single dependency on all third-party libs.
@@ -347,7 +346,7 @@ endif()
 add_custom_target(all_3rdparty_libs ALL
                   COMMAND ${PROJECT_BINARY_DIR}/bin/lua ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty.lua
                   COMMENT "Validating ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty.lua..."
-                  DEPENDS ${POLYMEC_TP_LIBS})
+                  DEPENDS ${ALL_EXT_PROJ})
 
 # Add all the libraries to the build system at large.
 set(POLYMEC_LIBRARIES ${POLYMEC_TP_LIBS};${POLYMEC_LIBRARIES} PARENT_SCOPE)
