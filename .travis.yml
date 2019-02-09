@@ -26,20 +26,20 @@ before_install:
 
 install:
   - docker exec -t polymec-build bash -c "apt-get update;
-    apt-get install -y openmpi-bin libopenmpi-dev ssh g++ gfortran liblapack-dev cmake autotools-dev bash git valgrind libpetsc3.7.7 lcov curl;
+    apt-get install -y openmpi-bin libopenmpi-dev ssh g++ gfortran liblapack-dev cmake ninja autotools-dev bash git valgrind libpetsc3.7.7 lcov curl;
     ln -s /usr/lib/x86_64-linux-gnu/libpetsc_real.so.3.7.7 /usr/lib/libpetsc.so"
 
 before_script:
   - if [ "$MPI" = "ON" ]; then export CC=mpicc; export CXX=mpic++; export FC=mpif90; else export CC=cc; export CXX=c++; export FC=gfortran; fi
   - docker exec -t polymec-build bash -c "cd travis;
     mkdir build && cd build;
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCOVERAGE=\"$COVERAGE\" -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_Fortran_COMPILER=$FC .."
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCOVERAGE=\"$COVERAGE\" -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_Fortran_COMPILER=$FC .."
 
 script: 
   - if [ "$BUILD_TYPE" = "Debug" ] && [ "$SHARED_LIBS" = "OFF" ]; then export TEST=memcheck; else export TEST=test; fi
   - docker exec -t polymec-build bash -c "cd travis/build;
-    make -j3 install;
-    make $TEST"
+    ninja -j3 install;
+    ninja $TEST"
 
 after_success:
   - if [ "$COVERAGE" = "ON" ]; then CI_ENV=`bash <(curl -s https://codecov.io/env)`; docker exec $CI_ENV -t polymec-build bash -c "cd travis/build; make coverage; bash <(curl -s https://codecov.io/bash)"; fi
