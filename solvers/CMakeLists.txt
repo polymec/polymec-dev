@@ -8,7 +8,6 @@ add_polymec_library(polymec_solvers
                     ode_solver.c am_ode_solver.c bdf_ode_solver.c 
                     ark_ode_solver.c euler_ode_solver.c dae_solver.c 
                     fasmg_solver.c)
-add_dependencies(polymec_solvers all_3rdparty_libs)
 
 set(POLYMEC_LIBRARIES polymec_solvers;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_solvers;${POLYMEC_LIBRARIES})

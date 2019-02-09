@@ -15,7 +15,6 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     crop_polymesh.c colmesh.c colmesh_field.c planar_polymesh.c
                     create_quad_planar_polymesh.c create_hex_planar_polymesh.c 
                     field_metadata.c lua_geometry.c)
-add_dependencies(polymec_geometry all_3rdparty_libs)
 
 set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES})
