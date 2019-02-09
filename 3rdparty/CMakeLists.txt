@@ -274,13 +274,6 @@ set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 install(TARGETS jrs_predicates DESTINATION lib)
 
 #----------------------------------------------------------------------------
-# Build specfun, a Fortran library implementing special functions.
-#----------------------------------------------------------------------------
-add_library(specfun specfun/special_functions.f90)
-set(POLYMEC_TP_LIBS specfun;${POLYMEC_TP_LIBS})
-install(TARGETS specfun DESTINATION lib)
-
-#----------------------------------------------------------------------------
 # If we're using MPI, build INRIA's Scotch library.
 #----------------------------------------------------------------------------
 if (HAVE_MPI)

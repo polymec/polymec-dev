@@ -9,7 +9,6 @@ include(set_up_platform)
 set_up_platform()
 enable_language(C)
 enable_language(CXX)
-enable_language(Fortran)
 
 # We declare the project here.
 project (polymec)
@@ -17,7 +16,6 @@ project (polymec)
 message(STATUS "Generating project files in build directory: ${PROJECT_BINARY_DIR}")
 message(STATUS "C compiler is ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})")
 message(STATUS "C++ compiler is ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
-message(STATUS "Fortran compiler is ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID} ${CMAKE_Fortran_COMPILER_VERSION})")
 
 # We require compilers that are pretty C11-compliant at this point.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION STRLESS "4.9")
@@ -173,17 +171,6 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
-# Fortran compiler flags.
-if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fcheck=all")
-  endif()
-elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fcheck all")
-  endif()
-endif()
-
 # If the lld or gold linkers are available, use them (in that order).
 find_program(LLD lld)
 if (NOT LLD STREQUAL "LLD-NOTFOUND")
@@ -309,7 +296,6 @@ if (USE_OPENMP)
     set(HAVE_OPENMP 1)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
   else()
     message(STATUS "OpenMP is not supported.")
