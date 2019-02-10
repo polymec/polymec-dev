@@ -330,7 +330,7 @@ if (LINUX)
     set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=definite,possible --track-origins=yes --error-exitcode=1 --trace-children=yes --suppressions=${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp" CACHE STRING "Options passed to Valgrind." FORCE)
 
     # make memcheck target
-    add_custom_target(memcheck ctest -T memcheck USES_TERMINAL)
+    add_custom_target(memcheck ctest -T memcheck -j ${NUMBER_OF_CORES} USES_TERMINAL)
   else()
     set(VALGRIND_FOUND 0)
   endif()

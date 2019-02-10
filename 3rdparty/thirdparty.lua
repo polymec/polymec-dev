@@ -68,21 +68,8 @@ scotch = {
   date_retrieved = {month=7, day=25, year=2018}
 },
 
-usilo = {
-  version = '5.0',
-  copyright = 'Copyright (c) 1994-2010, Lawrence Livermore National Security, LLC.\n' .. 
-              'LLNL-CODE-425250.\n' .. 
-              'All rights reserved.',
-  license = 'BSD',
-  date_retrieved = {month=4, day=20, year=2018},
-  notes = 'Forked from Silo 4.10.4, a limited release from ' .. 
-          'https://wci.llnl.gov/simulation/computer-codes/silo. ' .. 
-          'Silo is abandonware, so "microsilo" is a fork intended ' .. 
-          'only for use with polymec.'
-},
-
 sundials = {
-  version = '4.0.1',
+  version = '4.0.2',
   copyright = 'Copyright (c) 2002-2016, Lawrence Livermore National Security.\n' .. 
               'Produced at the Lawrence Livermore National Laboratory.\n' .. 
               'Written by A.C. Hindmarsh, D.R. Reynolds, R. Serban, C.S. Woodward,\n' .. 
@@ -96,11 +83,24 @@ sundials = {
               'All rights reserved.',
   license = 'BSD',
   url = 'https://computation.llnl.gov/projects/sundials/sundials-software',
-  date_retrieved = {month=12, day=23, year=2018},
+  date_retrieved = {month=2, day=9, year=2019},
   citation = 'Alan C. Hindmarsh, Peter N. Brown, Keith E. Grant, Steven L. Lee, Radu ' .. 
              'Serban, Dan E. Shumaker, and Carol S. Woodward. 2005. SUNDIALS: Suite of ' .. 
              'nonlinear and differential/algebraic equation solvers. ACM Trans. Math. Softw. ' .. 
              '31, 3 (September 2005), 363-396. DOI=http://dx.doi.org/10.1145/1089014.1089020'
+},
+
+usilo = {
+  version = '5.0',
+  copyright = 'Copyright (c) 1994-2010, Lawrence Livermore National Security, LLC.\n' .. 
+              'LLNL-CODE-425250.\n' .. 
+              'All rights reserved.',
+  license = 'BSD',
+  date_retrieved = {month=4, day=20, year=2018},
+  notes = 'Forked from Silo 4.10.4, a limited release from ' .. 
+          'https://wci.llnl.gov/simulation/computer-codes/silo. ' .. 
+          'Silo is abandonware, so "microsilo" is a fork intended ' .. 
+          'only for use with polymec.'
 },
 
 zlib = {

@@ -34,6 +34,13 @@ function(add_polymec_driver_test test_name driver_name test_script)
           set(run_test_name ${test_name}_${proc}_proc)
           add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${driver_name}_exe ${test_script} ${options} ${MPIEXEC_POSTFLAGS})
           set_tests_properties(${run_test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "${test_script}:")
+
+          # If this test needs more than half of the available cores, set it
+          # to run by itself.
+          math(EXPR HALF_OF_CORES "${NUMBER_OF_CORES} / 2") 
+          if (${proc} GREATER ${HALF_OF_CORES})
+            set_tests_properties(${run_test_name} PROPERTIES RUN_SERIAL ON)
+          endif()
         endif()
       endforeach()
     endif()
