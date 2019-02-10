@@ -41,6 +41,9 @@ function(add_mpi_polymec_test_with_libs exe libs)
       if (NOT ${proc} GREATER ${NUMBER_OF_TEST_CORES})
         add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
         set_tests_properties(${exe}_${proc}_proc PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+        # If this test needs more than half of the available cores, set it
+        # to run by itself.
         math(EXPR HALF_OF_CORES "${NUMBER_OF_CORES} / 2") 
         if (${proc} GREATER ${HALF_OF_CORES})
           set_tests_properties(${exe}_${proc}_proc PROPERTIES RUN_SERIAL ON)
