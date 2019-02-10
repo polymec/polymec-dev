@@ -13,9 +13,14 @@
 #include "core/options.h"
 #include "geometry/blockmesh_field.h"
 
+extern blockmesh_t* create_cubed_sphere(MPI_Comm comm,
+                                        int block_nxy, int block_nz,
+                                        int patch_nxy, int patch_nz,
+                                        real_t R1, real_t R2);
+
 static blockmesh_t* test_mesh(MPI_Comm comm)
 {
-  return NULL;
+  return create_cubed_sphere(MPI_COMM_SELF, 2, 2, 10, 10, 0.9, 1.0);
 }
 
 static void test_cell_field(void** state, blockmesh_t* mesh)

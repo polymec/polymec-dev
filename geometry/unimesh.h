@@ -184,7 +184,8 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
                         int* i, int* j, int* k,
                         bbox_t* bbox);
 
-/// Returns true if the mesh has a patch at (i, j, k), false if not.
+/// Returns true if the mesh stores the patch at (i, j, k) on the local process, 
+/// false if not.
 /// \memberof unimesh
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 

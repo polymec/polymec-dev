@@ -124,9 +124,13 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                               int block2_index,
                               int block2_nodes[4]);
 
-/// Finalizes the construction process for the block mesh. This must be called 
-/// before any of the mesh's usage methods are invoked. Should only 
-/// be called once.
+/// Finalizes the construction process for the block mesh. The function checks 
+/// the following conditions, throwing a fatal error if any are not met:
+/// * Every patch in every block in the mesh must have been inserted on some 
+///   process in the communicator.
+/// * Every block-to-block connection must be consistent.
+/// This function must be called before any of the mesh's usage methods are 
+/// invoked. It should only be called once.
 /// \memberof blockmesh
 void blockmesh_finalize(blockmesh_t* mesh);
 
