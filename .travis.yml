@@ -21,19 +21,15 @@ env:
     - BUILD_TYPE=Release MPI=OFF SHARED_LIBS=ON PRECISION=double
 
 before_install:
-  - docker run -d --name polymec-build -v $PWD:/travis -e "PETSC_DIR=$PETSC_DIR" -e "PETSC_ARCH=$PETSC_ARCH" -e "HYPRE_DIR=$HYPRE_DIR" ubuntu:bionic tail -f /dev/null
+  - docker pull polymec/polymec-dev:latest
+  - docker run -d --name polymec-build -v $PWD:/travis -e "PETSC_DIR=$PETSC_DIR" -e "PETSC_ARCH=$PETSC_ARCH" -e "HYPRE_DIR=$HYPRE_DIR" polymec/polymec-dev:latest tail -f /dev/null
   - docker ps
 
-install:
-  - docker exec -t polymec-build bash -c "apt-get update;
-    apt-get install -y openmpi-bin libopenmpi-dev ssh g++ gfortran liblapack-dev cmake ninja-build autotools-dev bash git valgrind libpetsc3.7.7 lcov curl;
-    ln -s /usr/lib/x86_64-linux-gnu/libpetsc_real.so.3.7.7 /usr/lib/libpetsc.so"
-
 before_script:
-  - if [ "$MPI" = "ON" ]; then export CC=mpicc; export CXX=mpic++; export FC=mpif90; else export CC=cc; export CXX=c++; export FC=gfortran; fi
+  - if [ "$MPI" = "ON" ]; then export CC=mpicc; export CXX=mpic++; else export CC=cc; export CXX=c++; fi
   - docker exec -t polymec-build bash -c "cd travis;
     mkdir build && cd build;
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCOVERAGE=\"$COVERAGE\" -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_Fortran_COMPILER=$FC .."
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCOVERAGE=\"$COVERAGE\" -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX .."
 
 script: 
   - if [ "$BUILD_TYPE" = "Debug" ] && [ "$SHARED_LIBS" = "OFF" ]; then export TEST=memcheck; else export TEST=test; fi
