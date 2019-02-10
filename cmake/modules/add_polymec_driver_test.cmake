@@ -39,7 +39,7 @@ function(add_polymec_driver_test test_name driver_name test_script)
           # to run by itself.
           math(EXPR HALF_OF_CORES "${NUMBER_OF_CORES} / 2") 
           if (${proc} GREATER ${HALF_OF_CORES})
-            set_tests_properties(${exe}_${proc}_proc PROPERTIES RUN_SERIAL ON)
+            set_tests_properties(${run_test_name} PROPERTIES RUN_SERIAL ON)
           endif()
         endif()
       endforeach()
