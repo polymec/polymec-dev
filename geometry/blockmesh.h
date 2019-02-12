@@ -25,12 +25,13 @@
 /// is domain-decomposed across these processes.
 ///
 /// Blocks in a block mesh are stitched together by identifying nodes on the 
-/// common face between two blocks. Each block has 8 nodes. Looking down 
-/// (in the -z direction) on a block in the xy plane, nodes 0-3 traverse the 
-/// bottom block face counterclockwise, starting with the "lower left" node.
-/// Nodes 4-7 traverse the top block face in the same way. This is the standard
-/// way that nodes are indexed in hexahedral elements in the finite element 
-/// method.
+/// common face between two blocks. Each block has 8 nodes. 
+///
+/// Looking down (in the -z direction) on a block in the xy plane, nodes 0-3 
+/// traverse the bottom block face counterclockwise, starting with the "lower 
+/// left" node. Nodes 4-7 traverse the top block face in the same way. This 
+/// is the standard way that nodes are indexed in linear hexahedral elements 
+/// in the finite element method.
 ///
 /// There are no periodic blocks in a block mesh. If you want a periodic block, 
 /// you can always connectg the opposite faces of that block to get the same
@@ -56,7 +57,9 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 
 /// Adds a new empty block to the blockmesh with the given numbers of patches in the "x", "y", 
 /// and "z" directions. The block is empty in the sense that it contains no patches.
-/// \param [in] block_coords A coordinate mapping from [0,1]x[0,1]x[0,1] to the new block's 
+/// \param [in] block_domain A bounding box containing the "logical" domain of the block's
+///                          coordinate mapping (e.g. [-1, +1] x [-1, +1] x [-1, +1]).
+/// \param [in] block_coords A coordinate mapping from the block's domain to the new block's 
 ///                          local coordinate system. Must be non-NULL, since the coordinate 
 ///                          systems for the blocks within the mesh must form a smooth atlas 
 ///                          of compatible charts (permitting diffeomorphisms between charts).
@@ -66,6 +69,7 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 /// \returns the index of the new block within the blockmesh.
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh, 
+                        bbox_t* block_domain,
                         coord_mapping_t* block_coords,
                         int num_x_patches, 
                         int num_y_patches, 
@@ -162,11 +166,22 @@ int blockmesh_num_blocks(blockmesh_t* mesh);
 /// \memberof blockmesh
 unimesh_t* blockmesh_block(blockmesh_t* mesh, int index);
 
-/// Allows the traversal of all blocks in the blockmesh.
-/// \param [in] pos Stores the index of the next block in the mesh.
-/// \param [in] block Stores the next block in the mesh.
+/// Allows the traversal of all blocks in the blockmesh. 
+/// \param [inout] pos Stores the index of the next block in the mesh. 
+///                    Set *pos to 0 to reset the traversal.
+/// \param [out] block Stores the next block in the mesh.
+/// \param [out] block_domain If not NULL, stores the bounding box 
+///                           representing the logical domain of the 
+///                           next block.
+/// \param [out] block_coords If not NULL, stores the coordinate 
+///                           mapping for the representing the next 
+///                           block.
 /// \returns True if the mesh contains another block, false if not.
-bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block);
+bool blockmesh_next_block(blockmesh_t* mesh, 
+                          int* pos, 
+                          unimesh_t** block,
+                          bbox_t* block_domain,
+                          coord_mapping_t** block_coords);
 
 typedef struct blockmesh_field_t blockmesh_field_t;
 

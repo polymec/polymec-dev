@@ -68,6 +68,11 @@ void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor
   mapping->vtable.jacobian(mapping->context, x, J);
 }
 
+bool coord_mapping_has_inverse(coord_mapping_t* mapping)
+{
+  return (mapping->vtable.inverse != NULL);
+}
+
 coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping)
 {
   if (mapping->vtable.inverse != NULL)

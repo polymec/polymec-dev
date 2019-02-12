@@ -42,7 +42,9 @@ static void test_next_block(void** state)
                                           2, 2, 10, 10, 0.9, 1.0);
   int pos = 0, b = 0;
   unimesh_t* block;
-  while (blockmesh_next_block(mesh, &pos, &block))
+  bbox_t domain;
+  coord_mapping_t* coords;
+  while (blockmesh_next_block(mesh, &pos, &block, &domain, &coords))
   {
     assert_true(block == blockmesh_block(mesh, b));
     ++b;

@@ -1,0 +1,53 @@
+-- Messing around with block meshes, Lua style.
+
+-- Number of cells in each patch.
+nx = 32
+ny = 32
+nz = 32
+
+-- Number of horizontal patches in each block.
+npx = 10
+npy = 10
+
+-- Number of vertical patches in each block.
+npz = 4
+
+-- Coordinate mappings for the 4 equatorial blocks, plus north and south.
+coords = {
+  coord_mapping.new{}, -- block 1: equatorial #1
+  coord_mapping.new{}, -- block 2: equatorial #2
+  coord_mapping.new{}, -- block 3: equatorial #3
+  coord_mapping.new{}, -- block 4: equatorial #4
+  coord_mapping.new{}, -- block 5: north pole
+  coord_mapping.new{}  -- block 6: south pole 
+}
+
+-- Create the block mesh and add the 6 blocks.
+mesh = blockmesh.new(mpi.COMM_WORLD, nx, ny, nz)
+for i = 1,6 do
+  mesh:add_block(coords[i], npx, npy, npz)
+end
+
+-- Connect the equatorial blocks.
+mesh:connect_blocks(1, {2, 6, 7, 3}, 2, {1, 5, 8, 4})
+mesh:connect_blocks(2, {2, 6, 7, 3}, 3, {1, 5, 8, 4})
+mesh:connect_blocks(3, {2, 6, 7, 3}, 4, {1, 5, 8, 4})
+mesh:connect_blocks(4, {2, 6, 7, 3}, 1, {1, 5, 8, 4})
+
+-- Connect the north pole.
+mesh:connect_blocks(1, {3, 7, 8, 4}, 5, {2, 6, 5, 1})
+mesh:connect_blocks(2, {3, 7, 8, 4}, 5, {3, 7, 6, 2})
+mesh:connect_blocks(3, {3, 7, 8, 4}, 5, {4, 8, 7, 3})
+mesh:connect_blocks(4, {3, 7, 8, 4}, 5, {1, 5, 8, 4})
+
+-- Connect the south pole.
+mesh:connect_blocks(1, {2, 6, 5, 1}, 6, {3, 7, 8, 4})
+mesh:connect_blocks(2, {2, 6, 5, 1}, 6, {2, 6, 7, 3})
+mesh:connect_blocks(3, {2, 6, 5, 1}, 6, {1, 5, 6, 2})
+mesh:connect_blocks(4, {2, 6, 5, 1}, 6, {4, 8, 5, 1})
+
+-- Finalize the mesh.
+mesh:finalize()
+
+print(mesh)
+

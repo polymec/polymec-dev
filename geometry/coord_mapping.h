@@ -91,6 +91,10 @@ void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v,
 /// \memberof coord_mapping
 void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor2_t* J);
 
+/// Returns true if this mapping has an inverse, false if not.
+/// \memberof coord_mapping
+bool coord_mapping_has_inverse(coord_mapping_t* mapping);
+
 /// Constructs a coord_mapping function representing the inverse of the given
 /// coordinate mapping. Returns NULL if the coordinate mapping is not invertible.
 /// \memberof coord_mapping

@@ -24,6 +24,7 @@
 #endif
 
 DEFINE_ARRAY(unimesh_array, unimesh_t*)
+DEFINE_ARRAY(bbox_array, bbox_t)
 
 struct blockmesh_t
 {
@@ -36,6 +37,7 @@ struct blockmesh_t
 
   // Blocks and coordinate mappings.
   unimesh_array_t* blocks;
+  bbox_array_t* bboxes;
   ptr_array_t* coords;
 
   // Inter-block boundary condition.
@@ -62,6 +64,7 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   mesh->patch_ny = patch_ny;
   mesh->patch_nz = patch_nz;
   mesh->blocks = unimesh_array_new();
+  mesh->bboxes = bbox_array_new();
   mesh->coords = ptr_array_new();
   mesh->interblock_bc = blockmesh_interblock_bc_new(mesh);
   mesh->finalized = false;
@@ -107,12 +110,14 @@ int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
 }
 
 int blockmesh_add_block(blockmesh_t* mesh, 
+                        bbox_t* block_domain,
                         coord_mapping_t* block_coords,
                         int num_x_patches, 
                         int num_y_patches, 
                         int num_z_patches)
 {
   ASSERT(!mesh->finalized);
+  ASSERT(block_domain != NULL);
   ASSERT(block_coords != NULL);
   ASSERT(num_x_patches > 0);
   ASSERT(num_x_patches > 1);
@@ -125,6 +130,7 @@ int blockmesh_add_block(blockmesh_t* mesh,
                                           false, false, false);
   int index = (int)mesh->blocks->size;
   unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
+  bbox_array_append(mesh->bboxes, *block_domain);
   ptr_array_append_with_dtor(mesh->coords, block_coords, release_ref);
   return index;
 }
@@ -313,6 +319,8 @@ bool blockmesh_is_finalized(blockmesh_t* mesh)
 void blockmesh_free(blockmesh_t* mesh)
 {
   blockmesh_interblock_bc_free(mesh->interblock_bc);
+  ptr_array_free(mesh->coords);
+  bbox_array_free(mesh->bboxes);
   unimesh_array_free(mesh->blocks);
   polymec_free(mesh);
 }
@@ -334,11 +342,19 @@ unimesh_t* blockmesh_block(blockmesh_t* mesh, int index)
   return mesh->blocks->data[index];
 }
 
-bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block)
+bool blockmesh_next_block(blockmesh_t* mesh, 
+                          int* pos, 
+                          unimesh_t** block,
+                          bbox_t* block_domain,
+                          coord_mapping_t** block_coords)
 {
   if (*pos < (int)mesh->blocks->size)
   {
     *block = mesh->blocks->data[*pos];
+    if (block_domain != NULL)
+      *block_domain = mesh->bboxes->data[*pos];
+    if (block_coords != NULL)
+      *block_coords = (coord_mapping_t*)(mesh->coords->data[*pos]);
     ++(*pos);
     return true;
   }
@@ -362,7 +378,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
   patch_offsets[0] = 0;
   int pos = 0;
   unimesh_t* block;
-  while (blockmesh_next_block(mesh, &pos, &block))
+  while (blockmesh_next_block(mesh, &pos, &block, NULL, NULL))
   {
     int npx, npy, npz;
     unimesh_get_extents(block, &npx, &npy, &npz);
@@ -373,7 +389,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
   // Allocate storage for graph edges (patch boundaries) in the graph.
   pos = 0;
-  while (blockmesh_next_block(mesh, &pos, &block))
+  while (blockmesh_next_block(mesh, &pos, &block, NULL, NULL))
   {
     int b = pos - 1;
     int npx, npy, npz;
@@ -407,7 +423,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
   // Now fill in the edges.
   pos = 0;
-  while (blockmesh_next_block(mesh, &pos, &block))
+  while (blockmesh_next_block(mesh, &pos, &block, NULL, NULL))
   {
     int b = pos - 1;
     int npx, npy, npz;
