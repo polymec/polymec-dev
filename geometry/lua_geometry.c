@@ -1806,6 +1806,8 @@ static int bm_add_block(lua_State* L)
   if (!lua_is_coord_mapping(L, 3))
     return luaL_error(L, "Argument 2 must be a coordinate mapping for the block.");
   coord_mapping_t* block_coords = lua_to_coord_mapping(L, 3);
+  if (!coord_mapping_has_inverse(block_coords))
+    return luaL_error(L, "The block's coordinate mapping must be invertible.");
   if (!lua_isinteger(L, 4))
     return luaL_error(L, "Argument 3 must be a positive number of x patches.");
   int npx = (int)lua_tointeger(L, 4);

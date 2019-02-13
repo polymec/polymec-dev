@@ -44,24 +44,30 @@ You can use polymec on Linux or macOS systems.
 
 ### Software Requirements
 
-The polymec library requires the following software:
+The polymec libraries require the following software:
 
 * A C compiler that adheres to (or aspires to) the C11 standard. 
   GCC 4.9+ and Clang 3.4+ work well.
-* A reasonable C++ compiler (for the C++ build/link test)
-* MPI (OpenMPI or MPICH), if you plan on doing parallel computation
-* A working set of LAPACK/BLAS libraries
-* CMake 3.10+ 
-* GNU Make
-* A recent version of Perl (for HDF5's installation process)
-* The Bourne Again SHell (bash)
-* A recent version of Git (if you're doing code development)
+* A reasonable C++ compiler, for the C++ build/link test
+* MPI (OpenMPI or MPICH), for parallelism
+* A working set of LAPACK/BLAS libraries, for dense linear algebra
+* The Bourne Again SHell (bash), for bootstrapping
+* CMake 3.10+, for configuring and generating build files
+* GNU Make or Ninja, for performing the actual build
+* A recent version of Perl, for HDF5's installation process
+
+The following are helpful, but not required: 
+
+* A recent version of Git, for code development
+* Valgrind, for finding memory-related issues
+* A Python 3.x interpreter, for running some of the targets
+* Doxygen, for generating reference documentation)
 
 You can easily install these using your favorite package manager.
 
 ### Building 
 
-To build polymec on a UNIX-like system, change to the `polymec-dev` directory 
+To build polymec on a UNIX-like system, change to your `polymec-dev` directory 
 and type the following commands:
 
 ```
@@ -87,44 +93,12 @@ from your build directory.
 
 ### Other Targets
 
-These all work with Make and Ninja.
+These targets all work with Make and Ninja.
 
-```
-make test 
-```
-
-Runs all unit tests for the library.
-
-```
-make memcheck 
-```
-
-Runs all unit tests for the library using Valgrind if you're on Linux 
-and it's available.
-
-```
-make clean 
-```
-
-Removes all object files but retains the configuration options.
-
-```
-make stats
-```
-
-Prints some interesting code statistics to the screen. Requires Python.
-   
-```
-make coverage 
-```
-
-Generates a code coverage report. This only works if you enable the `COVERAGE`
-build option in `config.sh`, and if gcov and lcov are available.
-   
-```
-make doc
-```
-
-Generates HTML and man reference documentation pages using Doxygen. 
-This target is only available when CMake finds Doxygen.
+* `test` - Runs all unit tests for the library. Use `ctest -j #threads` instead, though, to run the tests in parallel.
+* `memcheck` - Runs all unit tests for the library using Valgrind if you're on Linux and it's available. Tests run in parallel.
+* `clean` - Removes all build assets but retains configuration options.
+* `stats` - Prints some interesting code statistics to the screen. Requires Python 3.x.
+* `coverage` - Generates a code coverage report. This only works if you enable the `COVERAGE` build option in `config.sh`, and if gcov and lcov are available.
+* `doc` - Generates HTML and man reference documentation pages using Doxygen. Only available when CMake finds Doxygen.
    

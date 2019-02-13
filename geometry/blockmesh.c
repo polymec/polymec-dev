@@ -119,9 +119,10 @@ int blockmesh_add_block(blockmesh_t* mesh,
   ASSERT(!mesh->finalized);
   ASSERT(block_domain != NULL);
   ASSERT(block_coords != NULL);
+  ASSERT(coord_mapping_has_inverse(block_coords));
   ASSERT(num_x_patches > 0);
-  ASSERT(num_x_patches > 1);
-  ASSERT(num_x_patches > 2);
+  ASSERT(num_y_patches > 0);
+  ASSERT(num_z_patches > 0);
 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   unimesh_t* block = create_empty_unimesh(mesh->comm, &bbox,

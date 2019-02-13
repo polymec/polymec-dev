@@ -60,9 +60,13 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 /// \param [in] block_domain A bounding box containing the "logical" domain of the block's
 ///                          coordinate mapping (e.g. [-1, +1] x [-1, +1] x [-1, +1]).
 /// \param [in] block_coords A coordinate mapping from the block's domain to the new block's 
-///                          local coordinate system. Must be non-NULL, since the coordinate 
-///                          systems for the blocks within the mesh must form a smooth atlas 
-///                          of compatible charts (permitting diffeomorphisms between charts).
+///                          local coordinate system. 
+///                          * Must be non-NULL, since the coordinate systems for the blocks 
+///                            within the mesh must form a smooth atlas of compatible charts 
+///                            (permitting diffeomorphisms between charts).
+///                          * This diffeomorphism also requires block_coords to have an inverse.
+///                          * The blockmesh assumes ownership of block_coords, so you must 
+///                            retain a reference to continue using it outside of this context.
 /// \param [in] num_x_patches The number of patches in the "x" direction within the new block.
 /// \param [in] num_y_patches The number of patches in the "y" direction within the new block.
 /// \param [in] num_z_patches The number of patches in the "z" direction within the new block.
@@ -186,10 +190,19 @@ bool blockmesh_next_block(blockmesh_t* mesh,
 typedef struct blockmesh_field_t blockmesh_field_t;
 
 /// Repartitions the given blockmesh and redistributes data to each of the 
-/// given fields. Here, the old meshes and fields are consumed, and new ones 
-/// are created in their place. Weights can be provided for each patch, and 
-/// the partitioning is performed so that the load imbalance does not exceed 
-/// the given tolerance.
+/// given fields. 
+/// \param [inout] mesh A pointer that stores the old mesh, which is consumed and 
+///                     replaced with the repartitioned mesh.
+/// \param [in] weights If non-NULL, this is an array containing an integer weight
+///                     for each locally-stored patch within the blockmesh. The 
+///                     weights can be assigned with a nested traversal of 
+///                     blocks over the mesh, and patches over each block.
+/// \param [in] imbalance_tol A tolerance that governs the partitioning. The load
+///                           imbalance produced by the repartitioning doesn't 
+///                           exceed this tolerance.
+/// \param [inout] fields An array of field pointers containing fields whose data
+///                       is repartitioned in tandem with the blockmesh.
+/// \param [in] num_fields The length of the fields array.
 /// \note In addition, each repartitioned field needs to have any boundary 
 /// conditions reinstated, since these boundary conditions are not 
 /// transmitted between processes.

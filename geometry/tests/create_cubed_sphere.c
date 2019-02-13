@@ -7,13 +7,23 @@
 
 #include "geometry/blockmesh.h"
 
+//------------------------------------------------------------------------
+// Coordinate mappings: 
+//   1. equiangular -> lat/lon (eq_to_ll)
+//   2. lat/lon -> equiangular (ll_to_eq)
+// These mappings are each other's inverse.
+//------------------------------------------------------------------------
 typedef struct
 {
   int block;
   real_t R1, R2;
 } equiangular_t;
 
-static void equatorial_map_point(void* context, point_t* x, point_t* y)
+// These are helpers for constructing inverse mappings.
+static coord_mapping_t* eq_to_ll(void* context);
+static coord_mapping_t* ll_to_eq(void* context);
+
+static void equatorial_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
 {
   equiangular_t* eq = context;
   y->x = x->x + 0.5*M_PI*eq->block;
@@ -21,7 +31,7 @@ static void equatorial_map_point(void* context, point_t* x, point_t* y)
   y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
 }
 
-static void equatorial_J(void* context, point_t* x, tensor2_t* J)
+static void equatorial_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
 {
   equiangular_t* eq = context;
 
@@ -38,7 +48,7 @@ static void equatorial_J(void* context, point_t* x, tensor2_t* J)
   J->zz = eq->R2 - eq->R1;
 }
 
-static void polar_map_point(void* context, point_t* x, point_t* y)
+static void polar_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
 {
   equiangular_t* eq = context;
 
@@ -51,7 +61,65 @@ static void polar_map_point(void* context, point_t* x, point_t* y)
   y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
 }
 
-static void polar_J(void* context, point_t* x, tensor2_t* J)
+static void polar_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
+{
+  equiangular_t* eq = context;
+
+  // North or South?
+  real_t s = (eq->block == 4) ? 1.0 : -1.0;
+
+  // Compute Gnomonic coordinates from our equiangular ones.
+  real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
+
+  // Compute the change-of-basis matrix.
+  J->xx = -s*Y / (1.0 + X*X);
+  J->xy = -s*delta2*X / ((1.0+X*X)*sqrt(X*X + Y*Y));
+  J->yx = s*X / (1.0 + Y*Y);
+  J->yy = -s*delta2*Y / ((1.0+Y*Y)*sqrt(X*X + Y*Y));
+  J->yz = 0.0;
+  J->zx = J->zy = 0.0;
+  J->zz = eq->R2 - eq->R1;
+}
+
+static void equatorial_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
+{
+  equiangular_t* eq = context;
+  y->x = x->x + 0.5*M_PI*eq->block;
+  y->y = atan(tan(x->y) * cos(x->x));
+  y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
+}
+
+static void equatorial_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
+{
+  equiangular_t* eq = context;
+
+  // Compute Gnomonic coordinates from our equiangular ones.
+  real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
+
+  // Compute the change-of-basis matrix.
+  J->xx = 1.0; 
+  J->xy = J->xz = 0.0;
+  J->yx = X*Y/(1.0 + Y*Y);
+  J->yy = delta2 / ((1.0 + Y*Y) * sqrt(1.0 + X*X));
+  J->yz = 0.0;
+  J->zx = J->zy = 0.0;
+  J->zz = eq->R2 - eq->R1;
+}
+
+static void polar_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
+{
+  equiangular_t* eq = context;
+
+  // North or South?
+  real_t s = (eq->block == 4) ? 1.0 : -1.0;
+
+  y->x = -atan2(tan(x->x), tan(x->y));
+  real_t tan_x = tan(x->x), tan_y = tan(x->y);
+  y->y = s * atan(1.0/(sqrt(tan_x*tan_x + tan_y*tan_y)));
+  y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
+}
+
+static void polar_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
 {
   equiangular_t* eq = context;
 
@@ -81,8 +149,9 @@ static coord_mapping_t* create_equator_block_coords(int block_index,
   eq->block = block_index;
   eq->R1 = R1;
   eq->R2 = R2;
-  coord_mapping_vtable vtable = {.map_point = equatorial_map_point,
-                                 .jacobian = equatorial_J,
+  coord_mapping_vtable vtable = {.map_point = equatorial_eq_to_ll_map_point,
+                                 .jacobian = equatorial_eq_to_ll_J,
+                                 .inverse = ll_to_eq,
                                  .dtor = polymec_free};
   char block_name[129];
   snprintf(block_name, 128, "equatorial block %d", block_index);
@@ -96,8 +165,9 @@ static coord_mapping_t* create_north_block_coords(real_t R1, real_t R2)
   eq->block = 4;
   eq->R1 = R1;
   eq->R2 = R2;
-  coord_mapping_vtable vtable = {.map_point = polar_map_point,
-                                 .jacobian = polar_J,
+  coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
+                                 .jacobian = polar_eq_to_ll_J,
+                                 .inverse = ll_to_eq,
                                  .dtor = polymec_free};
   return coord_mapping_new("north block", eq, vtable);
 }
@@ -109,11 +179,55 @@ static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
   eq->block = 5;
   eq->R1 = R1;
   eq->R2 = R2;
-  coord_mapping_vtable vtable = {.map_point = polar_map_point,
-                                 .jacobian = polar_J,
+  coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
+                                 .jacobian = polar_eq_to_ll_J,
+                                 .inverse = ll_to_eq,
                                  .dtor = polymec_free};
   return coord_mapping_new("south block", eq, vtable);
 }
+
+coord_mapping_t* ll_to_eq(void* context)
+{
+  equiangular_t* eq = context;
+  coord_mapping_vtable vtable = {.inverse = eq_to_ll};
+  if (eq->block < 4)
+  {
+    vtable.map_point = equatorial_ll_to_eq_map_point;
+    vtable.jacobian = equatorial_ll_to_eq_J;
+  }
+  else
+  {
+    vtable.map_point = polar_ll_to_eq_map_point;
+    vtable.jacobian = polar_ll_to_eq_J;
+  }
+
+  char block_name[129];
+  snprintf(block_name, 128, "lat/lon -> equiangular (block %d)", eq->block);
+  return coord_mapping_new(block_name, eq, vtable);
+}
+
+coord_mapping_t* eq_to_ll(void* context)
+{
+  equiangular_t* eq = context;
+  coord_mapping_vtable vtable = {.inverse = ll_to_eq};
+  if (eq->block < 4)
+  {
+    vtable.map_point = equatorial_eq_to_ll_map_point;
+    vtable.jacobian = equatorial_eq_to_ll_J;
+  }
+  else
+  {
+    vtable.map_point = polar_eq_to_ll_map_point;
+    vtable.jacobian = polar_eq_to_ll_J;
+  }
+  char block_name[129];
+  snprintf(block_name, 128, "equiangular -> lat/lon (block %d)", eq->block);
+  return coord_mapping_new(block_name, eq, vtable);
+}
+
+//------------------------------------------------------------------------
+//                        End coordinate mappings
+//------------------------------------------------------------------------
 
 // This function creates a cubed-sphere blockmesh for testing purposes.
 // This mesh stitches together 6 blocks to form a spherical shell with 
