@@ -102,7 +102,7 @@ int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
 ///                          to be identified with the corresponding nodes 
 ///                          in the first block (block1_nodes).
 /// \memberof blockmesh
-bool blockmesh_blocks_can_connect(blockmesh_t* mesh, 
+bool blockmesh_can_connect_blocks(blockmesh_t* mesh, 
                                   int block1_index, 
                                   int block1_nodes[4],
                                   int block2_index,
@@ -131,6 +131,13 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                               int block1_nodes[4],
                               int block2_index,
                               int block2_nodes[4]);
+
+/// Adds patches to all blocks within the block mesh, assigning them to 
+/// processes linearly according to a naive partitioning. This is really only
+/// intended to get you off the ground, and not to provide a load-balanced 
+/// partitioning. Use \ref repartition_blockmesh after calling 
+/// \ref blockmesh_finalize to do load balancing.
+void blockmesh_assign_patches(blockmesh_t* mesh);
 
 /// Finalizes the construction process for the block mesh. The function checks 
 /// the following conditions, throwing a fatal error if any are not met:

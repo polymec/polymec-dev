@@ -295,14 +295,6 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
                                      unimesh_boundary_t b2,
                                      blockmesh_diffeomorphism_t diff)
 {
-  // Make sure the boundaries b1 and b2 match.
-  ASSERT(((b1 == UNIMESH_X1_BOUNDARY) && (b2 == UNIMESH_X2_BOUNDARY)) ||
-         ((b1 == UNIMESH_X2_BOUNDARY) && (b2 == UNIMESH_X1_BOUNDARY)) ||
-         ((b1 == UNIMESH_Y1_BOUNDARY) && (b2 == UNIMESH_Y2_BOUNDARY)) ||
-         ((b1 == UNIMESH_Y2_BOUNDARY) && (b2 == UNIMESH_Y1_BOUNDARY)) ||
-         ((b1 == UNIMESH_Z1_BOUNDARY) && (b2 == UNIMESH_Z2_BOUNDARY)) ||
-         ((b1 == UNIMESH_Z2_BOUNDARY) && (b2 == UNIMESH_Z1_BOUNDARY)));
-
   // Make sure the patches we're connecting have the same size OR 
   // they have mappings given.
 #ifndef NDEBUG

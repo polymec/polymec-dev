@@ -73,7 +73,7 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
 }
 
 // Only certain combos of block faces are acceptible.
-static int _valid_block_face_nodes[6][4] = {{0, 4, 3, 7},  // -x
+static int _valid_block_face_nodes[6][4] = {{0, 4, 7, 3},  // -x
                                             {1, 2, 6, 5},  // +x
                                             {0, 1, 5, 4},  // -y
                                             {2, 3, 7, 6},  // +y
@@ -145,6 +145,13 @@ static blockmesh_diffeomorphism_t create_diffeomorphism(coord_mapping_t* block1_
 {
   blockmesh_diffeomorphism_t diff = {.block1_coords = block1_coords,
                                      .block2_coords = block2_coords};
+
+  // Reverse the order of the traversal of block2_nodes.
+//printf("block1: %d %d %d %d\n", block1_nodes[0], block1_nodes[1], block1_nodes[2], block1_nodes[3]);
+//printf("block2: %d %d %d %d\n", block2_nodes[0], block2_nodes[1], block2_nodes[2], block2_nodes[3]);
+  int rev_block2_nodes[4] = {block2_nodes[0], block2_nodes[3],
+                             block2_nodes[2], block2_nodes[1]};
+
   // We calculate "twists" for each pair of nodes, consisting of an integer number of 
   // counter-clockwise turns from 0 to 3. If all the twists are the same, that's the 
   // valid twist. Otherwise, the twist is invalid.
@@ -154,7 +161,7 @@ static blockmesh_diffeomorphism_t create_diffeomorphism(coord_mapping_t* block1_
     int n1 = block1_nodes[i];
     int* valid_nodes1 = _valid_block_face_nodes[block1_boundary];
     int offset1 = (int)(int_lsearch(valid_nodes1, 4, n1) - valid_nodes1);
-    int n2 = block2_nodes[i];
+    int n2 = rev_block2_nodes[i];
     int* valid_nodes2 = _valid_block_face_nodes[block2_boundary];
     int offset2 = (int)(int_lsearch(valid_nodes2, 4, n2) - valid_nodes2);
     int twist = (offset2 - offset1 + 4) % 4;
@@ -175,7 +182,7 @@ static blockmesh_diffeomorphism_t create_diffeomorphism(coord_mapping_t* block1_
   return diff;
 }
 
-bool blockmesh_blocks_can_connect(blockmesh_t* mesh, 
+bool blockmesh_can_connect_blocks(blockmesh_t* mesh, 
                                   int block1_index, 
                                   int block1_nodes[4],
                                   int block2_index,
@@ -268,7 +275,7 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                               int block1_index, int block1_nodes[4],
                               int block2_index, int block2_nodes[4])
 {
-  ASSERT(blockmesh_blocks_can_connect(mesh, block1_index, block1_nodes,
+  ASSERT(blockmesh_can_connect_blocks(mesh, block1_index, block1_nodes,
                                             block2_index, block2_nodes));
 
   // Construct a diffeomorphism between the two blocks.
@@ -290,6 +297,67 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                                     block1, i1, j1, k1, (unimesh_boundary_t)b1, 
                                     block2, i2, j2, k2, (unimesh_boundary_t)b2,
                                     diff);
+  }
+}
+
+void blockmesh_assign_patches(blockmesh_t* mesh)
+{
+  // Count up all the patches in the global mesh.
+  int num_patches = 0;
+  for (size_t b = 0; b < mesh->blocks->size; ++b)
+  {
+    unimesh_t* block = mesh->blocks->data[b];
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+    num_patches += mesh->patch_nx * mesh->patch_ny * mesh->patch_nz * npx * npy * npz;
+  }
+
+  int_array_t* patch_list = int_array_new();
+  int start_patch = 0, num_local_patches = num_patches;
+#if POLYMEC_HAVE_MPI
+  if (mesh->nproc > 1)
+  {
+    // Divide the total number of patches up amongs our processes.
+    num_local_patches = num_patches / mesh->nproc;
+    start_patch = mesh->rank * num_local_patches;
+  }
+#endif
+  int patch = 0;
+  for (size_t b = 0; b < mesh->blocks->size; ++b)
+  {
+    unimesh_t* block = mesh->blocks->data[b];
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+    for (int i = 0; i < npx; ++i)
+    {
+      for (int j = 0; j < npy; ++j)
+      {
+        for (int k = 0; k < npz; ++k)
+        {
+          if (patch >= start_patch)
+          {
+            int_array_append(patch_list, (int)b);
+            int_array_append(patch_list, i);
+            int_array_append(patch_list, j);
+            int_array_append(patch_list, k);
+            if ((int)(patch_list->size) == num_local_patches)
+              goto done_selecting_patches;
+          }
+          ++patch;
+        }
+      }
+    }
+  }
+  
+done_selecting_patches:
+  for (size_t p = 0; p < patch_list->size/4; ++p)
+  {
+    int block_index = patch_list->data[4*p];
+    unimesh_t* block = mesh->blocks->data[block_index];
+    int i = patch_list->data[4*p+1];
+    int j = patch_list->data[4*p+2];
+    int k = patch_list->data[4*p+3];
+    unimesh_insert_patch(block, i, j, k);
   }
 }
 
