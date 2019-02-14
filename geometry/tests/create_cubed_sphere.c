@@ -69,7 +69,7 @@ static void polar_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
 
   // Compute the change-of-basis matrix.
   J->xx = -s*Y*(1.0+X*X) / (X*X + Y*Y);
-  J->xy = -s*X*(1.0+Y*Y) / (X×X + Y*Y);
+  J->xy = -s*X*(1.0+Y*Y) / (X*X + Y*Y);
   J->xz = 0.0;
   J->yx = -s*X*(1.0+X*X) / (delta2*sqrt(X*X + Y*Y));
   J->yy = -s*Y*(1.0+Y*Y) / (delta2*sqrt(X*X + Y*Y));
@@ -109,7 +109,7 @@ static void polar_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
   // North or South?
   real_t s = (eq->block == 4) ? 1.0 : -1.0;
 
-  real_t tan_x = tan(x->x), tan_y = tan(x->y);
+  real_t tan_y = tan(x->y);
   y->x = -s * atan2(sin(x->x), tan_y);
   y->y = -atan2(cos(x->x), tan_y);
   y->z = (x->z - eq->R1) / (eq->R2 - eq->R1);

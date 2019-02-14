@@ -74,9 +74,9 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
 
 // Only certain combos of block faces are acceptible.
 static int _valid_block_face_nodes[6][4] = {{0, 4, 7, 3},  // -x
-                                            {1, 2, 6, 5},  // +x
+                                            {1, 5, 6, 2},  // +x
                                             {0, 1, 5, 4},  // -y
-                                            {2, 3, 7, 6},  // +y
+                                            {3, 2, 6, 7},  // +y
                                             {0, 1, 2, 3},  // -z
                                             {4, 5, 6, 7}}; // +z
 
@@ -146,12 +146,6 @@ static blockmesh_diffeomorphism_t create_diffeomorphism(coord_mapping_t* block1_
   blockmesh_diffeomorphism_t diff = {.block1_coords = block1_coords,
                                      .block2_coords = block2_coords};
 
-  // Reverse the order of the traversal of block2_nodes.
-//printf("block1: %d %d %d %d\n", block1_nodes[0], block1_nodes[1], block1_nodes[2], block1_nodes[3]);
-//printf("block2: %d %d %d %d\n", block2_nodes[0], block2_nodes[1], block2_nodes[2], block2_nodes[3]);
-  int rev_block2_nodes[4] = {block2_nodes[0], block2_nodes[3],
-                             block2_nodes[2], block2_nodes[1]};
-
   // We calculate "twists" for each pair of nodes, consisting of an integer number of 
   // counter-clockwise turns from 0 to 3. If all the twists are the same, that's the 
   // valid twist. Otherwise, the twist is invalid.
@@ -161,7 +155,7 @@ static blockmesh_diffeomorphism_t create_diffeomorphism(coord_mapping_t* block1_
     int n1 = block1_nodes[i];
     int* valid_nodes1 = _valid_block_face_nodes[block1_boundary];
     int offset1 = (int)(int_lsearch(valid_nodes1, 4, n1) - valid_nodes1);
-    int n2 = rev_block2_nodes[i];
+    int n2 = block2_nodes[i];
     int* valid_nodes2 = _valid_block_face_nodes[block2_boundary];
     int offset2 = (int)(int_lsearch(valid_nodes2, 4, n2) - valid_nodes2);
     int twist = (offset2 - offset1 + 4) % 4;
@@ -309,7 +303,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
     }
     return false;
   }
-  else if ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1))
+  else if (((diff.rotation == QUARTER_TURN) || (diff.rotation == THREE_QUARTERS_TURN)) && 
+           ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1)))
   {
     if (reason != NULL)
     {
