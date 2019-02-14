@@ -192,6 +192,7 @@ static int cm_set_inverse(lua_State* L)
   if (Xinv == NULL)
     luaL_error(L, "Argument must be a coord_mapping.");
   coord_mapping_set_inverse(X, Xinv);
+  retain_ref(Xinv);
   return 0;
 }
 

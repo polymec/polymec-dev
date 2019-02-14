@@ -173,7 +173,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
 # If the lld or gold linkers are available, use them (in that order).
 find_program(LLD lld)
-if (NOT LLD STREQUAL "LLD-NOTFOUND")
+if (LLD STREQUAL "LLD-NOTFOUND")
   find_program(GOLD gold)
   if (NOT GOLD STREQUAL "GOLD-NOTFOUND")
     message(STATUS "Found gold linker. Using instead of ld.")
