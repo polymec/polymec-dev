@@ -80,7 +80,6 @@ coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping)
 void coord_mapping_set_inverse(coord_mapping_t* mapping, coord_mapping_t* inverse)
 {
   ASSERT(inverse != NULL);
-  retain_ref(inverse);
   mapping->inverse = inverse;
 }
 

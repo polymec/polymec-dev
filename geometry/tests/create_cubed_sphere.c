@@ -155,6 +155,7 @@ static coord_mapping_t* ll_to_eq(coord_mapping_t* eq_to_ll)
   snprintf(block_name, 128, "lat/lon -> equiangular (block %d)", eq->block);
   coord_mapping_t* X = coord_mapping_new(block_name, eq, vtable);
   coord_mapping_set_inverse(X, eq_to_ll);
+  retain_ref(eq_to_ll);
   return X;
 }
 
@@ -177,7 +178,6 @@ static coord_mapping_t* create_equator_block_coords(int block_index,
 
   coord_mapping_t* Xinv = ll_to_eq(X);
   coord_mapping_set_inverse(X, Xinv);
-  release_ref(Xinv);
   return X;
 }
 
@@ -195,7 +195,6 @@ static coord_mapping_t* create_north_block_coords(real_t R1, real_t R2)
 
   coord_mapping_t* Xinv = ll_to_eq(X);
   coord_mapping_set_inverse(X, Xinv);
-  release_ref(Xinv);
   return X;
 }
 
@@ -213,7 +212,6 @@ static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
 
   coord_mapping_t* Xinv = ll_to_eq(X);
   coord_mapping_set_inverse(X, Xinv);
-  release_ref(Xinv);
   return X;
 }
 

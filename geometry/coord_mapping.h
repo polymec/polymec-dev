@@ -98,7 +98,8 @@ coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping);
 
 /// Sets the inverse of the given coord_mapping function.
 /// \param [in] inverse The inverse mapping for this coordinate mapping. Must be 
-///                     non-NULL. inverse's refcount is incremented.
+///                     non-NULL. The coord_mapping object steals the reference 
+///                     to the inverse.
 /// \memberof coord_mapping
 void coord_mapping_set_inverse(coord_mapping_t* mapping, coord_mapping_t* inverse);
 
