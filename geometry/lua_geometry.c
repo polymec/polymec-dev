@@ -1875,7 +1875,7 @@ static int bm_connect_blocks(lua_State* L)
       int node = (int)lua_tointeger(L, -1);
       if ((node < 1) || (node > 8))
         return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index1, i, node);
-      nodes1[i-1] = node-1;
+      nodes1[i-1] = node;
       lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -1905,7 +1905,7 @@ static int bm_connect_blocks(lua_State* L)
       int node = (int)lua_tointeger(L, -1);
       if ((node < 1) || (node > 8))
         return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index2, i, node);
-      nodes2[i-1] = node-1;
+      nodes2[i-1] = node;
       lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -1913,9 +1913,18 @@ static int bm_connect_blocks(lua_State* L)
   if (blockmesh_block_boundary_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
 
+  // Translate from Lua (1-based) indices to C (0-based) indices.
+  --index1;
+  --index2;
+  for (int i = 0; i < 4; ++i)
+  {
+    --nodes1[i];
+    --nodes2[i];
+  }
+
   char* err;
   if (!blockmesh_can_connect_blocks(m, index1, nodes1, index2, nodes2, &err))
-    return luaL_error(L, "Couldn't connect blocks %d and %d: %s", index1, index2, err);
+    return luaL_error(L, "Couldn't connect blocks %d and %d: %s", index1+1, index2+1, err);
 
   blockmesh_connect_blocks(m, index1, nodes1, index2, nodes2);
   return 0;

@@ -191,13 +191,14 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
 {
   // This string holds the reason for failed block connections.
   static char _reason[1025];
+  static const char* boundary_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
 
   int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);
   if (b1 == -1) 
   {
     if (reason != NULL)
     {
-      snprintf(_reason, 1024, "Block %d nodes don't correspond to a block boundary.", block1_index);
+      snprintf(_reason, 1024, "First block's nodes don't correspond to a block boundary.");
       *reason = _reason;
     }
     return false;
@@ -208,7 +209,7 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   {
     if (reason != NULL)
     {
-      snprintf(_reason, 1024, "Block %d nodes don't correspond to a block boundary.", block2_index);
+      snprintf(_reason, 1024, "Second block's nodes don't correspond to a block boundary.");
       *reason = _reason;
     }
     return false;
@@ -220,7 +221,7 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   {
     if (reason != NULL)
     {
-      snprintf(_reason, 1024, "Block %d can't connect to itself via a single boundary (%d).", block1_index, b1);
+      snprintf(_reason, 1024, "A block can't connect to itself via a single boundary (%s).", boundary_names[b1]);
       *reason = _reason;
     }
     return false;
@@ -236,7 +237,7 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   {
     if (reason != NULL)
     {
-      snprintf(_reason, 1024, "Block %d and block %d boundaries aren't connected in a valid way.", block1_index, block2_index);
+      snprintf(_reason, 1024, "Block boundaries aren't connected in a valid way.");
       *reason = _reason;
     }
     return false;
@@ -301,8 +302,9 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   {
     if (reason != NULL)
     {
-      snprintf(_reason, 1024, "Block %d's patch extents (%d and %d) don't match block %d's (%d and %d)", 
-          block2_index, NP2_1, NP2_2, block1_index, NP1_1, NP1_2);
+      snprintf(_reason, 1024, "Second block's patch extents for %s boundary (%d and %d) "
+                              "don't match first block's extents for %s boundary (%d and %d)", 
+               boundary_names[b2], NP2_1, NP2_2, boundary_names[b1], NP1_1, NP1_2);
       *reason = _reason;
     }
     return false;
@@ -311,8 +313,9 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   {
     if (reason != NULL)
     {
-      snprintf(_reason, 1024, "Block %d's patch extents (%d and %d) don't match block %d's (%d and %d)", 
-          block2_index, NP2_2, NP2_1, block1_index, NP1_1, NP1_2);
+      snprintf(_reason, 1024, "Second block's patch extents for %s boundary (%d and %d) "
+                              "don't match first block's extents for %s boundary (%d and %d)", 
+               boundary_names[b2], NP2_2, NP2_1, boundary_names[b1], NP1_1, NP1_2);
       *reason = _reason;
     }
     return false;

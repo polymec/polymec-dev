@@ -37,11 +37,11 @@ static void equatorial_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
   // Compute the change-of-basis matrix.
   J->xx = 1.0; 
   J->xy = J->xz = 0.0;
-  J->yx = X*Y/(1.0 + Y*Y);
-  J->yy = delta2 / ((1.0 + Y*Y) * sqrt(1.0 + X*X));
+  J->yx = -X*Y*sqrt(1.0+X*X)/delta2;
+  J->yy = (1.0+Y*Y)*sqrt(1.0+X*X)/delta2;
   J->yz = 0.0;
   J->zx = J->zy = 0.0;
-  J->zz = eq->R2 - eq->R1;
+  J->zz = 1.0/(eq->R2 - eq->R1);
 }
 
 static void polar_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
@@ -51,8 +51,8 @@ static void polar_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
   // North or South?
   real_t s = (eq->block == 4) ? 1.0 : -1.0;
 
-  y->x = -atan2(tan(x->x), tan(x->y));
   real_t tan_x = tan(x->x), tan_y = tan(x->y);
+  y->x = -atan2(tan_x, tan_y);
   y->y = s * atan(1.0/(sqrt(tan_x*tan_x + tan_y*tan_y)));
   y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
 }
@@ -68,21 +68,21 @@ static void polar_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
   real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
 
   // Compute the change-of-basis matrix.
-  J->xx = -s*Y / (1.0 + X*X);
-  J->xy = -s*delta2*X / ((1.0+X*X)*sqrt(X*X + Y*Y));
-  J->yx = s*X / (1.0 + Y*Y);
-  J->yy = -s*delta2*Y / ((1.0+Y*Y)*sqrt(X*X + Y*Y));
-  J->yz = 0.0;
-  J->zx = J->zy = 0.0;
-  J->zz = eq->R2 - eq->R1;
+  J->xx = -s*Y*(1.0+X*X) / (X*X + Y*Y);
+  J->xy = -s*X*(1.0+Y*Y) / (X×X + Y*Y);
+  J->xz = 0.0;
+  J->yx = -s*X*(1.0+X*X) / (delta2*sqrt(X*X + Y*Y));
+  J->yy = -s*Y*(1.0+Y*Y) / (delta2*sqrt(X*X + Y*Y));
+  J->yz = J->zx = J->zy = 0.0;
+  J->zz = 1.0/(eq->R2 - eq->R1);
 }
 
 static void equatorial_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
 {
   equiangular_t* eq = context;
-  y->x = x->x + 0.5*M_PI*eq->block;
-  y->y = atan(tan(x->y) * cos(x->x));
-  y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
+  y->x = x->x - 0.5*M_PI*eq->block;
+  y->y = atan2(tan(x->y), cos(x->x));
+  y->z = (x->z - eq->R1) / (eq->R2 - eq->R1);
 }
 
 static void equatorial_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
@@ -109,10 +109,10 @@ static void polar_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
   // North or South?
   real_t s = (eq->block == 4) ? 1.0 : -1.0;
 
-  y->x = -atan2(tan(x->x), tan(x->y));
   real_t tan_x = tan(x->x), tan_y = tan(x->y);
-  y->y = s * atan(1.0/sqrt(tan_x*tan_x + tan_y*tan_y));
-  y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
+  y->x = -s * atan2(sin(x->x), tan_y);
+  y->y = -atan2(cos(x->x), tan_y);
+  y->z = (x->z - eq->R1) / (eq->R2 - eq->R1);
 }
 
 static void polar_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)

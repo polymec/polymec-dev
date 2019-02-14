@@ -1,5 +1,12 @@
 -- Messing around with block meshes, Lua style.
 
+pi = math.pi
+sqrt = math.sqrt
+sin = math.sin
+cos = math.cos
+atan = math.atan
+atan2 = math.atan2
+
 -- Number of cells in each patch.
 nx = 32
 ny = 32
@@ -22,35 +29,35 @@ function equatorial_J(x)
   Y = tan(x.y)
   delta2 = 1.0 + X*X + Y*Y
   return tensor2.new(1, 0, 0,
-                     X*Y/(1+Y*Y), delta2 / ((1+Y*Y) * math.sqrt(1+X*X)), 0,
+                     -X*Y*math.sqrt(1+X*X)/delta2, (1+Y*Y)*math.sqrt(1.0+X*X)/delta2, 0,
                      0, 0, R2 - R1)
 end
 coords = {
   coord_mapping.new{name = 'equatorial block 1', 
                     map_point = function(x) 
                       return point.new(x.x, 
-                                       math.atan(x.y)*math.cos(x.x),
+                                       atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'equatorial block 2', 
                     map_point = function(x) 
-                      return point.new(x.x + 0.5*math.pi, 
-                                       math.atan(x.y)*math.cos(x.x),
+                      return point.new(x.x + 0.5*pi, 
+                                       atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'equatorial block 3', 
                     map_point = function(x) 
-                      return point.new(x.x + math.pi, 
-                                       math.atan(x.y)*math.cos(x.x),
+                      return point.new(x.x + pi, 
+                                       atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'equatorial block 4', 
                     map_point = function(x) 
-                      return point.new(x.x + 1.5*math.pi,
-                                       math.atan(x.y)*math.cos(x.x),
+                      return point.new(x.x + 1.5*pi,
+                                       atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
@@ -58,33 +65,33 @@ coords = {
                     map_point = function(x) 
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
-                      return point.new(-math.atan2(x.x, x.y),
-                                       math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
+                      return point.new(-atan2(x.x, x.y),
+                                       atan(1.0/sqrt(tan_x^2 + tan_y^2)),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = function(x)
                       X = tan(x.x)
                       Y = tan(x.y)
                       delta2 = 1.0 + X*X + Y*Y
-                      return tensor2.new(-Y / (1+X*X), -delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
-                                         -X/(1+Y*Y), -delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
-                                         0, 0, R2 - R1)
+                      return tensor2.new(-Y*(1+X*X)/(X*X+Y*Y), -X*(1+Y*Y)/(X*X+Y*Y), 0,
+                                         -X/(1+X*X)/(delta2*sqrt(X*X+Y*Y)), -Y*(1+Y*Y)/(delta2*sqrt(X*X+Y*Y)), 0,
+                                         0, 0, 1.0/(R2 - R1))
                     end},
   coord_mapping.new{name = 'south block', 
                     map_point = function(x) 
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
-                      return point.new(-math.atan2(x.x, x.y),
-                                       -math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
+                      return point.new(-atan2(x.x, x.y),
+                                       -atan(1.0/sqrt(tan_x^2 + tan_y^2)),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = function(x)
                       X = tan(x.x)
                       Y = tan(x.y)
                       delta2 = 1.0 + X*X + Y*Y
-                      return tensor2.new(Y / (1+X*X), delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
-                                         -X/(1+Y*Y), delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
-                                         0, 0, R2 - R1)
+                      return tensor2.new(Y*(1+X*X)/(X*X+Y*Y), X*(1+Y*Y)/(X*X+Y*Y), 0,
+                                         X/(1+X*X)/(delta2*sqrt(X*X+Y*Y)), Y*(1+Y*Y)/(delta2*sqrt(X*X+Y*Y)), 0,
+                                         0, 0, 1.0/(R2 - R1))
                     end},
 }
 
@@ -94,69 +101,69 @@ function inv_equatorial_J(x)
   Y = tan(x.y)
   delta2 = 1.0 + X*X + Y*Y
   return tensor2.new(1, 0, 0,
-                     X*Y/(1+Y*Y), delta2 / ((1+Y*Y) * math.sqrt(1+X*X)), 0,
-                     0, 0, R2 - R1)
+                     X*Y/(1+Y*Y), delta2 / ((1+Y*Y) * sqrt(1+X*X)), 0,
+                     0, 0, 1/(R2 - R1))
 end
 inv_coords = {
   coord_mapping.new{name = 'equatorial block 1 inverse', 
                     map_point = function(x) 
                       return point.new(x.x, 
-                                       math.atan(x.y)*math.cos(x.x),
-                                       R1 + (R2-R1)*x.z)
+                                       atan2(tan(x.y), cos(x.x)),
+                                       (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'equatorial block 2 inverse', 
                     map_point = function(x) 
-                      return point.new(x.x + 0.5*math.pi, 
-                                       math.atan(x.y)*math.cos(x.x),
-                                       R1 + (R2-R1)*x.z)
+                      return point.new(x.x - 0.5*pi, 
+                                       atan2(tan(x.y), cos(x.x)),
+                                       (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'equatorial block 3 inverse', 
                     map_point = function(x) 
-                      return point.new(x.x + math.pi, 
-                                       math.atan(x.y)*math.cos(x.x),
-                                       R1 + (R2-R1)*x.z)
+                      return point.new(x.x - pi, 
+                                       atan2(tan(x.y), cos(x.x)),
+                                       (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'equatorial block 4 inverse', 
                     map_point = function(x) 
-                      return point.new(x.x + 1.5*math.pi,
-                                       math.atan(x.y)*math.cos(x.x),
-                                       R1 + (R2-R1)*x.z)
+                      return point.new(x.x - 1.5*pi, 
+                                       atan2(tan(x.y), cos(x.x)),
+                                       (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
   coord_mapping.new{name = 'north block inverse', 
                     map_point = function(x) 
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
-                      return point.new(-math.atan2(x.x, x.y),
-                                       math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
-                                       R1 + (R2-R1)*x.z)
+                      return point.new(-atan2(sin(x.x), tan_y),
+                                       -atan2(cos(x.x), tan_y),
+                                       (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = function(x)
                       X = tan(x.x)
                       Y = tan(x.y)
                       delta2 = 1.0 + X*X + Y*Y
-                      return tensor2.new(-Y / (1+X*X), -delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
-                                         -X/(1+Y*Y), -delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
-                                         0, 0, R2 - R1)
+                      return tensor2.new(-Y / (1+X*X), -delta2*X / ((1+X*X)*sqrt(X*X+Y*Y)), X/(1+Y*Y),
+                                         -X/(1+Y*Y), -delta2*Y / ((1+Y*Y)*sqrt(X*X+Y*Y)), 0,
+                                         0, 0, 1/(R2 - R1))
                     end},
   coord_mapping.new{name = 'south block inverse', 
                     map_point = function(x) 
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
-                      return point.new(-math.atan2(x.x, x.y),
-                                       -math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
-                                       R1 + (R2-R1)*x.z)
+                      return point.new(atan2(sin(x.x), tan_y),
+                                       -atan2(cos(x.x), tan_y),
+                                       (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = function(x)
                       X = tan(x.x)
                       Y = tan(x.y)
                       delta2 = 1.0 + X*X + Y*Y
-                      return tensor2.new(Y / (1+X*X), delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
-                                         -X/(1+Y*Y), delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
-                                         0, 0, R2 - R1)
+                      return tensor2.new(Y / (1+X*X), delta2*X / ((1+X*X)*sqrt(X*X+Y*Y)), X/(1+Y*Y),
+                                         -X/(1+Y*Y), delta2*Y / ((1+Y*Y)*sqrt(X*X+Y*Y)), 0,
+                                         0, 0, 1/(R2 - R1))
                     end},
 }
 for i = 1,6 do
