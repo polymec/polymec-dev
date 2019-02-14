@@ -295,6 +295,10 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
                                      unimesh_boundary_t b2,
                                      blockmesh_diffeomorphism_t diff)
 {
+  // Does block1 store patch (i1, j1, k1) locally? If not, we do nothing.
+  if (!unimesh_has_patch(block1, i1, j1, k1))
+    return;
+
   // Make sure the patches we're connecting have the same size OR 
   // they have mappings given.
 #ifndef NDEBUG
