@@ -101,12 +101,17 @@ int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
 /// \param [in] block2_nodes An array containing the 4 nodes in the second block
 ///                          to be identified with the corresponding nodes 
 ///                          in the first block (block1_nodes).
+/// \param [out] reason If non-NULL, this string stores an internal string 
+///                     that describes any condition preventing a successful
+///                     block connection.
+/// \returns True if the two blocks can be connected, false if not.
 /// \memberof blockmesh
 bool blockmesh_can_connect_blocks(blockmesh_t* mesh, 
                                   int block1_index, 
                                   int block1_nodes[4],
                                   int block2_index,
-                                  int block2_nodes[4]);
+                                  int block2_nodes[4],
+                                  char** reason);
 
 /// Connects two blocks with the given indices within a block mesh in a manner 
 /// specified by parameters. You must call this function on every process 

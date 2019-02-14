@@ -186,17 +186,45 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
                                   int block1_index, 
                                   int block1_nodes[4],
                                   int block2_index,
-                                  int block2_nodes[4])
+                                  int block2_nodes[4],
+                                  char** reason)
 {
+  // This string holds the reason for failed block connections.
+  static char _reason[1025];
+
   int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);
-  if (b1 == -1) return false;
+  if (b1 == -1) 
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block %d nodes don't correspond to a block boundary.", block1_index);
+      *reason = _reason;
+    }
+    return false;
+  }
+
   int b2 = blockmesh_block_boundary_for_nodes(mesh, block2_nodes);
-  if (b2 == -1) return false;
+  if (b2 == -1)
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block %d nodes don't correspond to a block boundary.", block2_index);
+      *reason = _reason;
+    }
+    return false;
+  }
 
   // A block can connect to itself, but only if the connection is between two 
   // different block faces.
   if ((block1_index == block2_index) && (b1 == b2))
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block %d can't connect to itself via a single boundary (%d).", block1_index, b1);
+      *reason = _reason;
+    }
     return false;
+  }
 
   // Now make sure the patch dimensions between the two blocks are compatible on 
   // the shared boundary.
@@ -205,7 +233,14 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   blockmesh_diffeomorphism_t diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
                                                           block2_coords, b2, block2_nodes);
   if (diff.rotation == INVALID_ROTATION)
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block %d and block %d boundaries aren't connected in a valid way.", block1_index, block2_index);
+      *reason = _reason;
+    }
     return false;
+  }
 
   unimesh_t* block1 = mesh->blocks->data[block1_index];
   unimesh_t* block2 = mesh->blocks->data[block2_index];
@@ -263,9 +298,25 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
 
   if (((diff.rotation == NO_ROTATION) || (diff.rotation == HALF_TURN)) && 
       ((N1 != N2) || (NP1_1 != NP2_1) || (NP1_2 != NP2_2)))
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block %d's patch extents (%d and %d) don't match block %d's (%d and %d)", 
+          block2_index, NP2_1, NP2_2, block1_index, NP1_1, NP1_2);
+      *reason = _reason;
+    }
     return false;
+  }
   else if ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1))
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block %d's patch extents (%d and %d) don't match block %d's (%d and %d)", 
+          block2_index, NP2_2, NP2_1, block1_index, NP1_1, NP1_2);
+      *reason = _reason;
+    }
     return false;
+  }
 
   // I guess everything's okay.
   return true;
@@ -276,7 +327,7 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                               int block2_index, int block2_nodes[4])
 {
   ASSERT(blockmesh_can_connect_blocks(mesh, block1_index, block1_nodes,
-                                            block2_index, block2_nodes));
+                                            block2_index, block2_nodes, NULL));
 
   // Construct a diffeomorphism between the two blocks.
   int b1 = blockmesh_block_boundary_for_nodes(mesh, block1_nodes);

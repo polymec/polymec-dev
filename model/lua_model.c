@@ -300,8 +300,8 @@ static int m_set_min_dt(lua_State* L)
   real_t dt = lua_to_real(L, 2);
   if (dt <= 0.0)
     return luaL_error(L, "Argument must be a positive time interval.");
-  char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
-  if (dt > model_max_dt(m, reason))
+  char* reason;
+  if (dt > model_max_dt(m, &reason))
     return luaL_error(L, "Model min_dt must not exceed max_dt.");
   model_set_min_dt(m, dt);
   return 0;
@@ -310,9 +310,10 @@ static int m_set_min_dt(lua_State* L)
 static int m_get_max_dt(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
-  char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
-  lua_push_real(L, model_max_dt(m, reason));
-  return 1;
+  char* reason;
+  lua_push_real(L, model_max_dt(m, &reason));
+  lua_pushstring(L, reason);
+  return 2;
 }
 
 static int m_set_max_dt(lua_State* L)

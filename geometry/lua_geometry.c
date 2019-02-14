@@ -1790,30 +1790,53 @@ static int bm_add_block(lua_State* L)
   blockmesh_t* m = lua_to_blockmesh(L, 1);
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
-  if (!lua_is_bbox(L, 2))
-    return luaL_error(L, "Argument 1 must be a bbox for the block's domain.");
-  bbox_t* block_domain = lua_to_bbox(L, 2);
-  if (!lua_is_coord_mapping(L, 3))
-    return luaL_error(L, "Argument 2 must be a coordinate mapping for the block.");
-  coord_mapping_t* block_coords = lua_to_coord_mapping(L, 3);
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || (!lua_istable(L, 2)))
+  {
+    luaL_error(L, "mesh:add_block must be called with a table with fields: "
+                  "domain, coords, num_x_patches, num_y_patches, and num_z_patches");
+  }
+
+  lua_getfield(L, 2, "domain");
+  if (!lua_is_bbox(L, -1))
+    return luaL_error(L, "domain must be a bbox.");
+  bbox_t block_domain = *lua_to_bbox(L, -1);
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "coords");
+  if (!lua_is_coord_mapping(L, -1))
+    return luaL_error(L, "coords must be a coordinate mapping for the block.");
+  coord_mapping_t* block_coords = lua_to_coord_mapping(L, -1);
   if (coord_mapping_inverse(block_coords) == NULL)
     return luaL_error(L, "The block's coordinate mapping must be invertible.");
-  if (!lua_isinteger(L, 4))
-    return luaL_error(L, "Argument 3 must be a positive number of x patches.");
-  int npx = (int)lua_tointeger(L, 4);
+  retain_ref(block_coords);
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "num_x_patches");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "num_x_patches must be a positive integer.");
+  int npx = (int)lua_tointeger(L, -1);
   if (npx <= 0)
-    return luaL_error(L, "Argument 3 must be a positive number of x patches.");
-  if (!lua_isinteger(L, 5))
-    return luaL_error(L, "Argument 4 must be a positive number of y patches.");
-  int npy = (int)lua_tointeger(L, 5);
+    return luaL_error(L, "num_x_patches must be positive.");
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "num_y_patches");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "num_y_patches must be a positive integer.");
+  int npy = (int)lua_tointeger(L, -1);
   if (npy <= 0)
-    return luaL_error(L, "Argument 4 must be a positive number of y patches.");
-  if (!lua_isinteger(L, 6))
-    return luaL_error(L, "Argument 5 must be a positive number of z patches.");
-  int npz = (int)lua_tointeger(L, 6);
+    return luaL_error(L, "num_y_patches must be positive.");
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "num_z_patches");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "num_z_patches must be a positive integer.");
+  int npz = (int)lua_tointeger(L, -1);
   if (npz <= 0)
-    return luaL_error(L, "Argument 5 must be a positive number of z patches.");
-  blockmesh_add_block(m, block_domain, block_coords, npx, npy, npz);
+    return luaL_error(L, "num_z_patches must be positive.");
+  lua_pop(L, 1);
+
+  blockmesh_add_block(m, &block_domain, block_coords, npx, npy, npz);
   return 0;
 }
 
@@ -1849,7 +1872,10 @@ static int bm_connect_blocks(lua_State* L)
       lua_rawgeti(L, -1, i);
       if (!lua_isinteger(L, -1))
         return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
-      nodes1[i-1] = (int)lua_tointeger(L, -1);
+      int node = (int)lua_tointeger(L, -1);
+      if ((node < 1) || (node > 8))
+        return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index1, i, node);
+      nodes1[i-1] = node-1;
       lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -1876,7 +1902,10 @@ static int bm_connect_blocks(lua_State* L)
       lua_rawgeti(L, -1, i);
       if (!lua_isinteger(L, -1))
         return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
-      nodes2[i-1] = (int)lua_tointeger(L, -1);
+      int node = (int)lua_tointeger(L, -1);
+      if ((node < 1) || (node > 8))
+        return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index2, i, node);
+      nodes2[i-1] = node-1;
       lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -1884,8 +1913,9 @@ static int bm_connect_blocks(lua_State* L)
   if (blockmesh_block_boundary_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
 
-  if (!blockmesh_can_connect_blocks(m, index1, nodes1, index2, nodes2))
-    return luaL_error(L, "The given blocks have incompatible dimensions.");
+  char* err;
+  if (!blockmesh_can_connect_blocks(m, index1, nodes1, index2, nodes2, &err))
+    return luaL_error(L, "Couldn't connect blocks %d and %d: %s", index1, index2, err);
 
   blockmesh_connect_blocks(m, index1, nodes1, index2, nodes2);
   return 0;
@@ -1924,11 +1954,13 @@ static int bm_tostring(lua_State* L)
 
 static lua_class_method bm_methods[] = {
   {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
-  {"add_block", bm_add_block, "mesh:add_block(num_x_patches, num_y_patches, num_z_patches) - Adds a new empty block to this mesh."},
-  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks{block1 = B1, nodes1 = {n11, n12, n13, n14}, "
-                                        "block2 = B2, nodes = {n21, n22, n23, n24} "
-                                        "- Connects two blocks with indices B1 and B2 in the mesh, specifying the "
-                                        "  nodes to identify on the boundary."},
+  {"add_block", bm_add_block, "mesh:add_block{domain = D, coords = C, num_x_patches = NPX, num_y_patches = NPY, num_z_patches = NPZ} "
+                              "- Adds a new empty block to this mesh with the given domain (bbox), coordinates (coord_mapping), "
+                              "and numbers of patches in x, y, and z."},
+  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks{block1_index = B1, block1_nodes = {n11, n12, n13, n14}, "
+                                        "block2_index = B2, block2_nodes = {n21, n22, n23, n24}} "
+                                        "-> Connects two blocks with indices B1 and B2 in the mesh, specifying the "
+                                        "   nodes to identify on the boundary."},
   {"assign_patches", bm_assign_patches, "mesh:assign_patches() - Automatically assigns patches to processes in a block mesh."},
   {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
   {"__tostring", bm_tostring, NULL},

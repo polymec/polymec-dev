@@ -88,32 +88,120 @@ coords = {
                     end},
 }
 
+-- Inverse coordinate mappings (irritating, but needed!)
+function inv_equatorial_J(x)
+  X = tan(x.x)
+  Y = tan(x.y)
+  delta2 = 1.0 + X*X + Y*Y
+  return tensor2.new(1, 0, 0,
+                     X*Y/(1+Y*Y), delta2 / ((1+Y*Y) * math.sqrt(1+X*X)), 0,
+                     0, 0, R2 - R1)
+end
+inv_coords = {
+  coord_mapping.new{name = 'equatorial block 1 inverse', 
+                    map_point = function(x) 
+                      return point.new(x.x, 
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'equatorial block 2 inverse', 
+                    map_point = function(x) 
+                      return point.new(x.x + 0.5*math.pi, 
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'equatorial block 3 inverse', 
+                    map_point = function(x) 
+                      return point.new(x.x + math.pi, 
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'equatorial block 4 inverse', 
+                    map_point = function(x) 
+                      return point.new(x.x + 1.5*math.pi,
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'north block inverse', 
+                    map_point = function(x) 
+                      tan_x = tan(x.x)
+                      tan_y = tan(x.y)
+                      return point.new(-math.atan2(x.x, x.y),
+                                       math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = function(x)
+                      X = tan(x.x)
+                      Y = tan(x.y)
+                      delta2 = 1.0 + X*X + Y*Y
+                      return tensor2.new(-Y / (1+X*X), -delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
+                                         -X/(1+Y*Y), -delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
+                                         0, 0, R2 - R1)
+                    end},
+  coord_mapping.new{name = 'south block inverse', 
+                    map_point = function(x) 
+                      tan_x = tan(x.x)
+                      tan_y = tan(x.y)
+                      return point.new(-math.atan2(x.x, x.y),
+                                       -math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = function(x)
+                      X = tan(x.x)
+                      Y = tan(x.y)
+                      delta2 = 1.0 + X*X + Y*Y
+                      return tensor2.new(Y / (1+X*X), delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
+                                         -X/(1+Y*Y), delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
+                                         0, 0, R2 - R1)
+                    end},
+}
+for i = 1,6 do
+  coords[i].inverse = inv_coords[i]
+end
+
 -- Create the block mesh and add the 6 blocks.
 mesh = blockmesh.new(mpi.COMM_WORLD, nx, ny, nz)
-domain = bbox.new{x1 = -math.pi/4, x2 = math.pi/4,
-                  y1 = -math.pi/4, y2 = math.pi/4,
-                  z1 = 0, z2 = 1}
+D = bbox.new{x1 = -math.pi/4, x2 = math.pi/4,
+             y1 = -math.pi/4, y2 = math.pi/4,
+             z1 = 0, z2 = 1}
 for i = 1,6 do
-  mesh:add_block(domain, coords[i], npx, npy, npz)
+  mesh:add_block{domain = D, coords = coords[i], 
+                 num_x_patches = npx, num_y_patches = npy, num_z_patches = npz}
 end
 
 -- Connect the equatorial blocks.
-mesh:connect_blocks(1, {2, 6, 7, 3}, 2, {1, 5, 8, 4})
-mesh:connect_blocks(2, {2, 6, 7, 3}, 3, {1, 5, 8, 4})
-mesh:connect_blocks(3, {2, 6, 7, 3}, 4, {1, 5, 8, 4})
-mesh:connect_blocks(4, {2, 6, 7, 3}, 1, {1, 5, 8, 4})
+mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 7, 3}, 
+                    block2_index = 2, block2_nodes = {1, 5, 8, 4}}
+mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 7, 3}, 
+                    block2_index = 3, block2_nodes = {1, 5, 8, 4}}
+mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 7, 3}, 
+                    block2_index = 4, block2_nodes = {1, 5, 8, 4}}
+mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 7, 3}, 
+                    block2_index = 1, block2_nodes = {1, 5, 8, 4}}
 
 -- Connect the north pole.
-mesh:connect_blocks(1, {3, 7, 8, 4}, 5, {2, 6, 5, 1})
-mesh:connect_blocks(2, {3, 7, 8, 4}, 5, {3, 7, 6, 2})
-mesh:connect_blocks(3, {3, 7, 8, 4}, 5, {4, 8, 7, 3})
-mesh:connect_blocks(4, {3, 7, 8, 4}, 5, {1, 5, 8, 4})
+mesh:connect_blocks{block1_index = 1, block1_nodes = {3, 7, 8, 4}, 
+                    block2_index = 5, block2_nodes = {2, 6, 5, 1}}
+mesh:connect_blocks{block1_index = 2, block1_nodes = {3, 7, 8, 4}, 
+                    block2_index = 5, block2_nodes = {3, 7, 6, 2}}
+mesh:connect_blocks{block1_index = 3, block1_nodes = {3, 7, 8, 4}, 
+                    block2_index = 5, block2_nodes = {4, 8, 7, 3}}
+mesh:connect_blocks{block1_index = 4, block1_nodes = {3, 7, 8, 4}, 
+                    block2_index = 5, block2_nodes = {1, 5, 8, 4}}
 
 -- Connect the south pole.
-mesh:connect_blocks(1, {2, 6, 5, 1}, 6, {3, 7, 8, 4})
-mesh:connect_blocks(2, {2, 6, 5, 1}, 6, {2, 6, 7, 3})
-mesh:connect_blocks(3, {2, 6, 5, 1}, 6, {1, 5, 6, 2})
-mesh:connect_blocks(4, {2, 6, 5, 1}, 6, {4, 8, 5, 1})
+mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 5, 1}, 
+                    block2_index = 6, block2_nodes = {3, 7, 8, 4}}
+mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 5, 1}, 
+                    block2_index = 6, block2_nodes = {2, 6, 7, 3}}
+mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 5, 1}, 
+                    block2_index = 6, block2_nodes = {1, 5, 6, 2}}
+mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 5, 1}, 
+                    block2_index = 6, block2_nodes = {4, 8, 5, 1}}
 
 -- Finalize the mesh.
 mesh:finalize()

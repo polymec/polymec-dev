@@ -343,20 +343,21 @@ static real_t model_next_acq_time(model_t* model)
   return acq_time;
 }
 
-real_t model_max_dt(model_t* model, char* reason)
+real_t model_max_dt(model_t* model, char** reason)
 {
+  static char _reason[1025];
   real_t dt = REAL_MAX;
-  strcpy(reason, "No time step constraints.");
+  strncpy(_reason, "No time step constraints.", 1024);
 
   // First let the model have at it.
   if (model->vtable.max_dt != NULL)
   {
-    char model_reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
+    char model_reason[1025];
     real_t model_dt = model->vtable.max_dt(model->context, model->time, model_reason);
     if (model_dt < dt)
     {
       dt = model_dt;
-      strcpy(reason, model_reason);
+      strncpy(_reason, model_reason, 1024);
     }
   }
 
@@ -364,7 +365,7 @@ real_t model_max_dt(model_t* model, char* reason)
   if (model->max_dt < dt)
   {
     dt = model->max_dt;
-    strcpy(reason, "Specified maximum timestep.");
+    strncpy(_reason, "Specified maximum timestep.", 1024);
   }
 
   // The following constraints only apply if we are collecting diagnostics
@@ -378,7 +379,7 @@ real_t model_max_dt(model_t* model, char* reason)
     if (acq_dt < dt)
     {
       dt = acq_dt;
-      sprintf(reason, "Requested acquisition time: %g", acq_time);
+      snprintf(_reason, 1024, "Requested acquisition time: %g", acq_time);
     }
 
     // If we have a plot time coming up, perhaps the next one will 
@@ -400,13 +401,13 @@ real_t model_max_dt(model_t* model, char* reason)
       {
         dt = plot_dt;
         model->plot_this_step = true;
-        sprintf(reason, "Requested plot time: %g", plot_time);
+        snprintf(_reason, 1024, "Requested plot time: %g", plot_time);
       }
       else if (2.0 * plot_dt < dt)
       {
         dt = plot_dt;
         model->plot_this_step = true;
-        sprintf(reason, "Requested plot time: %g", plot_time);
+        snprintf(_reason, 1024, "Requested plot time: %g", plot_time);
       }
       else if (reals_nearly_equal(plot_dt, dt, 1e-12)) // FIXME: corny
         model->plot_this_step = true;
@@ -425,6 +426,9 @@ real_t model_max_dt(model_t* model, char* reason)
         model->plot_this_step = true;
     }
   }
+
+  if (reason != NULL)
+    *reason = _reason;
 
   return dt;
 }
@@ -720,9 +724,12 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     // Now run the calculation.
     while ((model->time < t2) && (model->step < max_steps) && (_received_signal == 0))
     {
+      char reason[1025];
+
       // Let the model tell us the maximum time step it can take.
-      char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
-      real_t max_dt = model_max_dt(model, reason);
+      char* model_reason;
+      real_t max_dt = model_max_dt(model, &model_reason);
+      strncpy(reason, model_reason, 1024);
 
       // Have we fallen below the minimum allowable time step? If so, 
       // we end the simulation.
@@ -741,7 +748,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
         if (model->initial_dt < max_dt)
         {
           max_dt = model->initial_dt;
-          snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "Initial time step size");
+          snprintf(reason, 1024, "Initial time step size");
         }
       }
 
@@ -751,16 +758,16 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       if (max_dt > remaining_time)
       {
         max_dt = remaining_time;
-        snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "End of simulation");
+        snprintf(reason, 1024, "End of simulation");
       }
+
       // If we are not quite there but we are close enough to encounter the 
       // minimum time step, break the final 2 steps into more equally-spaced
       // sizes.
       else if ((max_dt + model->min_dt) > 2.0 * remaining_time)
       {
         max_dt = 0.5 * remaining_time;
-        snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, 
-                 "End of simulation (subject to min_dt).");
+        snprintf(reason, 1024, "End of simulation (subject to min_dt).");
       }
 
       log_detail("%s: Max time step max_dt = %g\n (Reason: %s)", model->name, max_dt, reason);

@@ -16,11 +16,6 @@
 /// \addtogroup model model
 ///@{
 
-/// \def POLYMEC_MODEL_MAXDT_REASON_SIZE
-/// The maximum amount of storage allowed for an explanation of the 
-/// time step choice.
-#define POLYMEC_MODEL_MAXDT_REASON_SIZE 2048
-
 /// \class model
 /// A model is a numerical model of a physical phenomenon.
 typedef struct model_t model_t;
@@ -190,8 +185,10 @@ real_t model_initial_dt(model_t* model);
 void model_set_max_dt(model_t* model, real_t max_dt);
 
 /// Returns the largest permissible time step that can be taken by the model.
+/// \param [out] reason If non-NULL, this stores an internal string giving the
+///                     reason for the selected maximum time step.
 /// \memberof model
-real_t model_max_dt(model_t* model, char* reason);
+real_t model_max_dt(model_t* model, char** reason);
 
 /// Sets the smallest permissible (non-negative) time step that can be taken by the 
 /// model, below which a simulation will be terminated.
