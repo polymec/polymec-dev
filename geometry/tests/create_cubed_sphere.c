@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------
 // Coordinate mappings: 
 //   1. equiangular -> lat/lon (eq_to_ll)
-//   2. lat/lon -> equiangular (ll_to_eq)
+//   2. lat/lon -> equiangular (
 // These mappings are each other's inverse.
 //------------------------------------------------------------------------
 typedef struct
@@ -18,10 +18,6 @@ typedef struct
   int block;
   real_t R1, R2;
 } equiangular_t;
-
-// These are helpers for constructing inverse mappings.
-static coord_mapping_t* eq_to_ll(void* context);
-static coord_mapping_t* ll_to_eq(void* context);
 
 static void equatorial_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
 {
@@ -115,7 +111,7 @@ static void polar_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
 
   y->x = -atan2(tan(x->x), tan(x->y));
   real_t tan_x = tan(x->x), tan_y = tan(x->y);
-  y->y = s * atan(1.0/(sqrt(tan_x*tan_x + tan_y*tan_y)));
+  y->y = s * atan(1.0/sqrt(tan_x*tan_x + tan_y*tan_y));
   y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
 }
 
@@ -132,11 +128,34 @@ static void polar_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
   // Compute the change-of-basis matrix.
   J->xx = -s*Y / (1.0 + X*X);
   J->xy = -s*delta2*X / ((1.0+X*X)*sqrt(X*X + Y*Y));
+  J->xz = 0.0;
   J->yx = s*X / (1.0 + Y*Y);
   J->yy = -s*delta2*Y / ((1.0+Y*Y)*sqrt(X*X + Y*Y));
   J->yz = 0.0;
   J->zx = J->zy = 0.0;
   J->zz = eq->R2 - eq->R1;
+}
+
+static coord_mapping_t* ll_to_eq(coord_mapping_t* eq_to_ll)
+{
+  equiangular_t* eq = coord_mapping_context(eq_to_ll);
+  coord_mapping_vtable vtable = {.dtor = NULL};
+  if (eq->block < 4)
+  {
+    vtable.map_point = equatorial_ll_to_eq_map_point;
+    vtable.jacobian = equatorial_ll_to_eq_J;
+  }
+  else
+  {
+    vtable.map_point = polar_ll_to_eq_map_point;
+    vtable.jacobian = polar_ll_to_eq_J;
+  }
+
+  char block_name[129];
+  snprintf(block_name, 128, "lat/lon -> equiangular (block %d)", eq->block);
+  coord_mapping_t* X = coord_mapping_new(block_name, eq, vtable);
+  coord_mapping_set_inverse(X, eq_to_ll);
+  return X;
 }
 
 static coord_mapping_t* create_equator_block_coords(int block_index,
@@ -151,11 +170,15 @@ static coord_mapping_t* create_equator_block_coords(int block_index,
   eq->R2 = R2;
   coord_mapping_vtable vtable = {.map_point = equatorial_eq_to_ll_map_point,
                                  .jacobian = equatorial_eq_to_ll_J,
-                                 .inverse = ll_to_eq,
                                  .dtor = polymec_free};
   char block_name[129];
   snprintf(block_name, 128, "equatorial block %d", block_index);
-  return coord_mapping_new(block_name, eq, vtable);
+  coord_mapping_t* X = coord_mapping_new(block_name, eq, vtable);
+
+  coord_mapping_t* Xinv = ll_to_eq(X);
+  coord_mapping_set_inverse(X, Xinv);
+  release_ref(Xinv);
+  return X;
 }
 
 static coord_mapping_t* create_north_block_coords(real_t R1, real_t R2)
@@ -167,9 +190,13 @@ static coord_mapping_t* create_north_block_coords(real_t R1, real_t R2)
   eq->R2 = R2;
   coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
                                  .jacobian = polar_eq_to_ll_J,
-                                 .inverse = ll_to_eq,
                                  .dtor = polymec_free};
-  return coord_mapping_new("north block", eq, vtable);
+  coord_mapping_t* X = coord_mapping_new("north block", eq, vtable);
+
+  coord_mapping_t* Xinv = ll_to_eq(X);
+  coord_mapping_set_inverse(X, Xinv);
+  release_ref(Xinv);
+  return X;
 }
 
 static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
@@ -181,48 +208,13 @@ static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
   eq->R2 = R2;
   coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
                                  .jacobian = polar_eq_to_ll_J,
-                                 .inverse = ll_to_eq,
                                  .dtor = polymec_free};
-  return coord_mapping_new("south block", eq, vtable);
-}
+  coord_mapping_t* X = coord_mapping_new("south block", eq, vtable);
 
-coord_mapping_t* ll_to_eq(void* context)
-{
-  equiangular_t* eq = context;
-  coord_mapping_vtable vtable = {.inverse = eq_to_ll};
-  if (eq->block < 4)
-  {
-    vtable.map_point = equatorial_ll_to_eq_map_point;
-    vtable.jacobian = equatorial_ll_to_eq_J;
-  }
-  else
-  {
-    vtable.map_point = polar_ll_to_eq_map_point;
-    vtable.jacobian = polar_ll_to_eq_J;
-  }
-
-  char block_name[129];
-  snprintf(block_name, 128, "lat/lon -> equiangular (block %d)", eq->block);
-  return coord_mapping_new(block_name, eq, vtable);
-}
-
-coord_mapping_t* eq_to_ll(void* context)
-{
-  equiangular_t* eq = context;
-  coord_mapping_vtable vtable = {.inverse = ll_to_eq};
-  if (eq->block < 4)
-  {
-    vtable.map_point = equatorial_eq_to_ll_map_point;
-    vtable.jacobian = equatorial_eq_to_ll_J;
-  }
-  else
-  {
-    vtable.map_point = polar_eq_to_ll_map_point;
-    vtable.jacobian = polar_eq_to_ll_J;
-  }
-  char block_name[129];
-  snprintf(block_name, 128, "equiangular -> lat/lon (block %d)", eq->block);
-  return coord_mapping_new(block_name, eq, vtable);
+  coord_mapping_t* Xinv = ll_to_eq(X);
+  coord_mapping_set_inverse(X, Xinv);
+  release_ref(Xinv);
+  return X;
 }
 
 //------------------------------------------------------------------------

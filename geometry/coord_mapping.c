@@ -13,12 +13,15 @@ struct coord_mapping_t
   char* name;
   void* context;
   coord_mapping_vtable vtable;
+  coord_mapping_t* inverse;
 };
 
 static void coord_mapping_free(void* ctx)
 {
   coord_mapping_t* mapping = (coord_mapping_t*)ctx;
-  if (mapping->vtable.dtor)
+  if (mapping->inverse != NULL)
+    release_ref(mapping->inverse);
+  if (mapping->vtable.dtor != NULL)
     free(mapping->context);
   free(mapping->name);
 }
@@ -32,6 +35,7 @@ coord_mapping_t* coord_mapping_new(const char* name, void* context, coord_mappin
   m->name = string_dup(name);
   m->context = context;
   m->vtable = vtable;
+  m->inverse = NULL;
   return m;
 }
 
@@ -68,17 +72,16 @@ void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor
   mapping->vtable.jacobian(mapping->context, x, J);
 }
 
-bool coord_mapping_has_inverse(coord_mapping_t* mapping)
-{
-  return (mapping->vtable.inverse != NULL);
-}
-
 coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping)
 {
-  if (mapping->vtable.inverse != NULL)
-    return mapping->vtable.inverse(mapping->context);
-  else
-    return NULL;
+  return mapping->inverse;
+}
+
+void coord_mapping_set_inverse(coord_mapping_t* mapping, coord_mapping_t* inverse)
+{
+  ASSERT(inverse != NULL);
+  retain_ref(inverse);
+  mapping->inverse = inverse;
 }
 
 real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x)

@@ -12,20 +12,89 @@ npy = 10
 -- Number of vertical patches in each block.
 npz = 4
 
+-- Inner and outer radii
+R1 = 1
+R2 = 1.1
+
 -- Coordinate mappings for the 4 equatorial blocks, plus north and south.
+function equatorial_J(x)
+  X = tan(x.x)
+  Y = tan(x.y)
+  delta2 = 1.0 + X*X + Y*Y
+  return tensor2.new(1, 0, 0,
+                     X*Y/(1+Y*Y), delta2 / ((1+Y*Y) * math.sqrt(1+X*X)), 0,
+                     0, 0, R2 - R1)
+end
 coords = {
-  coord_mapping.new{}, -- block 1: equatorial #1
-  coord_mapping.new{}, -- block 2: equatorial #2
-  coord_mapping.new{}, -- block 3: equatorial #3
-  coord_mapping.new{}, -- block 4: equatorial #4
-  coord_mapping.new{}, -- block 5: north pole
-  coord_mapping.new{}  -- block 6: south pole 
+  coord_mapping.new{name = 'equatorial block 1', 
+                    map_point = function(x) 
+                      return point.new(x.x, 
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'equatorial block 2', 
+                    map_point = function(x) 
+                      return point.new(x.x + 0.5*math.pi, 
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'equatorial block 3', 
+                    map_point = function(x) 
+                      return point.new(x.x + math.pi, 
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'equatorial block 4', 
+                    map_point = function(x) 
+                      return point.new(x.x + 1.5*math.pi,
+                                       math.atan(x.y)*math.cos(x.x),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = equatorial_J},
+  coord_mapping.new{name = 'north block', 
+                    map_point = function(x) 
+                      tan_x = tan(x.x)
+                      tan_y = tan(x.y)
+                      return point.new(-math.atan2(x.x, x.y),
+                                       math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = function(x)
+                      X = tan(x.x)
+                      Y = tan(x.y)
+                      delta2 = 1.0 + X*X + Y*Y
+                      return tensor2.new(-Y / (1+X*X), -delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
+                                         -X/(1+Y*Y), -delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
+                                         0, 0, R2 - R1)
+                    end},
+  coord_mapping.new{name = 'south block', 
+                    map_point = function(x) 
+                      tan_x = tan(x.x)
+                      tan_y = tan(x.y)
+                      return point.new(-math.atan2(x.x, x.y),
+                                       -math.atan(1.0/math.sqrt(tan_x^2 + tan_y^2)),
+                                       R1 + (R2-R1)*x.z)
+                    end,
+                    jacobian = function(x)
+                      X = tan(x.x)
+                      Y = tan(x.y)
+                      delta2 = 1.0 + X*X + Y*Y
+                      return tensor2.new(Y / (1+X*X), delta2*X / ((1+X*X)*math.sqrt(X*X+Y*Y)), X/(1+Y*Y),
+                                         -X/(1+Y*Y), delta2*Y / ((1+Y*Y)*math.sqrt(X*X+Y*Y)), 0,
+                                         0, 0, R2 - R1)
+                    end},
 }
 
 -- Create the block mesh and add the 6 blocks.
 mesh = blockmesh.new(mpi.COMM_WORLD, nx, ny, nz)
+domain = bbox.new{x1 = -math.pi/4, x2 = math.pi/4,
+                  y1 = -math.pi/4, y2 = math.pi/4,
+                  z1 = 0, z2 = 1}
 for i = 1,6 do
-  mesh:add_block(coords[i], npx, npy, npz)
+  mesh:add_block(domain, coords[i], npx, npy, npz)
 end
 
 -- Connect the equatorial blocks.

@@ -22,6 +22,10 @@
 /// its derivative is a 3x3 matrix called the Jacobian matrix. These specific 
 /// features argue for a class that is more specific than just "a 3-component 
 /// sp_func." 
+///
+/// By default, a coord_mapping object has no inverse. Use 
+/// \ref coord_mapping_set_inverse to specify another coordinate mapping that 
+/// is the inverse of the given one.
 /// \refcounted
 typedef struct coord_mapping_t coord_mapping_t;
 
@@ -35,9 +39,6 @@ typedef void (*coord_mapping_map_vector_func)(void*, point_t*, vector_t*, vector
 /// A function pointer type for evaluating the components of the Jacobian 
 /// matrix at a point, storing them in column-major order in the given array.
 typedef void (*coord_mapping_jacobian_func)(void*, point_t*, tensor2_t*);
-
-/// A function pointer type for constructing an inverse mapping from a mapping.
-typedef coord_mapping_t* (*coord_mapping_inverse_func)(void*);
 
 /// A function pointer type for computing the determinant of J directly. 
 /// If this is not supplied, the determinant of J will be computed from J itself.
@@ -57,7 +58,6 @@ typedef struct
   coord_mapping_map_point_func        map_point;
   coord_mapping_map_vector_func       map_vector; // Optional
   coord_mapping_jacobian_func         jacobian;
-  coord_mapping_inverse_func          inverse; // Optional
   coord_mapping_det_J_func            det_J; // Optional
   coord_mapping_metric_func           metric; // Optional
   coord_mapping_dtor                  dtor;
@@ -91,14 +91,16 @@ void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v,
 /// \memberof coord_mapping
 void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor2_t* J);
 
-/// Returns true if this mapping has an inverse, false if not.
-/// \memberof coord_mapping
-bool coord_mapping_has_inverse(coord_mapping_t* mapping);
-
-/// Constructs a coord_mapping function representing the inverse of the given
-/// coordinate mapping. Returns NULL if the coordinate mapping is not invertible.
+/// Returns the inverse of the given coord_mapping function, or NULL if the mapping
+/// has no inverse.
 /// \memberof coord_mapping
 coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping);
+
+/// Sets the inverse of the given coord_mapping function.
+/// \param [in] inverse The inverse mapping for this coordinate mapping. Must be 
+///                     non-NULL. inverse's refcount is incremented.
+/// \memberof coord_mapping
+void coord_mapping_set_inverse(coord_mapping_t* mapping, coord_mapping_t* inverse);
 
 /// Returns the Jacobian determinant at the point x.
 /// \memberof coord_mapping

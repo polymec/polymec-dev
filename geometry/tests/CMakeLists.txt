@@ -42,3 +42,4 @@ add_mpi_polymec_geometry_test(test_blockmesh_field test_blockmesh_field.c create
 include(add_polymec_driver_test)
 add_polymec_driver_with_libs(geometry_driver "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" test_geometry_driver.c)
 add_polymec_driver_test(test_geometry_driver geometry_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_geometry_driver.input 1 2 4)
+add_polymec_driver_test(test_create_cubed_sphere geometry_driver ${CMAKE_CURRENT_SOURCE_DIR}/create_cubed_sphere.input 1 2 4)

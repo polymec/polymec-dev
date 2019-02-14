@@ -119,7 +119,7 @@ int blockmesh_add_block(blockmesh_t* mesh,
   ASSERT(!mesh->finalized);
   ASSERT(block_domain != NULL);
   ASSERT(block_coords != NULL);
-  ASSERT(coord_mapping_has_inverse(block_coords));
+  ASSERT(coord_mapping_inverse(block_coords) != NULL);
   ASSERT(num_x_patches > 0);
   ASSERT(num_y_patches > 0);
   ASSERT(num_z_patches > 0);
