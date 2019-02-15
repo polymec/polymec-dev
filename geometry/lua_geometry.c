@@ -1857,7 +1857,7 @@ static int bm_connect_blocks(lua_State* L)
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "block1_index must be a valid block index.");
   int index1 = (int)lua_tointeger(L, -1); 
-  if ((index1 < 0) || ((size_t)index1 >= blockmesh_num_blocks(m)))
+  if ((index1 < 1) || ((size_t)index1 > blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for first block: %d.", index1);
   lua_pop(L, 1);
 
@@ -1885,7 +1885,7 @@ static int bm_connect_blocks(lua_State* L)
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "block2_index must be a valid block index.");
   int index2 = (int)lua_tointeger(L, -1); 
-  if ((index2 < 0) || ((size_t)index2 >= blockmesh_num_blocks(m)))
+  if ((index2 < 1) || ((size_t)index2 > blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for second block: %d.", index2);
   lua_pop(L, 1);
 

@@ -74,11 +74,11 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
 
 // Only certain combos of block faces are acceptible.
 static int _valid_block_face_nodes[6][4] = {{0, 4, 7, 3},  // -x
-                                            {1, 5, 6, 2},  // +x
+                                            {2, 6, 5, 1},  // +x
                                             {0, 1, 5, 4},  // -y
-                                            {3, 2, 6, 7},  // +y
+                                            {7, 6, 2, 3},  // +y
                                             {0, 1, 2, 3},  // -z
-                                            {4, 5, 6, 7}}; // +z
+                                            {7, 6, 5, 4}}; // +z
 
 int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
 {
@@ -229,12 +229,20 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
                                                           block2_coords, b2, block2_nodes);
   if (diff.rotation == INVALID_ROTATION)
   {
-    if (reason != NULL)
+    // Try again with block2_nodes reversed.
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2], 
+                               block2_nodes[1], block2_nodes[0]};
+    diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
+                                 block2_coords, b2, rev_block2_nodes);
+    if (diff.rotation == INVALID_ROTATION)
     {
-      snprintf(_reason, 1024, "Block boundaries aren't connected in a valid way.");
-      *reason = _reason;
+      if (reason != NULL)
+      {
+        snprintf(_reason, 1024, "Block boundaries aren't connected in a valid way.");
+        *reason = _reason;
+      }
+      return false;
     }
-    return false;
   }
 
   unimesh_t* block1 = mesh->blocks->data[block1_index];
