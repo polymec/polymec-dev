@@ -112,13 +112,21 @@ void unimesh_field_set_buffer(unimesh_field_t* field,
                               bool assume_control);
 
 /// Assigns the given boundary condition to the patch (i, j, k) within this 
-/// field. This boundary condition will be used to update the patch boundary 
-/// data indicated by the patch boundary, for this field only.
+/// field. This boundary condition is used to update the patch boundary 
+/// data for this field only.
 /// \memberof unimesh_field
 void unimesh_field_set_patch_bc(unimesh_field_t* field,
                                 int i, int j, int k,
                                 unimesh_boundary_t patch_boundary,
                                 unimesh_patch_bc_t* patch_bc);
+
+/// Assigns the given boundary condition to all patches on the given mesh boundary
+/// for this field. This boundary condition is used to update the boundary 
+/// data for this field only.
+/// \memberof unimesh_field
+void unimesh_field_set_boundary_bc(unimesh_field_t* field,
+                                   unimesh_boundary_t mesh_boundary,
+                                   unimesh_patch_bc_t* patch_bc);
 
 /// Returns true if the field has a patch boundary condition assigned to 
 /// the patch (i, j, k) on the given boundary, false if not.

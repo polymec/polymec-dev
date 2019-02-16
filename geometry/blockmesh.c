@@ -328,6 +328,27 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   return true;
 }
 
+static void find_far_patch(int i1, int j1, 
+                           blockmesh_diffeomorphism_t* diff,
+                           int i2_max, int j2_max, 
+                           int* i2, int* j2)
+{
+  if (diff->rotation == NO_ROTATION)
+  {
+    *i2 = i1;
+    *j2 = j1;
+  }
+  else if (diff->rotation == QUARTER_TURN)
+  {
+  }
+  else if (diff->rotation == HALF_TURN)
+  {
+  }
+  else // diff->rotation == THREE_QUARTERS_TURN
+  {
+  }
+}
+
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, int block1_nodes[4],
                               int block2_index, int block2_nodes[4])
@@ -342,18 +363,178 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
   coord_mapping_t* block2_coords = mesh->coords->data[block2_index];
   blockmesh_diffeomorphism_t diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
                                                           block2_coords, b2, block2_nodes);
+  ASSERT(diff.rotation != INVALID_ROTATION);
 
-  // Figure out all the patches that need to be connected.
+  // Fetch the two blocks and size them up.
   unimesh_t* block1 = mesh->blocks->data[block1_index];
+  int npx1, npy1, npz1;
+  unimesh_get_extents(block1, &npx1, &npy1, &npz1);
   unimesh_t* block2 = mesh->blocks->data[block2_index];
+  int npx2, npy2, npz2;
+  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
+
+  // Traverse all the locally-stored patches in block1 and connect them to 
+  // corresponding patches in block2. This is a bit grisly, since we have to 
+  // account for rotations and different sets of boundary pairs.
+  int pos = 0;
+  int i1, j1, k1;
+  while (unimesh_next_patch(block1, &pos, &i1, &j1, &k1, NULL))
   {
-    // FIXME
-    int i1 = 0, j1 = 0, k1 = 0;
-    int i2 = 0, j2 = 0, k2 = 0;
-    blockmesh_interblock_bc_connect(mesh->interblock_bc, 
-                                    block1, i1, j1, k1, (unimesh_boundary_t)b1, 
-                                    block2, i2, j2, k2, (unimesh_boundary_t)b2,
-                                    diff);
+    // Figure out the coordinates of the corresponding patch in block2.
+    int i2 = -1, j2 = -1, k2 = -1;
+
+    if ((b1 == 0) && (i1 == 0))
+    {
+      if (b2 == 0)      // -x <-> -x connection
+      {
+        i2 = 0;
+        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+      }
+      else if (b2 == 1) // -x <-> +x connection
+      {
+        i2 = npx2;
+        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+      }
+      else if (b2 == 2) // -x <-> -y connection
+      {
+      }
+      else if (b2 == 3) // -x <-> +y connection
+      {
+      }
+      else if (b2 == 4) // -x <-> -z connection
+      {
+      }
+      else if (b2 == 5) // -x <-> +z connection
+      {
+      }
+    }
+    else if ((b1 == 1) && (i1 == (npx1 - 1))) 
+    {
+      if (b2 == 0)      // +x <-> -x connection
+      {
+        i2 = 0;
+        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+      }
+      else if (b2 == 1) // +x <-> +x connection
+      {
+        i2 = npx2;
+        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+      }
+      else if (b2 == 2) // +x <-> -y connection
+      {
+      }
+      else if (b2 == 3) // +x <-> +y connection
+      {
+      }
+      else if (b2 == 4) // +x <-> -z connection
+      {
+      }
+      else if (b2 == 5) // +x <-> +z connection
+      {
+      }
+    }
+    else if ((b1 == 2) && (j1 == 0))
+    {
+      if (b2 == 0)      // -y <-> -x connection
+      {
+      }
+      else if (b2 == 1) // -y <-> +x connection
+      {
+      }
+      else if (b2 == 2) // -y <-> -y connection
+      {
+      }
+      else if (b2 == 3) // -y <-> +y connection
+      {
+      }
+      else if (b2 == 4) // -y <-> -z connection
+      {
+      }
+      else if (b2 == 5) // -y <-> +z connection
+      {
+      }
+    }
+    else if ((b1 == 3) && (j1 == (npy1 - 1))) 
+    {
+      if (b2 == 0)      // +y <-> -x connection
+      {
+      }
+      else if (b2 == 1) // +y <-> +x connection
+      {
+      }
+      else if (b2 == 2) // +y <-> -y connection
+      {
+      }
+      else if (b2 == 3) // +y <-> +y connection
+      {
+      }
+      else if (b2 == 4) // +y <-> -z connection
+      {
+      }
+      else if (b2 == 5) // +y <-> +z connection
+      {
+      }
+    }
+    else if ((b1 == 4) && (k1 == 0))
+    {
+      if (b2 == 0)      // -z <-> -x connection
+      {
+      }
+      else if (b2 == 1) // -z <-> +x connection
+      {
+      }
+      else if (b2 == 2) // -z <-> -y connection
+      {
+      }
+      else if (b2 == 3) // -z <-> +y connection
+      {
+      }
+      else if (b2 == 4) // -z <-> -z connection
+      {
+      }
+      else if (b2 == 5) // -z <-> +z connection
+      {
+      }
+    }
+    else if ((b1 == 5) && (k1 == (npz1 - 1))) 
+    {
+      if (b2 == 0)      // +z <-> -x connection
+      {
+      }
+      else if (b2 == 1) // +z <-> +x connection
+      {
+      }
+      else if (b2 == 2) // +z <-> -y connection
+      {
+      }
+      else if (b2 == 3) // +z <-> +y connection
+      {
+      }
+      else if (b2 == 4) // +z <-> -z connection
+      {
+      }
+      else if (b2 == 5) // +z <-> +z connection
+      {
+      }
+    }
+
+    if ((i2 != -1) && (j2 != -1) && (k2 != -1))
+    {
+      // Connect block1's local patch to block2's patch.
+      blockmesh_interblock_bc_connect(mesh->interblock_bc, 
+                                      block1, i1, j1, k1, (unimesh_boundary_t)b1, 
+                                      block2, i2, j2, k2, (unimesh_boundary_t)b2,
+                                      diff);
+
+      // If block2's patch is locally stored, connect it to block1's.
+      if (unimesh_has_patch(block2, i2, j2, k2))
+      {
+        blockmesh_interblock_bc_connect(mesh->interblock_bc, 
+                                        block1, i1, j1, k1, (unimesh_boundary_t)b1, 
+                                        block2, i2, j2, k2, (unimesh_boundary_t)b2,
+                                        diff);
+      }
+    }
   }
 }
 
@@ -468,6 +649,19 @@ unimesh_t* blockmesh_block(blockmesh_t* mesh, int index)
   return mesh->blocks->data[index];
 }
 
+extern bool blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc, 
+                                                        int block_index, 
+                                                        int block_neighbor_indices[6]);
+bool blockmesh_block_is_connected(blockmesh_t* mesh,
+                                  int index,
+                                  unimesh_boundary_t boundary)
+{
+  int nblocks[6];
+  blockmesh_interblock_bc_get_block_neighbors(mesh->interblock_bc, index, nblocks);
+  int b = (int)boundary;
+  return (nblocks[b] != -1);
+}
+
 bool blockmesh_next_block(blockmesh_t* mesh, 
                           int* pos, 
                           unimesh_t** block,
@@ -489,9 +683,6 @@ bool blockmesh_next_block(blockmesh_t* mesh,
 }
 
 #if POLYMEC_HAVE_MPI
-extern void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc, 
-                                                        int block_index, 
-                                                        int block_neighbor_indices[6]);
 static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();

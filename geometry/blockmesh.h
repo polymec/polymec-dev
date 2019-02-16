@@ -183,6 +183,15 @@ int blockmesh_num_blocks(blockmesh_t* mesh);
 /// \memberof blockmesh
 unimesh_t* blockmesh_block(blockmesh_t* mesh, int index);
 
+/// Returns true if the block with the given index in the mesh is connected
+/// to another block in the mesh on the given boundary, false if not.
+/// \param [in] index The index of the block.
+/// \param [in] boundary The boundary of the block for the connection in question.
+/// \memberof blockmesh
+bool blockmesh_block_is_connected(blockmesh_t* field,
+                                  int index,
+                                  unimesh_boundary_t boundary);
+
 /// Allows the traversal of all blocks in the blockmesh. 
 /// \param [inout] pos Stores the index of the next block in the mesh. 
 ///                    Set *pos to 0 to reset the traversal.

@@ -24,6 +24,13 @@ static void test_serial_ctor(void** state)
                                           2, 2, 10, 10, 0.9, 1.0);
   assert_true(blockmesh_comm(mesh) == MPI_COMM_SELF);
   assert_int_equal(6, blockmesh_num_blocks(mesh));
+  for (int b = 0; b < 6; ++b)
+  {
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X1_BOUNDARY));
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X2_BOUNDARY));
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y1_BOUNDARY));
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y2_BOUNDARY));
+  }
   blockmesh_free(mesh);
 }
 
@@ -33,6 +40,13 @@ static void test_parallel_ctor(void** state)
                                           2, 2, 10, 10, 0.9, 1.0);
   assert_true(blockmesh_comm(mesh) == MPI_COMM_WORLD);
   assert_int_equal(6, blockmesh_num_blocks(mesh));
+  for (int b = 0; b < 6; ++b)
+  {
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X1_BOUNDARY));
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X2_BOUNDARY));
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y1_BOUNDARY));
+    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y2_BOUNDARY));
+  }
   blockmesh_free(mesh);
 }
 

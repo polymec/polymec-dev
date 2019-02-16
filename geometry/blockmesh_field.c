@@ -11,11 +11,13 @@
 #include "geometry/unimesh_field.h"
 
 DEFINE_ARRAY(field_array, unimesh_field_t*)
+DEFINE_ARRAY(patch_bc_array, unimesh_patch_bc_t*)
 
 struct blockmesh_field_t 
 {
   blockmesh_t* mesh;
   field_array_t* fields;
+  patch_bc_array_t* block_bcs;
   unimesh_centering_t centering;
   int num_components;
   bool updating;
@@ -30,6 +32,7 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
   blockmesh_field_t* field = polymec_malloc(sizeof(blockmesh_field_t));
   field->mesh = mesh;
   field->fields = field_array_new();
+  field->block_bcs = patch_bc_array_new();
   field->centering = centering;
   field->num_components = num_components;
 
@@ -42,6 +45,12 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
     field_array_append_with_dtor(field->fields, block_field, unimesh_field_free);
   }
 
+  // Allocate space for block BCs.
+  patch_bc_array_resize(field->block_bcs, 6*num_blocks);
+  for (int i = 0; i < num_blocks; ++i)
+    for (int b = 0; b < 6; ++b)
+      field->block_bcs->data[6*i+b] = NULL;
+
   // Create metadata.
   field->md = field_metadata_new(num_components);
 
@@ -50,6 +59,7 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
 
 void blockmesh_field_free(blockmesh_field_t* field)
 {
+  patch_bc_array_free(field->block_bcs);
   field_array_free(field->fields);
   release_ref(field->md);
   polymec_free(field);
@@ -92,6 +102,33 @@ unimesh_field_t* blockmesh_field_for_block(blockmesh_field_t* field,
   ASSERT(index >= 0);
   ASSERT((size_t)index < field->fields->size);
   return field->fields->data[index];
+}
+
+void blockmesh_field_set_patch_bc(blockmesh_field_t* field,
+                                  int block_index,
+                                  unimesh_boundary_t block_boundary,
+                                  unimesh_patch_bc_t* patch_bc)
+{
+  ASSERT(block_index >= 0);
+  ASSERT(block_index < blockmesh_num_blocks(field->mesh));
+
+  // Make sure the given block isn't connected to another block.
+  ASSERT(!blockmesh_block_is_connected(field->mesh, block_index, block_boundary));
+
+  // Add the BC to the blockmesh's list.
+  int b = (int)block_boundary;
+  field->block_bcs->data[6*block_index+b] = patch_bc;
+
+  // Apply the BC to all the patches on the block boundary.
+  unimesh_field_set_boundary_bc(field->fields->data[block_index], block_boundary, patch_bc);
+}
+
+bool blockmesh_field_has_patch_bc(blockmesh_field_t* field,
+                                  int block_index,
+                                  unimesh_boundary_t block_boundary)
+{
+  int b = (int)block_boundary;
+  return (field->block_bcs->data[6*block_index+b] != NULL);
 }
 
 void blockmesh_field_update_boundaries(blockmesh_field_t* field,

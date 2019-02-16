@@ -9,9 +9,10 @@
 #define POLYMEC_BLOCKMESH_FIELD_H
 
 #include "geometry/blockmesh.h"
-#include "geometry/field_metadata.h"
+#include "geometry/unimesh_patch_bc.h"
 
 typedef struct unimesh_field_t unimesh_field_t;
+typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
 
 /// \addtogroup geometry geometry
 ///@{
@@ -67,6 +68,31 @@ blockmesh_t* blockmesh_field_mesh(blockmesh_field_t* field);
 /// \memberof blockmesh_field
 unimesh_field_t* blockmesh_field_for_block(blockmesh_field_t* field, 
                                            int index);
+
+/// Assigns the given boundary condition to each patch on the given boundary 
+/// of the given block within this field. This boundary condition is used to 
+/// update the patch boundary data for this field only.
+/// \param [in] block_index An index identifying a block within the field's mesh.
+/// \param [in] block_boundary The boundary on which the boundary condition is 
+///                            enforced on the field. The block must not be connected
+///                            to any other block via this boundary.
+/// \param [in] patch_bc The boundary condition enforced on the field at the given 
+///                      block boundary.
+/// \memberof blockmesh_field
+void blockmesh_field_set_patch_bc(blockmesh_field_t* field,
+                                  int block_index,
+                                  unimesh_boundary_t block_boundary,
+                                  unimesh_patch_bc_t* patch_bc);
+
+/// Returns true if the field has a patch boundary condition assigned to 
+/// the patches on the given block boundary, false if not.
+/// \param [in] block_index An index identifying a block within the field's mesh.
+/// \param [in] block_boundary The boundary on which the boundary condition is 
+///                            enforced on the field.
+/// \memberof blockmesh_field
+bool blockmesh_field_has_patch_bc(blockmesh_field_t* field,
+                                  int block_index,
+                                  unimesh_boundary_t block_boundary);
 
 /// Synchronously updates all of the boundary data in this field at time t, 
 /// returning when finished. For cell-centered data, this means filling ghost 

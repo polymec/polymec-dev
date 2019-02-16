@@ -7,7 +7,7 @@
 
 #include "core/timer.h"
 #include "core/array.h"
-#include "core/unordered_map.h"
+#include "core/unordered_set.h"
 #include "core/enumerable.h"
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
@@ -254,6 +254,24 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
   patch_bc_map_insert_with_kv_dtors(field->patch_bcs, key, patch_bc, 
                                     key_dtor, patch_bc_dtor);
   STOP_FUNCTION_TIMER();
+}
+
+void unimesh_field_set_boundary_bc(unimesh_field_t* field,
+                                   unimesh_boundary_t mesh_boundary,
+                                   unimesh_patch_bc_t* patch_bc)
+{
+  int pos = 0, i, j, k;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    if (((mesh_boundary == UNIMESH_X1_BOUNDARY) && (i == 0)) ||
+        ((mesh_boundary == UNIMESH_X2_BOUNDARY) && (i == (field->npx - 1))) ||
+        ((mesh_boundary == UNIMESH_Y1_BOUNDARY) && (j == 0)) ||
+        ((mesh_boundary == UNIMESH_Y2_BOUNDARY) && (j == (field->npy - 1))) ||
+        ((mesh_boundary == UNIMESH_Z1_BOUNDARY) && (k == 0)) ||
+        ((mesh_boundary == UNIMESH_Z2_BOUNDARY) && (k == (field->npz - 1))))
+      unimesh_field_set_patch_bc(field, i, j, k, mesh_boundary, patch_bc);
+  }
 }
 
 bool unimesh_field_has_patch_bc(unimesh_field_t* field,
