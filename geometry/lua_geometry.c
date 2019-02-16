@@ -1791,50 +1791,87 @@ static int bm_add_block(lua_State* L)
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
   int num_args = lua_gettop(L);
-  if ((num_args != 2) || (!lua_istable(L, 2)))
+  if (((num_args != 2) && (num_args == 5)) || 
+      ((num_args == 2) && !lua_istable(L, 2)) || 
+      ((num_args == 5) && (!lua_is_bbox(L, 2) || 
+                           !lua_is_coord_mapping(L, 3) ||
+                           !lua_isinteger(L, 4) || !lua_isinteger(L, 5) ||
+                           !lua_isinteger(L, 6))))
   {
-    luaL_error(L, "mesh:add_block must be called with a table with fields: "
+    luaL_error(L, "mesh:add_block must be called with the following arguments, "
+                  "or with a table with the following fields: "
                   "domain, coords, num_x_patches, num_y_patches, and num_z_patches");
   }
+  bool table_args = (num_args == 2);
 
-  lua_getfield(L, 2, "domain");
-  if (!lua_is_bbox(L, -1))
-    return luaL_error(L, "domain must be a bbox.");
-  bbox_t block_domain = *lua_to_bbox(L, -1);
-  lua_pop(L, 1);
+  bbox_t block_domain;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "domain");
+    if (!lua_is_bbox(L, -1))
+      return luaL_error(L, "domain must be a bbox.");
+    block_domain = *lua_to_bbox(L, -1);
+    lua_pop(L, 1);
+  }
+  else
+    block_domain = *lua_to_bbox(L, 2);
 
-  lua_getfield(L, 2, "coords");
-  if (!lua_is_coord_mapping(L, -1))
-    return luaL_error(L, "coords must be a coordinate mapping for the block.");
-  coord_mapping_t* block_coords = lua_to_coord_mapping(L, -1);
-  if (coord_mapping_inverse(block_coords) == NULL)
-    return luaL_error(L, "The block's coordinate mapping must be invertible.");
+  coord_mapping_t* block_coords;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "coords");
+    if (!lua_is_coord_mapping(L, -1))
+      return luaL_error(L, "coords must be a coordinate mapping for the block.");
+    block_coords = lua_to_coord_mapping(L, -1);
+    if (coord_mapping_inverse(block_coords) == NULL)
+      return luaL_error(L, "The block's coordinate mapping must be invertible.");
+    lua_pop(L, 1);
+  }
+  else
+    block_coords = lua_to_coord_mapping(L, 3);
   retain_ref(block_coords);
-  lua_pop(L, 1);
 
-  lua_getfield(L, 2, "num_x_patches");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "num_x_patches must be a positive integer.");
-  int npx = (int)lua_tointeger(L, -1);
+  int npx;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "num_x_patches");
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "num_x_patches must be a positive integer.");
+    npx = (int)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+  }
+  else
+    npx = (int)lua_tointeger(L, 4);
   if (npx <= 0)
     return luaL_error(L, "num_x_patches must be positive.");
-  lua_pop(L, 1);
 
-  lua_getfield(L, 2, "num_y_patches");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "num_y_patches must be a positive integer.");
-  int npy = (int)lua_tointeger(L, -1);
+  int npy;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "num_y_patches");
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "num_y_patches must be a positive integer.");
+    npy = (int)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+  }
+  else
+    npy = (int)lua_tointeger(L, 5);
   if (npy <= 0)
     return luaL_error(L, "num_y_patches must be positive.");
-  lua_pop(L, 1);
 
-  lua_getfield(L, 2, "num_z_patches");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "num_z_patches must be a positive integer.");
-  int npz = (int)lua_tointeger(L, -1);
+  int npz;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "num_z_patches");
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "num_z_patches must be a positive integer.");
+    npz = (int)lua_tointeger(L, -1);
+    lua_pop(L, 1);
+  }
+  else
+    npz = (int)lua_tointeger(L, 6);
   if (npz <= 0)
     return luaL_error(L, "num_z_patches must be positive.");
-  lua_pop(L, 1);
 
   blockmesh_add_block(m, &block_domain, block_coords, npx, npy, npz);
   return 0;
@@ -1847,67 +1884,93 @@ static int bm_connect_blocks(lua_State* L)
     luaL_error(L, "Method must be invoked with a blockmesh.");
   
   int num_args = lua_gettop(L);
-  if ((num_args != 2) || (!lua_istable(L, 2)))
+  if (((num_args != 4) && (num_args != 2)) || 
+      ((num_args == 2) && !lua_istable(L, 2)) || 
+      ((num_args == 4) && (!lua_isinteger(L, 2) || !lua_istable(L, 3) || 
+                           !lua_isinteger(L, 4) || !lua_istable(L, 5))))
   {
-    luaL_error(L, "mesh:connect_blocks must be called with a table with fields: "
+    luaL_error(L, "mesh:connect_blocks must be called with the following arguments, "
+                  "or with a table containing these fields: "
                   "block1_index, block1_nodes, block2_index, and block2_nodes");
   }
+  bool table_args = (num_args == 2);
 
-  lua_getfield(L, 2, "block1_index");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "block1_index must be a valid block index.");
-  int index1 = (int)lua_tointeger(L, -1); 
+  int index1;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "block1_index");
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "block1_index must be a valid block index.");
+    index1 = (int)lua_tointeger(L, -1); 
+    lua_pop(L, 1);
+  }
+  else
+    index1 = (int)lua_tointeger(L, 2);
   if ((index1 < 1) || ((size_t)index1 > blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for first block: %d.", index1);
-  lua_pop(L, 1);
 
-  int nodes1[4];
-  lua_getfield(L, 2, "block1_nodes");
-  if (!lua_istable(L, -1))
-    return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
-  else
+  int nodes1[4], arg_index;
+  if (table_args)
   {
-    for (int i = 1; i <= 4; ++i)
-    {
-      lua_rawgeti(L, -1, i);
-      if (!lua_isinteger(L, -1))
-        return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
-      int node = (int)lua_tointeger(L, -1);
-      if ((node < 1) || (node > 8))
-        return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index1, i, node);
-      nodes1[i-1] = node;
-      lua_pop(L, 1);
-    }
+    lua_getfield(L, 2, "block1_nodes");
+    if (!lua_istable(L, -1))
+      return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
+    arg_index = -1;
+  }
+  else
+    arg_index = 3;
+  for (int i = 1; i <= 4; ++i)
+  {
+    lua_rawgeti(L, arg_index, i);
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
+    int node = (int)lua_tointeger(L, -1);
+    if ((node < 1) || (node > 8))
+      return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index1, i, node);
+    nodes1[i-1] = node;
     lua_pop(L, 1);
   }
+  if (table_args)
+    lua_pop(L, 1);
 
-  lua_getfield(L, 2, "block2_index");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "block2_index must be a valid block index.");
-  int index2 = (int)lua_tointeger(L, -1); 
-  if ((index2 < 1) || ((size_t)index2 > blockmesh_num_blocks(m)))
-    return luaL_error(L, "Invalid index for second block: %d.", index2);
-  lua_pop(L, 1);
+  int index2;
+  if (table_args)
+  {
+    lua_getfield(L, 2, "block2_index");
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "block2_index must be a valid block index.");
+    index2 = (int)lua_tointeger(L, -1); 
+    if ((index2 < 1) || ((size_t)index2 > blockmesh_num_blocks(m)))
+      return luaL_error(L, "Invalid index for second block: %d.", index2);
+    lua_pop(L, 1);
+  }
+  else
+    index2 = (int)lua_tointeger(L, 4);
 
   int nodes2[4];
-  lua_getfield(L, 2, "block2_nodes");
-  if (!lua_istable(L, -1))
-    return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
-  else
+  if (table_args)
   {
-    for (int i = 1; i <= 4; ++i)
-    {
-      lua_rawgeti(L, -1, i);
-      if (!lua_isinteger(L, -1))
-        return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
-      int node = (int)lua_tointeger(L, -1);
-      if ((node < 1) || (node > 8))
-        return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index2, i, node);
-      nodes2[i-1] = node;
-      lua_pop(L, 1);
-    }
+    lua_getfield(L, 2, "block2_nodes");
+    if (!lua_istable(L, -1))
+      return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
+    arg_index = -1;
+  }
+  else
+    arg_index = 5;
+
+  for (int i = 1; i <= 4; ++i)
+  {
+    lua_rawgeti(L, arg_index, i);
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
+    int node = (int)lua_tointeger(L, -1);
+    if ((node < 1) || (node > 8))
+      return luaL_error(L, "block %d node %d is %d (must be between 1 and 8).", index2, i, node);
+    nodes2[i-1] = node;
     lua_pop(L, 1);
   }
+  if (!table_args)
+    lua_pop(L, 1);
 
   // Translate from Lua (1-based) indices to C (0-based) indices.
   int c_index1 = index1 - 1;
@@ -1965,13 +2028,15 @@ static int bm_tostring(lua_State* L)
 
 static lua_class_method bm_methods[] = {
   {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
-  {"add_block", bm_add_block, "mesh:add_block{domain = D, coords = C, num_x_patches = NPX, num_y_patches = NPY, num_z_patches = NPZ} "
-                              "- Adds a new empty block to this mesh with the given domain (bbox), coordinates (coord_mapping), "
+  {"add_block", bm_add_block, "mesh:add_block(D, C, NPX, NPY, NPZ) OR "
+                              "mesh:add_block{domain = D, coords = C, num_x_patches = NPX, num_y_patches = NPY, num_z_patches = NPZ} "
+                              "- Adds a new empty block to this mesh with the given domain D (bbox), coordinates C (coord_mapping), "
                               "and numbers of patches in x, y, and z."},
-  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks{block1_index = B1, block1_nodes = {n11, n12, n13, n14}, "
-                                        "block2_index = B2, block2_nodes = {n21, n22, n23, n24}} "
+  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks(B1, B1_NODES, B2, B2_NODES) OR "
+                                        "mesh:connect_blocks{block1_index = B1, block1_nodes = B1_NODES, "
+                                        "block2_index = B2, block2_nodes = B2_NODES} "
                                         "-> Connects two blocks with indices B1 and B2 in the mesh, specifying the "
-                                        "   nodes to identify on the boundary."},
+                                        "   nodes to identify on the boundary with B1_NODES and B2_NODES."},
   {"assign_patches", bm_assign_patches, "mesh:assign_patches() - Automatically assigns patches to processes in a block mesh."},
   {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
   {"__tostring", bm_tostring, NULL},

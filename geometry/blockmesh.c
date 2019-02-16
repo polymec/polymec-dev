@@ -363,15 +363,21 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
   coord_mapping_t* block2_coords = mesh->coords->data[block2_index];
   blockmesh_diffeomorphism_t diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
                                                           block2_coords, b2, block2_nodes);
+  if (diff.rotation == INVALID_ROTATION)
+  {
+    // Try again with block2_nodes reversed.
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2], 
+                               block2_nodes[1], block2_nodes[0]};
+    diff = create_diffeomorphism(block1_coords, b1, block1_nodes,
+                                 block2_coords, b2, rev_block2_nodes);
+  }
   ASSERT(diff.rotation != INVALID_ROTATION);
 
   // Fetch the two blocks and size them up.
   unimesh_t* block1 = mesh->blocks->data[block1_index];
+  unimesh_t* block2 = mesh->blocks->data[block2_index];
   int npx1, npy1, npz1;
   unimesh_get_extents(block1, &npx1, &npy1, &npz1);
-  unimesh_t* block2 = mesh->blocks->data[block2_index];
-  int npx2, npy2, npz2;
-  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
 
   // Traverse all the locally-stored patches in block1 and connect them to 
   // corresponding patches in block2. This is a bit grisly, since we have to 
@@ -388,12 +394,12 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       if (b2 == 0)      // -x <-> -x connection
       {
         i2 = 0;
-        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+        find_far_patch(j1, k1, &diff, npy1, npz1, &j2, &k2);
       }
       else if (b2 == 1) // -x <-> +x connection
       {
-        i2 = npx2;
-        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+        i2 = npx1-1;
+        find_far_patch(j1, k1, &diff, npy1, npz1, &j2, &k2);
       }
       else if (b2 == 2) // -x <-> -y connection
       {
@@ -413,12 +419,12 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       if (b2 == 0)      // +x <-> -x connection
       {
         i2 = 0;
-        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+        find_far_patch(j1, k1, &diff, npy1, npz1, &j2, &k2);
       }
       else if (b2 == 1) // +x <-> +x connection
       {
-        i2 = npx2;
-        find_far_patch(j1, k1, &diff, npy2, npz2, &j2, &k2);
+        i2 = npx1-1;
+        find_far_patch(j1, k1, &diff, npy1, npz1, &j2, &k2);
       }
       else if (b2 == 2) // +x <-> -y connection
       {
@@ -443,9 +449,13 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       }
       else if (b2 == 2) // -y <-> -y connection
       {
+        j2 = 0;
+        find_far_patch(k1, i1, &diff, npz1, npx1, &k2, &i2);
       }
       else if (b2 == 3) // -y <-> +y connection
       {
+        j2 = npy1-1;
+        find_far_patch(k1, i1, &diff, npz1, npx1, &k2, &i2);
       }
       else if (b2 == 4) // -y <-> -z connection
       {
@@ -464,9 +474,13 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       }
       else if (b2 == 2) // +y <-> -y connection
       {
+        j2 = 0;
+        find_far_patch(k1, i1, &diff, npz1, npx1, &k2, &i2);
       }
       else if (b2 == 3) // +y <-> +y connection
       {
+        j2 = npy1-1;
+        find_far_patch(k1, i1, &diff, npz1, npx1, &k2, &i2);
       }
       else if (b2 == 4) // +y <-> -z connection
       {
@@ -491,9 +505,13 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       }
       else if (b2 == 4) // -z <-> -z connection
       {
+        k2 = 0;
+        find_far_patch(i1, j1, &diff, npx1, npy1, &i2, &j2);
       }
       else if (b2 == 5) // -z <-> +z connection
       {
+        k2 = npz1-1;
+        find_far_patch(i1, j1, &diff, npx1, npy1, &i2, &j2);
       }
     }
     else if ((b1 == 5) && (k1 == (npz1 - 1))) 
@@ -512,9 +530,13 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       }
       else if (b2 == 4) // +z <-> -z connection
       {
+        k2 = 0;
+        find_far_patch(i1, j1, &diff, npx1, npy1, &i2, &j2);
       }
       else if (b2 == 5) // +z <-> +z connection
       {
+        k2 = npz1-1;
+        find_far_patch(i1, j1, &diff, npx1, npy1, &i2, &j2);
       }
     }
 
