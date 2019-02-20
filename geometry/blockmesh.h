@@ -143,6 +143,7 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
 /// partitioning. After calling this to assign the patches, call 
 /// \ref blockmesh_finalize and then use \ref repartition_blockmesh to do load 
 /// balancing.
+/// \memberof blockmesh
 void blockmesh_assign_patches(blockmesh_t* mesh);
 
 /// Finalizes the construction process for the block mesh. The function checks 
@@ -183,6 +184,17 @@ int blockmesh_num_blocks(blockmesh_t* mesh);
 /// \memberof blockmesh
 unimesh_t* blockmesh_block(blockmesh_t* mesh, int index);
 
+/// Returns the domain for the block with the given index within the mesh.
+/// \param [in] index The index of the requested block.
+/// \memberof blockmesh
+bbox_t* blockmesh_block_domain(blockmesh_t* mesh, int index);
+
+/// Returns the coordinate mapping for the block with the given index within 
+/// the mesh.
+/// \param [in] index The index of the requested block.
+/// \memberof blockmesh
+coord_mapping_t* blockmesh_block_coords(blockmesh_t* mesh, int index);
+
 /// Returns true if the block with the given index in the mesh is connected
 /// to another block in the mesh on the given boundary, false if not.
 /// \param [in] index The index of the block.
@@ -203,6 +215,7 @@ bool blockmesh_block_is_connected(blockmesh_t* field,
 ///                           mapping for the representing the next 
 ///                           block.
 /// \returns True if the mesh contains another block, false if not.
+/// \memberof blockmesh
 bool blockmesh_next_block(blockmesh_t* mesh, 
                           int* pos, 
                           unimesh_t** block,

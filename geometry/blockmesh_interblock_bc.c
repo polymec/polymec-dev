@@ -15,6 +15,7 @@
 #include "core/array_utils.h"
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_interblock_bc.h"
+#include "geometry/blockmesh_pair.h"
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 

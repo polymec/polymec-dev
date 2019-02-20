@@ -12,6 +12,7 @@
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_interblock_bc.h"
 #include "geometry/blockmesh_field.h"
+#include "geometry/blockmesh_pair.h"
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_patch_bc.h"
 
@@ -669,6 +670,16 @@ unimesh_t* blockmesh_block(blockmesh_t* mesh, int index)
   ASSERT(index >= 0);
   ASSERT((size_t)index < mesh->blocks->size);
   return mesh->blocks->data[index];
+}
+
+bbox_t* blockmesh_block_domain(blockmesh_t* mesh, int index)
+{
+  return &(mesh->bboxes->data[index]);
+}
+
+coord_mapping_t* blockmesh_block_coords(blockmesh_t* mesh, int index)
+{
+  return mesh->coords->data[index];
 }
 
 extern bool blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc, 

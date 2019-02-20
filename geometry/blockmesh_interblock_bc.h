@@ -15,40 +15,13 @@
 ///@{
 
 typedef struct blockmesh_t blockmesh_t;
+typedef struct blockmesh_diffeomorphism_t blockmesh_diffeomorphism_t;
 
 /// \class blockmesh_interblock_bc
 /// This patch BC connects patches in different unimeshes (blocks) within 
 /// a blockmesh, mapping quantities between these patches with a 
 /// diffeomorphism defined by the respective coordinate systems of the blocks.
 typedef struct blockmesh_interblock_bc_t blockmesh_interblock_bc_t;
-
-/// \struct blockmesh_diffeomorphism_t
-/// This struct represents a diffeomorphism that maps quantities from one 
-/// block (block1) to another (block2) in a blockmesh. The diffeomorphism is 
-/// defined by the two coordinate systems for the two blocks and a rotation 
-/// in the plane of the face connecting them.
-typedef struct
-{
-  /// The coordinate system for the first block, defined by a mapping from 
-  /// the block's logical coordinates [0,1] x [0,1] x [0,1].
-  coord_mapping_t* block1_coords;
-
-  /// The coordinate system for the second block, defined by a mapping from 
-  /// the block's logical coordinates [0,1] x [0,1] x [0,1].
-  coord_mapping_t* block2_coords;
-
-  /// The rotation that must be performed for a quantity to pass through the
-  /// face connecting the two blocks. Expressed in units of counterclockwise
-  /// revolutions (turns).
-  enum
-  {
-    NO_ROTATION,
-    QUARTER_TURN,
-    HALF_TURN,
-    THREE_QUARTERS_TURN,
-    INVALID_ROTATION
-  } rotation;
-} blockmesh_diffeomorphism_t;
 
 /// Constructs a new inter-block BC for the given mesh (block).
 /// \param [in] mesh The block mesh on which this BC operates.
@@ -80,7 +53,7 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
                                      unimesh_t* block2,
                                      int i2, int j2, int k2, 
                                      unimesh_boundary_t b2,
-                                     blockmesh_diffeomorphism_t diff);
+                                     blockmesh_diffeomorphism_t* diff);
 
 /// Finalizes the BC once all connections have been established.
 /// \memberof blockmesh_interblock_bc
