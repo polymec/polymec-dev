@@ -1982,11 +1982,6 @@ static int bm_connect_blocks(lua_State* L)
     c_nodes2[i] = nodes2[i] - 1;
   }
 
-  if (blockmesh_block_boundary_for_nodes(m, c_nodes1) == -1)
-    return luaL_error(L, "block1_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes1[0], nodes1[1], nodes1[2], nodes1[3]);
-  if (blockmesh_block_boundary_for_nodes(m, c_nodes1) == -1)
-    return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
-
   char* err;
   if (!blockmesh_can_connect_blocks(m, c_index1, c_nodes1, c_index2, c_nodes2, &err))
     return luaL_error(L, "Couldn't connect blocks %d and %d: %s", index1, index2, err);

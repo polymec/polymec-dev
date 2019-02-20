@@ -79,16 +79,6 @@ int blockmesh_add_block(blockmesh_t* mesh,
                         int num_y_patches, 
                         int num_z_patches);
 
-/// Returns the block boundary associated with the given set of block nodes, or -1 
-/// if the nodes do not match any of the block's faces. 
-/// \param [in] block_nodes An array of 4 block nodes that supposedly match those
-///                         in one of the block's 6 faces. The order in which 
-///                         the nodes are specified doesn't matter.
-/// \returns An integer between 0 and 5 that can be cast to a unimesh_boundary_t, or -1 
-///          if the given nodes don't match with those on a block boundary.
-/// \memberof blockmesh
-int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
-
 /// Returns true if the two blocks with the given indices within the blockmesh
 /// can be connected successfully, false if not.
 /// \param [in] block1_index The index of the first of the two blocks to be 

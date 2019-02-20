@@ -37,22 +37,18 @@ void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc);
 /// \param [in] i1 The i index identifying a patch in block1.
 /// \param [in] j1 The j index identifying a patch in block1.
 /// \param [in] k1 The k index identifying a patch in block1.
-/// \param [in] b1 The boundary of the patch (i1, j1, k1) within block1 to be connected to block2.
 /// \param [in] block2 The second block in the pair.
 /// \param [in] i2 The i index identifying a patch in block2.
 /// \param [in] j2 The j index identifying a patch in block2
 /// \param [in] k2 The k index identifying a patch in block2.
-/// \param [in] b2 The boundary of the patch (i2, j2, k2) within block2 to be connected to block1.
 /// \param [in] diff A diffeomorphism defining the mapping of quantities 
 ///                  from block1 to block2.
 /// \memberof blockmesh_interblock_bc
 void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
                                      unimesh_t* block1,
                                      int i1, int j1, int k1, 
-                                     unimesh_boundary_t b1,
                                      unimesh_t* block2,
                                      int i2, int j2, int k2, 
-                                     unimesh_boundary_t b2,
                                      blockmesh_diffeomorphism_t* diff);
 
 /// Finalizes the BC once all connections have been established.
@@ -64,12 +60,10 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc);
 /// \param [out] i1 Stores the i index of the patch in the first block.
 /// \param [out] j1 Stores the j index of the patch in the first block.
 /// \param [out] k1 Stores the k index of the patch in the first block.
-/// \param [out] b1 Stores the boundary of the patch (i1, j1, k1) within block1 connected to block2.
 /// \param [out] block2 Stores the second block in the connected pair.
 /// \param [out] i2 Stores the i index of the patch in the first block.
 /// \param [out] j2 Stores the j index of the patch in the first block.
 /// \param [out] k2 Stores the k index of the patch in the first block.
-/// \param [out] b2 Stores the boundary of the patch (i2, j2, k2) within block2 connected to block1.
 /// \param [out] diff Stores the diffeomorphism defining the mapping of 
 ///                   quantities from block1 to block2.
 /// \memberof blockmesh_interblock_bc
@@ -77,10 +71,8 @@ bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
                                              int* pos,
                                              unimesh_t** block1, 
                                              int* i1, int* j1, int* k1,
-                                             unimesh_boundary_t* b1,
                                              unimesh_t** block2, 
                                              int* i2, int* j2, int* k2,
-                                             unimesh_boundary_t* b2,
                                              blockmesh_diffeomorphism_t* diff);
 
 ///@}
