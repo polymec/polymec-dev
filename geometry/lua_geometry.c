@@ -1990,17 +1990,6 @@ static int bm_connect_blocks(lua_State* L)
   return 0;
 }
 
-static int bm_assign_patches(lua_State* L)
-{
-  blockmesh_t* m = lua_to_blockmesh(L, 1);
-  if (m == NULL)
-    luaL_error(L, "Method must be invoked with a blockmesh.");
-  if (blockmesh_is_finalized(m))
-    luaL_error(L, "Blockmesh has already been finalized!");
-  blockmesh_assign_patches(m);
-  return 0;
-}
-
 static int bm_finalize(lua_State* L)
 {
   blockmesh_t* m = lua_to_blockmesh(L, 1);
@@ -2032,7 +2021,6 @@ static lua_class_method bm_methods[] = {
                                         "block2_index = B2, block2_nodes = B2_NODES} "
                                         "-> Connects two blocks with indices B1 and B2 in the mesh, specifying the "
                                         "   nodes to identify on the boundary with B1_NODES and B2_NODES."},
-  {"assign_patches", bm_assign_patches, "mesh:assign_patches() - Automatically assigns patches to processes in a block mesh."},
   {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
   {"__tostring", bm_tostring, NULL},
   {NULL, NULL, NULL}

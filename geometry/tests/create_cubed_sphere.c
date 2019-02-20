@@ -280,9 +280,6 @@ blockmesh_t* create_cubed_sphere(MPI_Comm comm,
   for (int b = 0; b < 4; ++b)
     blockmesh_connect_blocks(mesh, b, south, 5, south_block_boundaries[b]);
 
-  // Allocate local patches to each block.
-  blockmesh_assign_patches(mesh);
-
   // Finalize the mesh and return it.
   blockmesh_finalize(mesh);
   return mesh;

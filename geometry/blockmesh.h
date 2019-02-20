@@ -127,15 +127,6 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                               int block2_index,
                               int block2_nodes[4]);
 
-/// Adds patches to all blocks within the block mesh, assigning them to 
-/// processes linearly according to a naive partitioning. This is really only
-/// intended to get you off the ground, and not to provide a load-balanced 
-/// partitioning. After calling this to assign the patches, call 
-/// \ref blockmesh_finalize and then use \ref repartition_blockmesh to do load 
-/// balancing.
-/// \memberof blockmesh
-void blockmesh_assign_patches(blockmesh_t* mesh);
-
 /// Finalizes the construction process for the block mesh. The function checks 
 /// the following conditions, throwing a fatal error if any are not met:
 /// * Every patch in every block in the mesh must have been inserted on some 

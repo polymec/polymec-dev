@@ -154,7 +154,7 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
   }
 }
 
-void blockmesh_assign_patches(blockmesh_t* mesh)
+static void assign_patches(blockmesh_t* mesh)
 {
   // Count up all the patches in the global mesh.
   int num_patches = 0;
@@ -219,6 +219,9 @@ void blockmesh_finalize(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
   ASSERT(!mesh->finalized);
+
+  // Assign patches to processes.
+  assign_patches(mesh);
 
   // Finalize the inter-block boundaries.
   blockmesh_interblock_bc_finalize(mesh->interblock_bc);
@@ -294,6 +297,7 @@ bool blockmesh_next_block(blockmesh_t* mesh,
                           bbox_t* block_domain,
                           coord_mapping_t** block_coords)
 {
+  ASSERT(mesh->finalized);
   if (*pos < (int)mesh->blocks->size)
   {
     *block = mesh->blocks->data[*pos];
