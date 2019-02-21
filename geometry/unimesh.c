@@ -1290,18 +1290,15 @@ static adj_graph_t* graph_from_unimesh_patches(unimesh_t* mesh)
 
 static int64_t* source_vector(unimesh_t* mesh)
 {
+  START_FUNCTION_TIMER();
+
   // Catalog all the patches on this process.
   int_array_t* my_patches = int_array_new();
-  for (int i = 0; i < mesh->npx; ++i)
+  int pos = 0, i, j, k;
+  while (unimesh_next_patch(mesh, &pos, &i, &j, &k, NULL))
   {
-    for (int j = 0; j < mesh->npy; ++j)
-    {
-      for (int k = 0; k < mesh->npz; ++k)
-      {
-        if (unimesh_has_patch(mesh, i, j, k))
-          int_array_append(my_patches, patch_index(mesh, i, j, k));
-      }
-    }
+    if (unimesh_has_patch(mesh, i, j, k))
+      int_array_append(my_patches, patch_index(mesh, i, j, k));
   }
 
   // Gather the numbers of patches owned by each process.
@@ -1337,6 +1334,7 @@ static int64_t* source_vector(unimesh_t* mesh)
   }
 
   polymec_free(all_patches);
+  STOP_FUNCTION_TIMER();
   return sources;
 }
 

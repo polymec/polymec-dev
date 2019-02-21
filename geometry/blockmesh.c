@@ -14,6 +14,7 @@
 #include "geometry/blockmesh_field.h"
 #include "geometry/blockmesh_pair.h"
 #include "geometry/unimesh.h"
+#include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
 
 #if POLYMEC_HAVE_MPI
@@ -430,14 +431,120 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 static int64_t* source_vector(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
+
+  // Catalog all the patches on this process.
+  int_array_t* my_patches = int_array_new();
+  int num_blocks = (int)(mesh->blocks->size);
+  int block_offsets[num_blocks+1];
+  block_offsets[0] = 0;
+  for (int b = 0; b < mesh->blocks->size; ++b)
+  {
+    unimesh_t* block = mesh->blocks->data[b];
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+    block_offsets[b+1] = block_offsets[b] + npx*npy*npz;
+
+    int pos = 0, i, j, k;
+    while (unimesh_next_patch(block, &pos, &i, &j, &k, NULL))
+    {
+      if (unimesh_has_patch(block, i, j, k))
+      {
+        int index = block_offsets[b] + npy*npz*i + npz*j + k;
+        int_array_append(my_patches, index);
+      }
+    }
+  }
+
+  // Gather the numbers of patches owned by each process.
+  int num_my_patches = (int)my_patches->size;
+  int num_patches_for_proc[mesh->nproc];
+  MPI_Allgather(&num_my_patches, 1, MPI_INT, 
+                num_patches_for_proc, 1, MPI_INT, mesh->comm);
+
+  // Arrange for the storage of the patch indices for the patches stored 
+  // on each process.
+  int proc_offsets[mesh->nproc+1];
+  proc_offsets[0] = 0;
+  for (int p = 0; p < mesh->nproc; ++p)
+    proc_offsets[p+1] = proc_offsets[p] + num_patches_for_proc[p];
+
+  // Gather the indices of the patches owned by all processes into a huge list.
+  int num_all_patches = block_offsets[num_blocks];
+  ASSERT(num_all_patches == proc_offsets[mesh->nproc]);
+  int* all_patches = polymec_malloc(sizeof(int) * num_all_patches);
+  MPI_Allgatherv(my_patches->data, num_my_patches, MPI_INT, 
+                 all_patches, num_patches_for_proc, proc_offsets,
+                 MPI_INT, mesh->comm);
+
+  // Clean up a bit.
+  int_array_free(my_patches);
+
+  // Convert the huge list into a source vector.
+  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_patches);
+  for (int p = 0; p < mesh->nproc; ++p)
+  {
+    for (int offset = proc_offsets[p]; offset < proc_offsets[p+1]; ++offset)
+      sources[all_patches[offset]] = (int64_t)p;
+  }
+
+  polymec_free(all_patches);
   STOP_FUNCTION_TIMER();
-  return NULL;
+  return sources;
 }
 
 static void redistribute_blockmesh(blockmesh_t** mesh, 
                                    int64_t* partition)
 {
   START_FUNCTION_TIMER();
+
+  // Create a new mesh from the old one.
+  blockmesh_t* old_mesh = *mesh;
+  blockmesh_t* new_mesh = blockmesh_new(old_mesh->comm,
+                                        old_mesh->patch_nx,
+                                        old_mesh->patch_ny,
+                                        old_mesh->patch_nz);
+
+  // Add blocks.
+  int num_blocks = (int)old_mesh->blocks->size;
+  int block_offsets[num_blocks+1];
+  block_offsets[0] = 0;
+  for (int b = 0; b < num_blocks; ++b)
+  {
+    unimesh_t* block = blockmesh_block(old_mesh, b);
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+    block_offsets[b+1] = block_offsets[b] + npx*npy*npz;
+    blockmesh_add_block(new_mesh, &old_mesh->bboxes->data[b], 
+                        old_mesh->coords->data[b], npx, npy, npz);
+  }
+
+  // Insert patches as prescribed by the partition vector.
+  int num_patches = block_offsets[num_blocks];
+  for (int p = 0; p < num_patches; ++p)
+  {
+    if (partition[p] == new_mesh->rank)
+    {
+      // Obtain the block index.
+      int b = 0;
+      while (block_offsets[b] < p) ++b;
+      --b;
+
+      unimesh_t* block = blockmesh_block(new_mesh, b);
+      int npx, npy, npz;
+      unimesh_get_extents(block, &npx, &npy, &npz);
+
+      // Get the patch indices.
+      int i = (p - block_offsets[b]) / (npy*npz);
+      int j = (p - block_offsets[b] - npy*npz*i) / npz;
+      int k = p - block_offsets[b] - npy*npz*i - npz*j;
+
+      // Insert the patch into the block.
+      unimesh_insert_patch(block, i, j, k);
+    }
+  }
+
+  // Replace the old mesh with the new one.
+  *mesh = new_mesh;
   STOP_FUNCTION_TIMER();
 }
 
@@ -449,6 +556,99 @@ static void redistribute_blockmesh_field(blockmesh_field_t** field,
                                          blockmesh_t* new_mesh)
 {
   START_FUNCTION_TIMER();
+
+  // Create a new field from the old one.
+  blockmesh_field_t* old_field = *field;
+  blockmesh_field_t* new_field = blockmesh_field_new(new_mesh,
+                                                     blockmesh_field_centering(old_field),
+                                                     blockmesh_field_num_components(old_field));
+
+  // Copy all local patches from one field to the other.
+  int num_blocks = (int)new_mesh->blocks->size;
+  int block_offsets[num_blocks+1];
+  block_offsets[0] = 0;
+  for (int b = 0; b < num_blocks; ++b)
+  {
+    unimesh_field_t* new_bfield = blockmesh_field_for_block(new_field, b);
+    unimesh_field_t* old_bfield = blockmesh_field_for_block(old_field, b);
+    unimesh_patch_t* patch;
+    int pos = 0, i, j, k;
+    while (unimesh_field_next_patch(new_bfield, &pos, &i, &j, &k, &patch, NULL))
+    {
+      unimesh_patch_t* old_patch = unimesh_field_patch(old_bfield, i, j, k);
+      if (old_patch != NULL)
+        unimesh_patch_copy(old_patch, patch);
+    }
+
+    // Compute patch offsets within blocks.
+    unimesh_t* block = blockmesh_block(new_mesh, b);
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+    block_offsets[b+1] = block_offsets[b] + npx*npy*npz;
+  }
+
+  // Send and receive data one block at a time. This isn't optimal, but 
+  // neither is our message-per-patch strategy as a whole.
+  for (int b = 0; b < num_blocks; ++b)
+  {
+    unimesh_t* block = blockmesh_block(new_mesh, b);
+    int npx, npy, npz;
+    unimesh_get_extents(block, &npx, &npy, &npz);
+
+    // Post receives for each patch in the new field.
+    unimesh_field_t* new_bfield = blockmesh_field_for_block(new_field, b);
+    int num_new_local_patches = unimesh_field_num_patches(new_bfield);
+    MPI_Request recv_requests[num_new_local_patches];
+    int pos = 0, i, j, k;
+    unimesh_patch_t* patch;
+    int num_recv_reqs = 0;
+    while (unimesh_field_next_patch(new_bfield, &pos, &i, &j, &k, &patch, NULL))
+    {
+      int p = block_offsets[b] + npy*npz*i + npz*j + k;
+      if (partition[p] == new_mesh->rank)
+      {
+        size_t data_size = unimesh_patch_data_size(patch->centering, 
+                                                   patch->nx, patch->ny, patch->nz,
+                                                   patch->nc) / sizeof(real_t);
+        int err = MPI_Irecv(patch->data, (int)data_size, MPI_REAL_T, (int)sources[p],
+                            0, new_mesh->comm, &(recv_requests[num_recv_reqs]));
+        if (err != MPI_SUCCESS)
+          polymec_error("Error receiving field data from rank %d", (int)sources[p]);
+        ++num_recv_reqs;
+      }
+    }
+    ASSERT(num_recv_reqs <= num_new_local_patches);
+
+    // Post sends.
+    unimesh_field_t* old_bfield = blockmesh_field_for_block(old_field, b);
+    int num_old_local_patches = unimesh_field_num_patches(old_bfield);
+    MPI_Request send_requests[num_old_local_patches];
+    pos = 0;
+    int num_send_reqs = 0;
+    while (unimesh_field_next_patch(old_bfield, &pos, &i, &j, &k, &patch, NULL))
+    {
+      int p = block_offsets[b] + npy*npz*i + npz*j + k;
+      if (sources[p] == new_mesh->rank)
+      {
+        size_t data_size = unimesh_patch_data_size(patch->centering, 
+                                                   patch->nx, patch->ny, patch->nz,
+                                                   patch->nc) / sizeof(real_t);
+        int err = MPI_Isend(patch->data, (int)data_size, MPI_REAL_T, (int)partition[p],
+                            0, new_mesh->comm, &(send_requests[num_send_reqs]));
+        if (err != MPI_SUCCESS)
+          polymec_error("Error sending field data to rank %d", (int)partition[p]);
+        ++num_send_reqs;
+      }
+    }
+    ASSERT(num_send_reqs <= num_old_local_patches);
+
+    // Wait for everything to finish.
+    MPI_Waitall(num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
+    MPI_Waitall(num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
+  }
+
+  // Replace the old field with the new one.
+  *field = new_field;
   STOP_FUNCTION_TIMER();
 }
 #endif
