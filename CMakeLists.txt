@@ -51,11 +51,11 @@ message(STATUS "Real number representation is ${POLYMEC_REAL_TYPE}")
 
 # Report shared library status.
 if (BUILD_SHARED_LIBS)
-  message(STATUS "Building shared libraries with dynamic loading enabled.")
+  message(STATUS "Building shared libraries.")
   set(HAVE_SHARED_LIBS 1)
 else()
   set(HAVE_SHARED_LIBS 0)
-  message(STATUS "Building static libraries with dynamic loading disabled.")
+  message(STATUS "Building static libraries.")
 endif()
 
 # Add a custom target (always out of date) that generates polymec_version.h.
