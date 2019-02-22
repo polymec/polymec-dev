@@ -138,18 +138,14 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
     if ((i2 != -1) && (j2 != -1) && (k2 != -1))
     {
       // Connect block1's local patch to block2's patch.
-      blockmesh_interblock_bc_connect(mesh->interblock_bc, 
-                                      block1, i1, j1, k1, 
-                                      block2, i2, j2, k2, 
-                                      blockmesh_pair_diffeomorphism(pair));
+      blockmesh_interblock_bc_connect(mesh->interblock_bc, pair,
+                                      i1, j1, k1, i2, j2, k2);
 
       // If block2's patch is locally stored, connect it to block1's.
       if (unimesh_has_patch(block2, i2, j2, k2))
       {
-        blockmesh_interblock_bc_connect(mesh->interblock_bc, 
-                                        block1, i1, j1, k1, 
-                                        block2, i2, j2, k2,
-                                        blockmesh_pair_diffeomorphism(pair));
+        blockmesh_interblock_bc_connect(mesh->interblock_bc, pair,
+                                        i1, j1, k1, i2, j2, k2);
       }
     }
   }

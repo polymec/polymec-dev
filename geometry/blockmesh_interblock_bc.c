@@ -114,7 +114,7 @@ typedef struct
   unimesh_boundary_t boundary2;
   int proc2;
 
-  blockmesh_diffeomorphism_t diff;
+  blockmesh_pair_t* block_pair;
 
   unimesh_patch_t* work[8];
 } cxn_t;
@@ -124,11 +124,9 @@ DEFINE_UNORDERED_MAP(cxn_map, int, cxn_t*, int_hash, int_equals)
 
 // Constructor and destructor.
 static cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
-                      unimesh_t* block1, 
+                      blockmesh_pair_t* block_pair,
                       int i1, int j1, int k1, 
-                      unimesh_t* block2, 
-                      int i2, int j2, int k2, 
-                      blockmesh_diffeomorphism_t diff);
+                      int i2, int j2, int k2);
 static void cxn_free(cxn_t* cxn);
 
 // Sizes of data on near and far boundaries of a connection.
@@ -286,12 +284,13 @@ void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
 }
 
 void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
-                                     unimesh_t* block1,
+                                     blockmesh_pair_t* block_pair,
                                      int i1, int j1, int k1, 
-                                     unimesh_t* block2,
-                                     int i2, int j2, int k2, 
-                                     blockmesh_diffeomorphism_t* diff)
+                                     int i2, int j2, int k2)
 {
+  unimesh_t* block1 = blockmesh_pair_block1(block_pair);
+  unimesh_t* block2 = blockmesh_pair_block2(block_pair);
+
   // Does block1 store patch (i1, j1, k1) locally? If not, we do nothing.
   if (!unimesh_has_patch(block1, i1, j1, k1))
     return;
@@ -308,34 +307,30 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
 
   // Create a new connection and map it.
   int p_index = patch_index(block1, i1, j1, k1);
-  int bb = (int)diff->block1_boundary;
+  int bb = (int)(blockmesh_pair_block1_boundary(block_pair));
   int index = 6*p_index + bb;
-  cxn_t* cxn = cxn_new(bc, block1, i1, j1, k1, block2, i2, j2, k2, *diff);
+  cxn_t* cxn = cxn_new(bc, block_pair, i1, j1, k1, i2, j2, k2);
   cxn_map_insert_with_v_dtor(bc->cxns, index, cxn, cxn_free);
 }
 
 bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
                                              int* pos,
-                                             unimesh_t** block1, 
+                                             blockmesh_pair_t** block_pair,
                                              int* i1, int* j1, int* k1,
-                                             unimesh_t** block2, 
-                                             int* i2, int* j2, int* k2,
-                                             blockmesh_diffeomorphism_t* diff)
+                                             int* i2, int* j2, int* k2)
 {
   int index;
   cxn_t* cxn;
   bool result = cxn_map_next(bc->cxns, pos, &index, &cxn);
   if (result)
   {
-    *block1 = cxn->block1;
+    *block_pair = cxn->block_pair;
     *i1 = cxn->i1;
     *j1 = cxn->j1;
     *k1 = cxn->k1;
-    *block2 = cxn->block2;
     *i2 = cxn->i2;
     *j2 = cxn->j2;
     *k2 = cxn->k2;
-    *diff = cxn->diff;
   }
 
   return result;
@@ -1214,31 +1209,25 @@ void ib_buffer_gather_procs(ib_buffer_t* buffer)
 //------------------------------------------------------------------------
 
 cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
-               unimesh_t* block1, 
+               blockmesh_pair_t* block_pair,
                int i1, int j1, int k1, 
-               unimesh_t* block2, 
-               int i2, int j2, int k2, 
-               blockmesh_diffeomorphism_t diff)
+               int i2, int j2, int k2)
 {
   cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
   cxn->ibc = bc;
 
-  cxn->block1 = block1;
+  cxn->block_pair = block_pair;
+
   cxn->i1 = i1;
   cxn->j1 = j1;
   cxn->k1 = k1;
-  cxn->boundary1 = diff.block1_boundary;
-  MPI_Comm comm = unimesh_comm(block1);
+  MPI_Comm comm = unimesh_comm(blockmesh_pair_block1(block_pair));
   MPI_Comm_rank(comm, &cxn->proc1);
 
-  cxn->block2 = block2;
   cxn->i2 = i2;
   cxn->j2 = j2;
   cxn->k2 = k2;
-  cxn->boundary2 = diff.block2_boundary;
   cxn->proc2 = -1;
-
-  cxn->diff = diff;
 
   memset(cxn->work, 0, 8 * sizeof(unimesh_patch_t*));
   return cxn;

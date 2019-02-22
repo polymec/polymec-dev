@@ -17,39 +17,6 @@ typedef struct blockmesh_t blockmesh_t;
 typedef struct unimesh_t unimesh_t;
 typedef struct unimesh_patch_t unimesh_patch_t;
 
-/// \struct blockmesh_diffeomorphism_t
-/// This struct represents a diffeomorphism that maps quantities from one 
-/// block (block1) to another (block2) in a blockmesh. The diffeomorphism is 
-/// defined by the coordinate systems for the two blocks and a rotation 
-/// in the plane of the boundary connecting them.
-struct blockmesh_diffeomorphism_t
-{
-  /// The coordinate mapping for the first block.
-  coord_mapping_t* block1_coords;
-
-  /// The first block boundary.
-  unimesh_boundary_t block1_boundary;
-
-  /// The coordinate mapping for the second block.
-  coord_mapping_t* block2_coords;
-
-  /// The second block boundary.
-  unimesh_boundary_t block2_boundary;
-
-  /// The rotation that must be performed for a quantity to pass through the
-  /// face connecting the two blocks. Expressed in units of counterclockwise
-  /// revolutions (turns).
-  enum
-  {
-    NO_ROTATION,
-    QUARTER_TURN,
-    HALF_TURN,
-    THREE_QUARTERS_TURN,
-    INVALID_ROTATION
-  } rotation;
-}; 
-typedef struct blockmesh_diffeomorphism_t blockmesh_diffeomorphism_t;
-
 /// \class blockmesh_pair
 /// This class represents the pairing of two blocks within a blockmesh.
 /// \refcounted
@@ -92,10 +59,23 @@ blockmesh_pair_t* blockmesh_pair_new(blockmesh_t* mesh,
                                      int block1_index, int block1_nodes[4],
                                      int block2_index, int block2_nodes[4]);
 
-/// Returns an internal pointer to a diffeomorphism that maps quantities from the first 
-/// block to the second block in this pair. 
+/// Returns the first block in the pair.
 /// \memberof blockmesh_pair
-blockmesh_diffeomorphism_t* blockmesh_pair_diffeomorphism(blockmesh_pair_t* pair);
+unimesh_t* blockmesh_pair_block1(blockmesh_pair_t* pair);
+
+/// Returns the boundary of the first block that is connected to the second
+/// block in this pair.
+/// \memberof blockmesh_pair
+unimesh_boundary_t blockmesh_pair_block1_boundary(blockmesh_pair_t* pair);
+
+/// Returns the second block in the pair.
+/// \memberof blockmesh_pair
+unimesh_t* blockmesh_pair_block2(blockmesh_pair_t* pair);
+
+/// Returns the boundary of the first block that is connected to the second
+/// block in this pair.
+/// \memberof blockmesh_pair
+unimesh_boundary_t blockmesh_pair_block2_boundary(blockmesh_pair_t* pair);
 
 /// Determines the patch (i2, j2, k2) within the second block in the pair
 /// that corresponds to the patch (i1, j1, k1) in the first block, given the
