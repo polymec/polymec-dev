@@ -235,7 +235,7 @@ static inline void array_name##_append_with_dtor(array_name##_t* array, element 
   if (dtor != NULL) \
   { \
     if (array->dtors == NULL) \
-      array->dtors = (array_name##_dtor*)polymec_calloc(sizeof(array_name##_dtor) * array->capacity); \
+      array->dtors = (array_name##_dtor*)polymec_calloc(array->capacity, sizeof(array_name##_dtor)); \
     else \
     { \
       array->dtors = (array_name##_dtor*)polymec_realloc(array->dtors, sizeof(array_name##_dtor) * array->capacity); \
@@ -260,7 +260,7 @@ static inline void array_name##_insert_with_dtor(array_name##_t* array, size_t i
   if (dtor != NULL) \
   { \
     if (array->dtors == NULL) \
-      array->dtors = (array_name##_dtor*)polymec_calloc(sizeof(array_name##_dtor) * array->capacity); \
+      array->dtors = (array_name##_dtor*)polymec_calloc(array->capacity, sizeof(array_name##_dtor)); \
     else \
     { \
       array->dtors = (array_name##_dtor*)polymec_realloc(array->dtors, sizeof(array_name##_dtor) * array->capacity); \
@@ -284,7 +284,7 @@ static inline void array_name##_assign_with_dtor(array_name##_t* array, size_t i
   if (dtor != NULL) \
   { \
     if (array->dtors == NULL) \
-      array->dtors = (array_name##_dtor*)polymec_calloc(sizeof(array_name##_dtor) * array->capacity); \
+      array->dtors = (array_name##_dtor*)polymec_calloc(array->capacity, sizeof(array_name##_dtor)); \
     array->dtors[i] = dtor; \
   } \
 } \

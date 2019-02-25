@@ -56,11 +56,11 @@ field_metadata_t* field_metadata_new(int num_comps)
   field_metadata_t* md = polymec_refcounted_malloc(sizeof(field_metadata_t),
                                                    field_metadata_free);
   md->num_comps = num_comps;
-  md->names = polymec_calloc(sizeof(char*) * num_comps);
-  md->units = polymec_calloc(sizeof(char*) * num_comps);
-  md->conserved = polymec_calloc(sizeof(bool) * num_comps);
-  md->extensive = polymec_calloc(sizeof(bool) * num_comps);
-  md->comp_types = polymec_calloc(sizeof(field_comp_type_t) * num_comps);
+  md->names = polymec_calloc(num_comps, sizeof(char*));
+  md->units = polymec_calloc(num_comps, sizeof(char*));
+  md->conserved = polymec_calloc(num_comps, sizeof(bool));
+  md->extensive = polymec_calloc(num_comps, sizeof(bool));
+  md->comp_types = polymec_calloc(num_comps, sizeof(field_comp_type_t));
   return md;
 }
 

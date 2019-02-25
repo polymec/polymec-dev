@@ -41,7 +41,7 @@ struct colmesh_chunk_data_t
   colmesh_centering_t centering;
 
   /// The number of components for a datum in the field.
-  size_t num_components;
+  int num_components;
 };
 typedef struct colmesh_chunk_data_t colmesh_chunk_data_t;
 
@@ -65,7 +65,7 @@ void colmesh_chunk_data_copy(colmesh_chunk_data_t* data,
 /// \memberof colmesh_field
 colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
                                    colmesh_centering_t centering,
-                                   size_t num_components);
+                                   int num_components);
 
 /// Constructs a new colmesh field that uses the given buffer for data storage.
 /// \param [in] mesh The colmesh on which the field is created.
@@ -78,7 +78,7 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
 /// \memberof colmesh_field
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
                                            colmesh_centering_t centering,
-                                           size_t num_components,
+                                           int num_components,
                                            void* buffer,
                                            bool assume_control);
 
@@ -113,7 +113,7 @@ colmesh_centering_t colmesh_field_centering(colmesh_field_t* field);
 
 /// Returns the number of components in the field.
 /// \memberof colmesh_field
-size_t colmesh_field_num_components(colmesh_field_t* field);
+int colmesh_field_num_components(colmesh_field_t* field);
 
 /// Returns the number of (locally stored) chunks in the field.
 /// \memberof colmesh_field

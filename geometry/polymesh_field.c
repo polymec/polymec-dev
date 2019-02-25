@@ -13,7 +13,7 @@
 // on the given mesh.
 polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
                                      polymesh_centering_t centering,
-                                     size_t num_components)
+                                     int num_components)
 {
   ASSERT(num_components > 0);
   polymesh_field_t* field = polymec_malloc(sizeof(polymesh_field_t));
@@ -39,7 +39,7 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
   field->ex_token = -1;
   field->num_ghost_values = (centering == POLYMESH_CELL) ? mesh->num_ghost_cells : 0;
   field->capacity = field->num_local_values + field->num_ghost_values;
-  field->data = polymec_calloc(sizeof(real_t) * num_components * field->capacity);
+  field->data = polymec_calloc(num_components * field->capacity, sizeof(real_t));
 
   field->md = field_metadata_new(num_components);
 

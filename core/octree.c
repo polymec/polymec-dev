@@ -254,14 +254,12 @@ void octree_clear(octree_t* tree)
 
 void* octree_new_leaf_array(octree_t* tree, size_t data_size)
 {
-  void* array = polymec_calloc(data_size * tree->num_leaves);
-  return array;
+  return polymec_calloc(tree->num_leaves, data_size);
 }
 
 void* octree_new_branch_array(octree_t* tree, size_t data_size)
 {
-  void* array = polymec_calloc(data_size * tree->num_branches);
-  return array;
+  return polymec_calloc(tree->num_branches, data_size);
 }
 
 static int octree_delete_node(octree_node_t* node, 

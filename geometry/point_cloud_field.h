@@ -24,7 +24,7 @@ typedef struct
   point_cloud_t* cloud;
 
   /// The number of components for a datum in the field.
-  size_t num_components;
+  int num_components;
 
   /// The number of locally-stored values in the field.
   size_t num_local_values;
@@ -45,7 +45,7 @@ typedef struct
 /// on the given point cloud.
 /// \memberof point_cloud_field
 point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
-                                           size_t num_components);
+                                           int num_components);
 
 /// Destroys the given point cloud field.
 /// \memberof point_cloud_field

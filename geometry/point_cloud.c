@@ -45,7 +45,7 @@ point_cloud_t* point_cloud_new(MPI_Comm comm, size_t num_points)
   cloud->comm = comm;
   cloud->num_points = num_points;
   cloud->num_ghosts = 0;
-  cloud->points = polymec_calloc(sizeof(point_t)*num_points);
+  cloud->points = polymec_calloc(num_points, sizeof(point_t));
 
   // Allocate tagging mechanisms.
   cloud->tags = tagger_new();

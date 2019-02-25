@@ -18,7 +18,7 @@ static void test_single_cell_mesh_no_topo(void** state)
   // Create a single hexahedron without topology.
   polymesh_t* mesh = polymesh_new_with_cell_type(MPI_COMM_SELF, 1, 0, 6, 8, 6, 4);
   polymesh_construct_edges(mesh);
-  for (size_t c = 1; c < 4; ++c)
+  for (int c = 1; c < 4; ++c)
   {
     polymesh_field_t* fc = polymesh_field_new(mesh, POLYMESH_CELL, c);
     assert_true(fc->centering == POLYMESH_CELL);

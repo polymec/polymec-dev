@@ -211,7 +211,7 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
   unimesh_patch_bc_t** bcs;
   if (bcs_p == NULL)
   {
-    bcs = polymec_calloc(6*sizeof(unimesh_patch_bc_t*));
+    bcs = polymec_calloc(6, sizeof(unimesh_patch_bc_t*));
     patch_bc_map_insert_with_v_dtor(mesh->patch_bcs, index, bcs, patch_bcs_free);
   }
   else

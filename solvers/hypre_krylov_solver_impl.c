@@ -1849,7 +1849,7 @@ krylov_factory_t* HypreFactory(const char* hypre_dir);
 krylov_factory_t* HypreFactory(const char* hypre_dir)
 {
   ASSERT(directory_exists(hypre_dir)); // checked by caller
-  hypre_factory_t* factory = polymec_calloc(sizeof(hypre_factory_t));
+  hypre_factory_t* factory = polymec_calloc(1, sizeof(hypre_factory_t));
   factory->hypre_libs = ptr_array_new();
   factory->hypre_lib_names = string_array_new();
   factory->hypre_ext = NULL;

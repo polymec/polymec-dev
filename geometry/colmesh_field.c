@@ -13,7 +13,7 @@
 
 static colmesh_chunk_data_t* colmesh_chunk_data_with_buffer(colmesh_chunk_t* chunk,
                                                             colmesh_centering_t centering,
-                                                            size_t num_components, 
+                                                            int num_components, 
                                                             void* buffer)
 {
   colmesh_chunk_data_t* data = polymec_malloc(sizeof(colmesh_chunk_data_t));
@@ -79,7 +79,7 @@ struct colmesh_field_t
 {
   colmesh_t* mesh;
   colmesh_centering_t centering;
-  size_t num_components;
+  int num_components;
 
   // Chunks and data storage.
   size_t num_xy_chunks, num_z_chunks;
@@ -106,7 +106,7 @@ extern exchanger_t* colmesh_exchanger(colmesh_t* mesh,
 
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
                                            colmesh_centering_t centering,
-                                           size_t num_components,
+                                           int num_components,
                                            void* buffer,
                                            bool assume_control)
 {
@@ -156,12 +156,12 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
 
 colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
                                    colmesh_centering_t centering,
-                                   size_t num_components)
+                                   int num_components)
 {
   ASSERT(num_components > 0);
   START_FUNCTION_TIMER();
   colmesh_field_t* field = colmesh_field_with_buffer(mesh, centering, num_components, NULL, false);
-  void* buffer = polymec_calloc(field->bytes);
+  void* buffer = polymec_calloc(field->bytes, 1);
   colmesh_field_set_buffer(field, buffer, true);
   STOP_FUNCTION_TIMER();
   return field;
@@ -183,7 +183,7 @@ colmesh_centering_t colmesh_field_centering(colmesh_field_t* field)
   return field->centering;
 }
 
-size_t colmesh_field_num_components(colmesh_field_t* field)
+int colmesh_field_num_components(colmesh_field_t* field)
 {
   return field->num_components;
 }

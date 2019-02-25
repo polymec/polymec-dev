@@ -969,7 +969,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // Set compression if needed.
   silo_set_compression();
 
-  silo_file_t* file = polymec_calloc(sizeof(silo_file_t));
+  silo_file_t* file = polymec_calloc(1, sizeof(silo_file_t));
   file->mode = DB_READ;
   file->step = -1;
   file->time = -REAL_MAX;
@@ -1458,7 +1458,8 @@ void silo_file_write_polymesh(silo_file_t* file,
   // Construct the silo cell-face info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = polymec_calloc(sizeof(int) * (num_cells + mesh->num_ghost_cells));
+  int* cell_face_counts = polymec_calloc(num_cells + mesh->num_ghost_cells,
+                                         sizeof(int));
   for (int i = 0; i < num_cells; ++i)
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
 

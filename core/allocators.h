@@ -59,8 +59,11 @@ void polymec_allocator_free(polymec_allocator_t* alloc);
 void* polymec_malloc(size_t size);
 
 /// This function allocates and zeros memory in the same way as calloc(), using the
-/// allocator on top of polymec's allocator stack. 
-void* polymec_calloc(size_t size);
+/// allocator on top of polymec's allocator stack to allocate a contiguous chunk of 
+/// memory.
+/// \param [in] count The number of objects for which memory is allocated.
+/// \param [in] size The size (in bytes) for each object allocated.
+void* polymec_calloc(size_t count, size_t size);
 
 /// This reallocates existing memory using the allocator on top of the allocator 
 /// stack, or calls realloc() if the stack is empty.

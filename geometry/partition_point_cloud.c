@@ -82,7 +82,7 @@ void distribute_point_cloud(point_cloud_t** cloud,
       {
         point_cloud_field_t* global_field = fields[i];
         point_cloud_field_t* local_field = point_cloud_field_new(local_cloud, global_field->num_components);
-        size_t num_comps = local_field->num_components;
+        int num_comps = local_field->num_components;
         for (size_t j = 0; j < local_field->num_local_values; ++j)
           for (size_t c = 0; c < num_comps; ++c)
             local_field->data[num_comps*j+c] = global_field->data[num_comps*indices[j]+c];
@@ -117,7 +117,7 @@ void distribute_point_cloud(point_cloud_t** cloud,
       for (size_t i = 0; i < num_fields; ++i)
       {
         point_cloud_field_t* global_field = fields[i];
-        size_t num_comps = global_field->num_components;
+        int num_comps = global_field->num_components;
         MPI_Send(&num_comps, 1, MPI_SIZE_T, p, p, comm);
         real_t local_vals[num_comps*num_points[p]];
         for (size_t j = 0; j < num_points[p]; ++j)
@@ -159,7 +159,7 @@ void distribute_point_cloud(point_cloud_t** cloud,
     // Handle fields.
     for (size_t i = 0; i < num_fields; ++i)
     {
-      size_t num_comps;
+      int num_comps;
       MPI_Recv(&num_comps, 1, MPI_SIZE_T, 0, rank, comm, &status);
       point_cloud_field_t* field = point_cloud_field_new(local_cloud, num_comps);
       size_t size = num_comps * (local_cloud->num_points + local_cloud->num_ghosts);
@@ -362,7 +362,7 @@ void redistribute_point_cloud(point_cloud_t** cloud,
     // Pack the relevant contents of the fields into the buffer.
     for (size_t i = 0; i < num_fields; ++i)
     {
-      size_t num_comps = fields[i]->num_components;
+      int num_comps = fields[i]->num_components;
       byte_array_write_size_ts(bytes, 1, &subcloud->num_points, &offset);
       real_t field_data[num_comps*subcloud->num_points];
       for (size_t j = 0; j < subcloud->num_points; ++j)
@@ -433,7 +433,7 @@ void redistribute_point_cloud(point_cloud_t** cloud,
   // Unpack the migrated field data.
   for (size_t i = 0; i < num_fields; ++i)
   {
-    size_t num_comps = fields[i]->num_components;
+    int num_comps = fields[i]->num_components;
     point_cloud_field_t* new_field = point_cloud_field_new(*cloud, num_comps);
 
     // Local portion of the field.

@@ -107,10 +107,10 @@ void* polymec_malloc(size_t size)
   }
 }
 
-void* polymec_calloc(size_t size)
+void* polymec_calloc(size_t count, size_t size)
 {
-  void* memory = polymec_malloc(size);
-  memset(memory, 0, size);
+  void* memory = polymec_malloc(count*size);
+  memset(memory, 0, count*size);
   return memory;
 }
 

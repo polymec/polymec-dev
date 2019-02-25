@@ -726,7 +726,7 @@ static void create_cell_ex(colmesh_t* mesh)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
+  int64_t* owners = polymec_calloc(num_all_chunks, sizeof(int64_t));
 #endif
 
   // Determine offsets for chunks in the list of chunks for this mesh.
@@ -898,7 +898,7 @@ static void create_xy_face_ex(colmesh_t* mesh)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
+  int64_t* owners = polymec_calloc(num_all_chunks, sizeof(int64_t));
 #endif
 
   // Determine offsets for chunks in the list of chunks for this mesh.
@@ -1057,7 +1057,7 @@ static void create_z_face_ex(colmesh_t* mesh)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
+  int64_t* owners = polymec_calloc(num_all_chunks, sizeof(int64_t));
 #endif
 
   // Determine offsets for chunks in the list of chunks for this mesh.
@@ -1140,7 +1140,7 @@ static void create_xy_edge_ex(colmesh_t* mesh)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
+  int64_t* owners = polymec_calloc(num_all_chunks, sizeof(int64_t));
 #endif
 
   // Determine offsets for chunks in the list of chunks for this mesh.
@@ -1297,7 +1297,7 @@ static void create_z_edge_ex(colmesh_t* mesh)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
+  int64_t* owners = polymec_calloc(num_all_chunks, sizeof(int64_t));
 #endif
 
   // Determine offsets for chunks in the list of chunks for this mesh.
@@ -1474,7 +1474,7 @@ static void create_node_ex(colmesh_t* mesh)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
+  int64_t* owners = polymec_calloc(num_all_chunks, sizeof(int64_t));
 #endif
 
   // Determine offsets for chunks in the list of chunks for this mesh.

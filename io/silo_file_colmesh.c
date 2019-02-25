@@ -302,12 +302,12 @@ static void query_colmesh_vector_comps(colmesh_chunk_data_t* chunk_data,
 {
   if ((mapping != NULL) && (field_metadata_has_vectors(md)))
   {
-    int pos = 0, start;
+    int pos = 0;
     while (field_metadata_next_vector(md, &pos, first_vector_comp))
     {
-      is_vector_comp[start] = true;
-      is_vector_comp[start+1] = true;
-      is_vector_comp[start+2] = true;
+      is_vector_comp[*first_vector_comp] = true;
+      is_vector_comp[*first_vector_comp+1] = true;
+      is_vector_comp[*first_vector_comp+2] = true;
     }
   }
   else
@@ -836,7 +836,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
     data_size = chunk->num_xy_edges * (chunk->num_z_cells+1) + 
                 chunk->num_xy_nodes * chunk->num_z_cells;
   }
-  real_t* data = polymec_calloc(sizeof(real_t) * data_size);
+  real_t* data = polymec_calloc(data_size, sizeof(real_t));
 
   // Now write each component.
   for (int c = 0; c < chunk_data->num_components; ++c)
@@ -911,7 +911,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
     for (int c = 0; c < num_components; ++c)
     {
       char field_comp_name[FILENAME_MAX+1];
-      snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c, xy, z);
+      snprintf(field_comp_name, FILENAME_MAX, "%s_%d", field_name, c);
       field_names[c] = string_dup(field_comp_name);
     }
 

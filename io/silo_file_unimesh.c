@@ -365,12 +365,12 @@ static void query_unimesh_vector_comps(unimesh_patch_t* patch,
 {
   if ((mapping != NULL) && (field_metadata_has_vectors(md)))
   {
-    int pos = 0, start;
+    int pos = 0;
     while (field_metadata_next_vector(md, &pos, first_vector_comp))
     {
-      is_vector_comp[start] = true;
-      is_vector_comp[start+1] = true;
-      is_vector_comp[start+2] = true;
+      is_vector_comp[*first_vector_comp] = true;
+      is_vector_comp[*first_vector_comp+1] = true;
+      is_vector_comp[*first_vector_comp+2] = true;
     }
   }
   else
@@ -1079,7 +1079,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
     data_size = dimensions[0] * dimensions[1] * dimensions[2];
   else 
     data_size = 3 * dimensions[0] * dimensions[1] * dimensions[2];
-  real_t* data = polymec_calloc(sizeof(real_t) * data_size);
+  real_t* data = polymec_calloc(data_size, sizeof(real_t));
   int centering;
 
   // Now write each component.
