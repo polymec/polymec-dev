@@ -1079,7 +1079,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
     data_size = dimensions[0] * dimensions[1] * dimensions[2];
   else 
     data_size = 3 * dimensions[0] * dimensions[1] * dimensions[2];
-  real_t* data = polymec_calloc(sizeof(real_t) * data_size);
+  real_t* data = polymec_calloc(data_size, sizeof(real_t));
   int centering;
 
   // Now write each component.

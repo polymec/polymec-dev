@@ -836,7 +836,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
     data_size = chunk->num_xy_edges * (chunk->num_z_cells+1) + 
                 chunk->num_xy_nodes * chunk->num_z_cells;
   }
-  real_t* data = polymec_calloc(sizeof(real_t) * data_size);
+  real_t* data = polymec_calloc(data_size, sizeof(real_t));
 
   // Now write each component.
   for (int c = 0; c < chunk_data->num_components; ++c)

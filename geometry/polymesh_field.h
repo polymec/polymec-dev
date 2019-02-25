@@ -27,7 +27,7 @@ typedef struct
   polymesh_centering_t centering;
 
   /// The number of components for a datum in the field.
-  size_t num_components;
+  int num_components;
 
   /// The number of locally-stored (possibly multi-component) values in the 
   /// field.
@@ -54,7 +54,7 @@ typedef struct
 /// \memberof polymesh_field
 polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
                                      polymesh_centering_t centering,
-                                     size_t num_components);
+                                     int num_components);
 
 /// Destroys the given polymesh field.
 /// \memberof polymesh_field

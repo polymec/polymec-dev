@@ -34,7 +34,7 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
   // We provide diagonals "for free."
   int init_row_cap = 4; // Initial allocation for columns per row (incl. diagonal)
   sparsity->columns_cap = init_row_cap * sparsity->num_local_rows;
-  sparsity->columns = polymec_calloc(sizeof(index_t) * sparsity->columns_cap);
+  sparsity->columns = polymec_calloc(sparsity->columns_cap, sizeof(index_t));
   sparsity->offsets = polymec_malloc(sizeof(size_t) * (sparsity->num_local_rows + 1));
   sparsity->offsets[0] = 0;
   for (size_t i = 0; i < sparsity->num_local_rows; ++i)

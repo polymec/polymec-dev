@@ -236,7 +236,7 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
 
   // Allocate space in the graph for the edges (neighbors associating points).
   size_t num_points = points->num_points;
-  int* num_edges = polymec_calloc(sizeof(int) * num_points);
+  int* num_edges = polymec_calloc(num_points, sizeof(int));
   {
     int pos = 0, i, j;
     while (neighbor_pairing_next(neighbors, &pos, &i, &j))

@@ -850,7 +850,7 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
   if (nprocs == 1)
   {
     // Dumb, but correct.
-    int64_t* global_partition = polymec_calloc(sizeof(int64_t) * global_mesh->num_cells);
+    int64_t* global_partition = polymec_calloc(global_mesh->num_cells, sizeof(int64_t));
     STOP_FUNCTION_TIMER();
     return global_partition;
   }
@@ -878,7 +878,7 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
 
 #else
   // This is dumb, but we were asked for it.
-  int64_t* global_partition = polymec_calloc(sizeof(int64_t) * global_mesh->num_cells);
+  int64_t* global_partition = polymec_calloc(global_mesh->num_cells, sizeof(int64_t));
   return global_partition;
 #endif
 }
@@ -1102,9 +1102,9 @@ void distribute_polymesh(polymesh_t** mesh,
       polymesh_field_t* global_field = fields[i];
       ASSERT(global_field->centering == POLYMESH_CELL); // only cell-centered fields supported at the moment!
       polymesh_field_t* local_field = polymesh_field_new(local_mesh, POLYMESH_CELL, global_field->num_components);
-      size_t num_comps = local_field->num_components;
+      int num_comps = local_field->num_components;
       for (size_t j = 0; j < local_field->num_local_values; ++j)
-        for (size_t c = 0; c < num_comps; ++c)
+        for (int c = 0; c < num_comps; ++c)
           local_field->data[num_comps*j+c] = global_field->data[num_comps*indices->data[j]+c];
       local_fields[i] = local_field;
     }
@@ -1115,11 +1115,11 @@ void distribute_polymesh(polymesh_t** mesh,
       {
         polymesh_field_t* global_field = fields[i];
         ASSERT(global_field->centering == POLYMESH_CELL); // only cell-centered fields supported at the moment!
-        size_t num_comps = global_field->num_components;
+        int num_comps = global_field->num_components;
         MPI_Send(&num_comps, 1, MPI_SIZE_T, p, p, comm);
         real_t local_vals[num_comps*num_cells[p]];
         for (size_t j = 0; j < num_cells[p]; ++j)
-          for (size_t c = 0; c < num_comps; ++c)
+          for (int c = 0; c < num_comps; ++c)
             local_vals[num_comps*j+c] = global_field->data[num_comps*indices->data[j]+c];
         MPI_Send(local_vals, (int)(num_comps * num_cells[p]), MPI_REAL_T, p, p, comm);
       }
@@ -1130,7 +1130,7 @@ void distribute_polymesh(polymesh_t** mesh,
     MPI_Status status;
     for (size_t i = 0; i < num_fields; ++i)
     {
-      size_t num_comps;
+      int num_comps;
       MPI_Recv(&num_comps, 1, MPI_SIZE_T, 0, rank, comm, &status);
       polymesh_field_t* field = polymesh_field_new(local_mesh, POLYMESH_CELL, num_comps);
       size_t size = num_comps * field->num_local_values;
@@ -1313,7 +1313,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
   // Unpack the migrated field data.
   for (size_t i = 0; i < num_fields; ++i)
   {
-    size_t num_comps = fields[i]->num_components;
+    int num_comps = fields[i]->num_components;
     polymesh_field_t* new_field = polymesh_field_new(*mesh, POLYMESH_CELL, num_comps);
 
     // Local portion of the field.

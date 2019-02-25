@@ -21,7 +21,7 @@ static void pcf_set_num_ghosts(void* context, size_t num_ghosts)
 }
 
 point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
-                                           size_t num_components)
+                                           int num_components)
 {
   ASSERT(num_components > 0);
   point_cloud_field_t* field = polymec_malloc(sizeof(point_cloud_field_t));
@@ -30,7 +30,7 @@ point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
   field->num_local_values= cloud->num_points;
   field->num_ghost_values = cloud->num_ghosts;
   field->capacity = field->num_local_values + field->num_ghost_values;
-  field->data = polymec_calloc(sizeof(real_t) * num_components * field->capacity);
+  field->data = polymec_calloc(num_components * field->capacity, sizeof(real_t));
 
   // Register this field as an observer on its cloud.
   point_cloud_observer_vtable obs_vtable = {.set_num_ghosts = pcf_set_num_ghosts};
