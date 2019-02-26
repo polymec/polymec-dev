@@ -61,7 +61,7 @@ extern exchanger_reducer_t* EXCHANGER_MAX_RANK;
 DEFINE_UNORDERED_MAP(exchanger_proc_map, int, int_array_t*, int_hash, int_equals)
 
 /// Adds an index to the set of indices associated with the given process
-/// in this exchanger_proc_map
+/// in this exchanger_proc_map.
 /// \param [in] process The process with which the new index is associated.
 /// \param [in] index The index added to the mapping.
 /// \memberof exchanger_proc_map

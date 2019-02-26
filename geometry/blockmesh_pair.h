@@ -97,9 +97,9 @@ void blockmesh_pair_find_patch(blockmesh_pair_t* pair,
 /// \param [in] centering The centering of the data in question.
 /// \param [in] num_comp The number of components for the data in question.
 /// \memberof blockmesh_pair
-size_t blockmesh_pair_data_size(blockmesh_pair_t* pair,
-                                unimesh_centering_t centering,
-                                int num_comp);
+size_t blockmesh_pair_patch_data_size(blockmesh_pair_t* pair,
+                                      unimesh_centering_t centering,
+                                      int num_comp);
 
 /// Copies data to a buffer from a source patch in the first block.
 /// \param [in] i The first logical coordinate for the source patch.

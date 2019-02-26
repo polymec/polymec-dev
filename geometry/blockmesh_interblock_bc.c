@@ -151,7 +151,7 @@ static void ibc_start_update(void* context, unimesh_t* block,
   cxn_t* cxn = *cxn_p;
   void* far = cxn_far_buffer(cxn);
   ASSERT(far != NULL);
-  blockmesh_pair_copy_in(cxn->pair, cxn->i1, cxn->j1, cxn->k1, patch, far);
+  blockmesh_pair_copy_in(cxn->pair, cxn->i2, cxn->j2, cxn->k2, patch, far);
 }
 
 static void ibc_finish_update(void* context, unimesh_t* block,
@@ -171,7 +171,7 @@ static void ibc_finish_update(void* context, unimesh_t* block,
   cxn_t* cxn = *cxn_p;
   void* near = cxn_near_buffer(cxn);
   ASSERT(near != NULL);
-  blockmesh_pair_copy_out(cxn->pair, near, cxn->i2, cxn->j2, cxn->k2, patch);
+  blockmesh_pair_copy_out(cxn->pair, near, cxn->i1, cxn->j1, cxn->k1, patch);
 }
 
 // This observer method is called when a field starts a set of boundary 
