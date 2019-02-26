@@ -33,7 +33,7 @@ typedef struct blockmesh_pair_t blockmesh_pair_t;
 /// \param [in] block2_nodes An array containing the 4 nodes in the second block
 ///                          to be identified with the corresponding nodes 
 ///                          in the first block (block1_nodes).
-/// \param [out] reason If non-NULL, this string stores an internal string 
+/// \param [out] reason If non-NULL, this pointer stores an internal string 
 ///                     that describes any condition preventing a successful
 ///                     connection between the two blocks.
 /// \memberof blockmesh_pair
@@ -102,19 +102,27 @@ size_t blockmesh_pair_data_size(blockmesh_pair_t* pair,
                                 int num_comp);
 
 /// Copies data to a buffer from a source patch in the first block.
+/// \param [in] i The first logical coordinate for the source patch.
+/// \param [in] j The second logical coordinate for the source patch.
+/// \param [in] k The third logical coordinate for the source patch.
 /// \param [in] source_patch The patch containing the data to copy to the buffer.
 /// \param [out] buffer The buffer to which the patch data is copied.
 /// \memberof blockmesh_pair
 void blockmesh_pair_copy_in(blockmesh_pair_t* pair,
+                            int i, int j, int k,
                             unimesh_patch_t* source_patch,
                             void* buffer);
 
 /// Copies data from a buffer to a destinaton patch in the second block.
 /// \param [in] buffer The buffer to which the patch data is copied.
+/// \param [in] i The first logical coordinate for the destination patch.
+/// \param [in] j The second logical coordinate for the destination patch.
+/// \param [in] k The third logical coordinate for the destination patch.
 /// \param [out] dest_patch The patch to which data is copied from the buffer.
 /// \memberof blockmesh_pair
 void blockmesh_pair_copy_out(blockmesh_pair_t* pair,
                              void* buffer,
+                             int i, int j, int k,
                              unimesh_patch_t* dest_patch);
 
 ///@}

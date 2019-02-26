@@ -24,21 +24,6 @@
 //------------------------------------------------------------------------
 extern int unimesh_boundary_update_token(unimesh_t* mesh);
 
-extern void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch, 
-                                                 unimesh_boundary_t boundary, 
-                                                 void* buffer);
-
-extern void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch, 
-                                                   unimesh_boundary_t boundary, 
-                                                   void* buffer);
-
-static void intermesh_copy_bvalues_to_buffer(unimesh_patch_t* patch, 
-                                             unimesh_boundary_t boundary, 
-                                             void* buffer);
-static void intermesh_copy_bvalues_from_buffer(unimesh_patch_t* patch, 
-                                               unimesh_boundary_t boundary, 
-                                               void* buffer);
-
 // Maps (i, j, k) to a flat patch index.
 static inline int patch_index(unimesh_t* mesh, int i, int j, int k)
 {
@@ -103,6 +88,7 @@ DEFINE_UNORDERED_MAP(ib_buffer_map, void*, ib_buffer_array_t*, ptr_hash, ptr_equ
 typedef struct
 {
   blockmesh_interblock_bc_t* ibc;
+  blockmesh_pair_t* pair;
 
   unimesh_t* block1;
   int i1, j1, k1;
@@ -113,8 +99,6 @@ typedef struct
   int i2, j2, k2;
   unimesh_boundary_t boundary2;
   int proc2;
-
-  blockmesh_pair_t* block_pair;
 
   unimesh_patch_t* work[8];
 } cxn_t;
@@ -138,10 +122,6 @@ static size_t cxn_far_boundary_size(cxn_t* cxn,
 // Access to buffers on the near and far ends of a connection.
 static void* cxn_near_buffer(cxn_t* cxn);
 static void* cxn_far_buffer(cxn_t* cxn);
-
-// Dispatch methods for starting and finishing updates on a patch for a connection.
-static void cxn_start_update(cxn_t* cxn, unimesh_patch_t* patch);
-static void cxn_finish_update(cxn_t* cxn, unimesh_patch_t* patch);
 
 //------------------------------------------------------------------------
 //                      Inter-block BC implementation
@@ -169,7 +149,9 @@ static void ibc_start_update(void* context, unimesh_t* block,
   ASSERT(cxn_p != NULL);
 
   cxn_t* cxn = *cxn_p;
-  cxn_start_update(cxn, patch);
+  void* far = cxn_far_buffer(cxn);
+  ASSERT(far != NULL);
+  blockmesh_pair_copy_in(cxn->pair, cxn->i1, cxn->j1, cxn->k1, patch, far);
 }
 
 static void ibc_finish_update(void* context, unimesh_t* block,
@@ -187,7 +169,9 @@ static void ibc_finish_update(void* context, unimesh_t* block,
   ASSERT(cxn_p != NULL);
 
   cxn_t* cxn = *cxn_p;
-  cxn_finish_update(cxn, patch);
+  void* near = cxn_near_buffer(cxn);
+  ASSERT(near != NULL);
+  blockmesh_pair_copy_out(cxn->pair, near, cxn->i2, cxn->j2, cxn->k2, patch);
 }
 
 // This observer method is called when a field starts a set of boundary 
@@ -324,7 +308,7 @@ bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
   bool result = cxn_map_next(bc->cxns, pos, &index, &cxn);
   if (result)
   {
-    *block_pair = cxn->block_pair;
+    *block_pair = cxn->pair;
     *i1 = cxn->i1;
     *j1 = cxn->j1;
     *k1 = cxn->k1;
@@ -1216,7 +1200,7 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
   cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
   cxn->ibc = bc;
 
-  cxn->block_pair = block_pair;
+  cxn->pair = block_pair;
 
   cxn->i1 = i1;
   cxn->j1 = j1;
@@ -1241,16 +1225,6 @@ void cxn_free(cxn_t* cxn)
       unimesh_patch_free(cxn->work[c]);
   }
   polymec_free(cxn);
-}
-
-void cxn_finish_update(cxn_t* cxn, unimesh_patch_t* patch)
-{
-  // Get the "near" buffer, where data has been placed.
-  void* near = cxn_near_buffer(cxn);
-  ASSERT(near != NULL);
-
-  // Copy the data from the patch into our buffer.
-  intermesh_copy_bvalues_from_buffer(patch, cxn->boundary1, near);
 }
 
 static size_t unimesh_boundary_size(unimesh_t* mesh, 
@@ -1349,75 +1323,5 @@ void* cxn_far_buffer(cxn_t* cxn)
 #endif
   ASSERT(data != NULL);
   return data;
-}
-
-void cxn_start_update(cxn_t* cxn, unimesh_patch_t* patch)
-{
-  // Get the "far" buffer, where we put data to be sent.
-  void* far = cxn_far_buffer(cxn);
-  ASSERT(far != NULL);
-
-/*
-  // Transform (or copy) the data from the patch into our buffer.
-  if (cxn->f != NULL)
-  {
-    int c = (int)patch->centering;
-    if (cxn->work[c] == NULL)
-      cxn->work[c] = unimesh_patch_clone(patch);
-    unimesh_patch_t* work = cxn->work[c];
-    unimesh_patch_mapping_map(cxn->f, patch, work);
-    intermesh_copy_bvalues_to_buffer(work, cxn->boundary1, far);
-  }
-  else
-*/
-    intermesh_copy_bvalues_to_buffer(patch, cxn->boundary1, far);
-}
-
-//------------------------------------------------------------------------
-//                       Utility function implementations
-//------------------------------------------------------------------------
-
-void intermesh_copy_bvalues_to_buffer(unimesh_patch_t* patch, 
-                                      unimesh_boundary_t boundary, 
-                                      void* buffer)
-{
-  // We copy boundary values only for certain centering/boundary combos.
-  bool copy_values = ((patch->centering == UNIMESH_CELL) ||
-                      ((patch->centering == UNIMESH_XFACE) && (boundary == UNIMESH_X2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_YFACE) && (boundary == UNIMESH_Y2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_ZFACE) && (boundary == UNIMESH_Z2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_XEDGE) && (boundary == UNIMESH_Y2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_XEDGE) && (boundary == UNIMESH_Z2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_YEDGE) && (boundary == UNIMESH_X2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_YEDGE) && (boundary == UNIMESH_Z2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_ZEDGE) && (boundary == UNIMESH_X2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_ZEDGE) && (boundary == UNIMESH_Y2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_NODE) && (boundary == UNIMESH_X2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_NODE) && (boundary == UNIMESH_Y2_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_NODE) && (boundary == UNIMESH_Z2_BOUNDARY)));
-  if (copy_values)
-    unimesh_patch_copy_bvalues_to_buffer(patch, boundary, buffer);
-}
-
-void intermesh_copy_bvalues_from_buffer(unimesh_patch_t* patch, 
-                                        unimesh_boundary_t boundary, 
-                                        void* buffer)
-{
-  // We copy boundary values only for certain centering/boundary combos.
-  bool copy_values = ((patch->centering == UNIMESH_CELL) ||
-                      ((patch->centering == UNIMESH_XFACE) && (boundary == UNIMESH_X1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_YFACE) && (boundary == UNIMESH_Y1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_ZFACE) && (boundary == UNIMESH_Z1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_XEDGE) && (boundary == UNIMESH_Y1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_XEDGE) && (boundary == UNIMESH_Z1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_YEDGE) && (boundary == UNIMESH_X1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_YEDGE) && (boundary == UNIMESH_Z1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_ZEDGE) && (boundary == UNIMESH_X1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_ZEDGE) && (boundary == UNIMESH_Y1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_NODE) && (boundary == UNIMESH_X1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_NODE) && (boundary == UNIMESH_Y1_BOUNDARY)) ||
-                      ((patch->centering == UNIMESH_NODE) && (boundary == UNIMESH_Z1_BOUNDARY)));
-  if (copy_values)
-    unimesh_patch_copy_bvalues_from_buffer(patch, boundary, buffer);
 }
 
