@@ -17,7 +17,8 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     least_squares.c options.c partitioning.c 
                     text_buffer.c serializer.c string_utils.c 
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 
-                    exchanger.c lua_types.c lua_core.c lua_replace_tostring.c
+                    exchanger.c blob_exchanger.c 
+                    lua_types.c lua_core.c lua_replace_tostring.c
                     lua_array.c lua_ndarray.c lua_driver.c 
                     ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c)
 set_target_properties(polymec_core PROPERTIES LINKER_LANGUAGE C)
