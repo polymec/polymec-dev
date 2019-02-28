@@ -92,20 +92,35 @@ GENERATOR="Unix Makefiles"
 # Code::Blocks (with UNIX makefiles underneath).
 #GENERATOR="CodeBlocks - Unix Makefiles"
 
+# Code::Blocks (with Ninja underneath).
+#GENERATOR="CodeBlocks - Ninja"
+
 # XCode (shudder).
 #GENERATOR="XCode"
 
 # CodeLite (with UNIX makefiles underneath).
 #GENERATOR="CodeLite - Unix Makefiles"
 
+# CodeLite (with Ninja underneath).
+#GENERATOR="CodeLite - Ninja"
+
 # Eclipse CDT4 (with UNIX makefiles underneath).
 #GENERATOR="Eclipse CDT4 - Unix Makefiles"
 
-# Kate
-#GENERATOR="Kate"
+# Eclipse CDT4 (with Ninja underneath).
+#GENERATOR="Eclipse CDT4 - Ninja"
+
+# Kate (with UNIX makefiles underneath).
+#GENERATOR="Kate - Unix Makefiles"
+
+# Kate (with Ninjaunderneath).
+#GENERATOR="Kate - Ninja"
 
 # Sublime Text 2 (with UNIX makefiles underneath).
 #GENERATOR="Sublime Text 2 - Unix Makefiles"
+
+# Sublime Text 2 (with Ninja underneath).
+#GENERATOR="Sublime Text 2 - Ninja"
 
 #-----------------------------------------------------------------------------
 #                               Verbose builds
