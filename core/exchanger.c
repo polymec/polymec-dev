@@ -408,7 +408,6 @@ struct exchanger_t
   int pending_msg_cap;
   mpi_message_t** pending_msgs;
   void** orig_buffers;
-  int** transfer_counts;
 
   // Deadlock detection.
   real_t dl_thresh;
@@ -428,7 +427,6 @@ static void exchanger_clear(exchanger_t* ex)
 
   polymec_free(ex->pending_msgs);
   polymec_free(ex->orig_buffers);
-  polymec_free(ex->transfer_counts);
 
   ex->max_send = -1;
   ex->max_receive = -1;
@@ -469,7 +467,6 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   ex->pending_msg_cap = 32;
   ex->pending_msgs = polymec_calloc(ex->pending_msg_cap, sizeof(mpi_message_t*));
   ex->orig_buffers = polymec_calloc(ex->pending_msg_cap, sizeof(void*));
-  ex->transfer_counts = polymec_calloc(ex->pending_msg_cap, sizeof(int*));
   ex->max_send = -1;
   ex->max_receive = -1;
   ex->reducer = NULL;
@@ -904,7 +901,6 @@ static int exchanger_send_message(exchanger_t* ex, mpi_message_t* msg)
     ex->pending_msg_cap *= 2;
     ex->pending_msgs = polymec_realloc(ex->pending_msgs, ex->pending_msg_cap*sizeof(mpi_message_t));
     ex->orig_buffers = polymec_realloc(ex->orig_buffers, ex->pending_msg_cap*sizeof(void*));
-    ex->transfer_counts = polymec_realloc(ex->transfer_counts, ex->pending_msg_cap*sizeof(int*));
   }
   ex->pending_msgs[token] = msg;
   STOP_FUNCTION_TIMER();
@@ -1126,7 +1122,6 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
-  ASSERT(ex->transfer_counts[token] == NULL); // We can't finish a transfer as an exchange!
 
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];

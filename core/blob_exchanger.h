@@ -75,8 +75,13 @@ MPI_Comm blob_exchanger_comm(blob_exchanger_t* ex);
 /// * You can copy blobs in for sending using \ref blob_exchanger_copy_in
 /// * You can copy out blobs received using \ref blob_exchanger_copy_out
 /// The blob buffer can be freed with \ref blob_buffer_free.
+/// \param [in] size_factor A factor by which each blob size is multiplied. 
+///                         1 means each blob is the same size as that for which
+///                         the blob exchanger was created, 2 means each blob is 
+///                         twice that size, and so on.
 /// \memberof blob_exchanger
-blob_buffer_t* blob_exchanger_create_buffer(blob_exchanger_t* ex);
+blob_buffer_t* blob_exchanger_create_buffer(blob_exchanger_t* ex,
+                                            int size_factor);
 
 /// Exchanges data with other processes in the communicator, transmitting blobs in the send
 /// buffer to other processes, and receiving blobs in the receive buffer.
@@ -104,7 +109,6 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
 void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token);
 
 /// Allows the traversal of the set of blobs being sent to other processes.
-/// \param [in] buffer The blob buffer used for the transaction.
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] remote_process Stores the remote process in the next send transaction.
 /// \param [out] blob_index Stores an internal pointer to the index of the next blob being sent.
@@ -114,14 +118,12 @@ void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token);
 /// otherwise.
 /// \memberof blob_exchanger
 bool blob_exchanger_next_send_blob(blob_exchanger_t* ex, 
-                                   blob_buffer_t* buffer,
                                    int* pos, 
                                    int* remote_process, 
                                    int* blob_index, 
                                    size_t* blob_size);
 
 /// Allows the traversal of the set of blobs being received by other processes.
-/// \param [in] buffer The blob buffer used for the transaction.
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] remote_process Stores the remote process in the next receive transaction.
 /// \param [out] blob_index Stores an internal pointer to the index of the next blob being received.
@@ -131,7 +133,6 @@ bool blob_exchanger_next_send_blob(blob_exchanger_t* ex,
 /// otherwise.
 /// \memberof blob_exchanger
 bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex, 
-                                      blob_buffer_t* buffer,
                                       int* pos, 
                                       int* remote_process, 
                                       int* blob_index, 
@@ -140,6 +141,10 @@ bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
 /// Copies data for the blob with the given index into the blob buffer
 /// to be sent to other processes.
 /// \param [in] blob_index The index of the blob for which data is copied in.
+/// \param [in] size_factor A factor by which the desired blob is bigger than the 
+///                         "base" blob size (the size known to the blob exchanger).
+///                         Make sure you use the same size factor here as you used
+///                         to create your blob buffer. 
 /// \param [in] blob An array of data representing the blob. The blob exchanger
 ///                  knows the size of the blob from its index and copies the 
 ///                  appropriate number of bytes in.
@@ -147,6 +152,7 @@ bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
 /// \memberof blob_exchanger
 void blob_exchanger_copy_in(blob_exchanger_t* ex,
                             int blob_index,
+                            int size_factor,
                             void* blob,
                             blob_buffer_t* buffer);
 
@@ -154,6 +160,10 @@ void blob_exchanger_copy_in(blob_exchanger_t* ex,
 /// Call this after an exchange to fetch blobs received from other processes.
 /// \param [in] buffer The blob buffer holding the blob data.
 /// \param [in] blob_index The index of the blob for which data is copied out.
+/// \param [in] size_factor A factor by which the desired blob is bigger than the 
+///                         "base" blob size (the size known to the blob exchanger).
+///                         Make sure you use the same size factor here as you used
+///                         to create your blob buffer. 
 /// \param [out] blob An array of data representing the blob. The blob exchanger
 ///                   knows the size of the blob from its index and copies the 
 ///                   appropriate number of bytes out.
@@ -161,6 +171,7 @@ void blob_exchanger_copy_in(blob_exchanger_t* ex,
 void blob_exchanger_copy_out(blob_exchanger_t* ex,
                              blob_buffer_t* buffer,
                              int blob_index,
+                             int size_factor,
                              void* blob);
 
 /// Verifies the consistency of the blob exchanger.
