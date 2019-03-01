@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,9 +8,9 @@
 #include "core/array.h"
 #include "core/blob_exchanger.h"
 
-// A blob buffer is functionally just a big chunk of memory with an associated 
+// A blob buffer is functionally just a big chunk of memory with an associated
 // type. But it also needs to conduct its own message-passing business.
-struct blob_buffer_t 
+struct blob_buffer_t
 {
   // Sizing factor for blobs.
   int size_factor;
@@ -50,7 +50,7 @@ void blob_buffer_free(blob_buffer_t* buffer)
   polymec_free(buffer);
 }
 
-struct blob_exchanger_t 
+struct blob_exchanger_t
 {
   MPI_Comm comm;
 
@@ -63,8 +63,8 @@ struct blob_exchanger_t
   FILE* dl_output_stream;
 };
 
-void blob_exchanger_proc_map_add_index(blob_exchanger_proc_map_t* map, 
-                                       int process, 
+void blob_exchanger_proc_map_add_index(blob_exchanger_proc_map_t* map,
+                                       int process,
                                        int blob_index)
 {
   int_array_t** indices_p = exchanger_proc_map_get(map, process);
@@ -112,7 +112,7 @@ blob_buffer_t* blob_exchanger_create_buffer(blob_exchanger_t* ex,
   return b;
 }
 
-void blob_exchanger_exchange(blob_exchanger_t* ex, 
+void blob_exchanger_exchange(blob_exchanger_t* ex,
                              int tag,
                              blob_buffer_t* buffer)
 {
@@ -122,7 +122,7 @@ void blob_exchanger_exchange(blob_exchanger_t* ex,
   STOP_FUNCTION_TIMER();
 }
 
-int blob_exchanger_start_exchange(blob_exchanger_t* ex, 
+int blob_exchanger_start_exchange(blob_exchanger_t* ex,
                                   int tag,
                                   blob_buffer_t* buffer)
 {
@@ -137,11 +137,11 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
   // Allocate storage for statuses of sends/receives.
   int num_requests = buffer->num_requests;
   MPI_Status statuses[num_requests];
-  
+
   int err = 0;
   if (ex->dl_thresh <= 0.0)
   {
-    // If we're not using deadlock detection, simply call MPI_Waitall. 
+    // If we're not using deadlock detection, simply call MPI_Waitall.
     err = MPI_Waitall(num_requests, buffer->requests, statuses);
   }
   else
@@ -170,25 +170,25 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
         }
       }
 
-      // If the transmissions have finished at this point, we 
-      // can break out of the loop. 
+      // If the transmissions have finished at this point, we
+      // can break out of the loop.
       if (all_finished) break;
 
-      // Take a look at the time. 
+      // Take a look at the time.
       real_t t2 = (real_t)MPI_Wtime();
 
-      // If we've passed the deadlock threshold, set our error flag and 
-      // and gather some diagnostic data. 
+      // If we've passed the deadlock threshold, set our error flag and
+      // and gather some diagnostic data.
       if ((t2 - t1) > ex->dl_thresh)
       {
-        // Cancel all unfinished communications. 
+        // Cancel all unfinished communications.
         for (int i = 0; i < num_requests; ++i)
         {
           if (!finished[i])
             MPI_Cancel(&(buffer->requests[i]));
         }
 
-        // Now generate a comprehensive report. 
+        // Now generate a comprehensive report.
         err = -1;
 
         int num_outstanding_sends = 0, num_outstanding_receives = 0,
@@ -205,13 +205,13 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
         {
           if (!finished[i])
           {
-            if (expecting_data && (i < ex->receive_map->size)) // outstanding receive 
+            if (expecting_data && (i < ex->receive_map->size)) // outstanding receive
             {
               outstanding_receive_procs[num_outstanding_receives] = buffer->source_procs[i];
               outstanding_receive_bytes[num_outstanding_receives] = buffer->receive_buffer_sizes[i] * buffer->data_size;
               ++num_outstanding_receives;
             }
-            else if (sent_data) // outstanding send 
+            else if (sent_data) // outstanding send
             {
               outstanding_send_procs[num_outstanding_sends] = buffer->dest_procs[i - buffer->num_receives];
               outstanding_send_bytes[num_outstanding_sends] = buffer->send_buffer_sizes[i - buffer->num_receives] * buffer->data_size;
@@ -220,13 +220,13 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
           }
           else
           {
-            if (expecting_data && (i < buffer->num_receives)) // completed receive 
+            if (expecting_data && (i < buffer->num_receives)) // completed receive
             {
               completed_receive_procs[num_completed_receives] = buffer->source_procs[i];
               completed_receive_bytes[num_completed_receives] = buffer->receive_buffer_sizes[i] * buffer->data_size;
               ++num_completed_receives;
             }
-            else if (sent_data) // completed send 
+            else if (sent_data) // completed send
             {
               completed_send_procs[num_completed_sends] = buffer->dest_procs[i - buffer->num_receives];
               completed_send_bytes[num_completed_sends] = buffer->send_buffer_sizes[i - buffer->num_receives] * buffer->data_size;
@@ -235,8 +235,8 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
           }
         }
 
-        // At this point, there must be at least one uncompleted 
-        // send and/or receive. 
+        // At this point, there must be at least one uncompleted
+        // send and/or receive.
         ASSERT((num_outstanding_sends > 0) || (num_outstanding_receives > 0));
 
         // Format the report.
@@ -267,15 +267,15 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
         }
         fprintf(ex->dl_output_stream, "%d: Grace period: %g seconds\n", ex->rank, ex->dl_thresh);
 
-        // Bug out. 
+        // Bug out.
         return -1;
       }
-      // Otherwise, slog onward. 
+      // Otherwise, slog onward.
     }
     while (!all_finished && (err == 0));
   }
 
-  // If the status buffer contains any errors, check it out. 
+  // If the status buffer contains any errors, check it out.
   if (err == MPI_ERR_IN_STATUS)
   {
     char errstr[MPI_MAX_ERROR_STRING];
@@ -288,11 +288,11 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
         if (i < buffer->num_receives)
         {
           // Now we can really get nitty-gritty and try to diagnose the
-          // problem carefully! 
+          // problem carefully!
           if (statuses[i].MPI_ERROR == MPI_ERR_TRUNCATE)
           {
             fprintf(ex->dl_output_stream, "%d: MPI error receiving from %d (%d) %s\n"
-                    "(Expected %d bytes)\n", ex->rank, buffer->source_procs[i], statuses[i].MPI_ERROR, 
+                    "(Expected %d bytes)\n", ex->rank, buffer->source_procs[i], statuses[i].MPI_ERROR,
                     errstr, buffer->receive_buffer_sizes[i]);
           }
           else
@@ -301,14 +301,14 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
                     ex->rank, buffer->source_procs[i], statuses[i].MPI_ERROR, errstr);
           }
         }
-        else 
+        else
         {
           fprintf(ex->dl_output_stream, "%d: MPI error sending to %d (%d) %s\n",
                   ex->rank, buffer->dest_procs[i - buffer->num_receives], statuses[i].MPI_ERROR, errstr);
         }
         return -1;
       }
-      // We shouldn't get here. 
+      // We shouldn't get here.
     }
   }
 
@@ -334,19 +334,19 @@ void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
   STOP_FUNCTION_TIMER();
 }
 
-bool blob_exchanger_next_send_blob(blob_exchanger_t* ex, 
-                                   int* pos, 
-                                   int* remote_process, 
-                                   int* blob_index, 
+bool blob_exchanger_next_send_blob(blob_exchanger_t* ex,
+                                   int* pos,
+                                   int* remote_process,
+                                   int* blob_index,
                                    size_t* blob_size)
 {
   return false;
 }
 
-bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex, 
-                                      int* pos, 
-                                      int* remote_process, 
-                                      int* blob_index, 
+bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
+                                      int* pos,
+                                      int* remote_process,
+                                      int* blob_index,
                                       size_t* blob_size)
 {
   return false;
@@ -370,13 +370,13 @@ void blob_exchanger_copy_out(blob_exchanger_t* ex,
   ASSERT(size_factor == buffer->size_factor);
 }
 
-bool blob_exchanger_verify(blob_exchanger_t* ex, 
+bool blob_exchanger_verify(blob_exchanger_t* ex,
                            void (*handler)(const char* format, ...))
 {
   return false;
 }
 
-void blob_exchanger_enable_deadlock_detection(blob_exchanger_t* ex, 
+void blob_exchanger_enable_deadlock_detection(blob_exchanger_t* ex,
                                               real_t threshold,
                                               int output_rank,
                                               FILE* stream)

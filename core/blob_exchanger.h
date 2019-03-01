@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,15 +10,16 @@
 
 #include "core/array.h"
 #include "core/polymec.h"
+#include "core/timer.h"
 #include "core/unordered_map.h"
 
 /// \addtogroup core core
 ///@{
 
 /// \class blob_exchanger
-/// This type implements an MPI transmitter/receiver for exchanging 
-/// blobs of binary data (of varying sizes) between processes in a 
-/// point-to-point fashion. A blob exchanger is like an exchanger, but instead 
+/// This type implements an MPI transmitter/receiver for exchanging
+/// blobs of binary data (of varying sizes) between processes in a
+/// point-to-point fashion. A blob exchanger is like an exchanger, but instead
 /// of filling in specific indices within arrays, it allows access to remote
 /// blobs for a specific transaction after each exchange.
 /// \note By "blob", we mean a sequence of bytes with a specific size.
@@ -26,7 +27,7 @@
 typedef struct blob_exchanger_t blob_exchanger_t;
 
 /// \class blob_buffer
-/// This opaque type stores sent and received blobs. You can fetch blobs 
+/// This opaque type stores sent and received blobs. You can fetch blobs
 /// from it using a blob_exchanger methods. Objects of this type are created
 /// by a blob_exchanger.
 typedef struct blob_buffer_t blob_buffer_t;
@@ -44,8 +45,8 @@ DEFINE_UNORDERED_MAP(blob_exchanger_proc_map, int, int_array_t*, int_hash, int_e
 /// \param [in] process The process with which the new index is associated.
 /// \param [in] blob_index The blob index added to the mapping.
 /// \memberof blob_exchanger_proc_map
-void blob_exchanger_proc_map_add_index(blob_exchanger_proc_map_t* map, 
-                                       int process, 
+void blob_exchanger_proc_map_add_index(blob_exchanger_proc_map_t* map,
+                                       int process,
                                        int blob_index);
 
 /// \class blob_exchanger_size_map
@@ -70,14 +71,14 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
 /// \memberof blob_exchanger
 MPI_Comm blob_exchanger_comm(blob_exchanger_t* ex);
 
-/// Allocates and returns a buffer large enough to store data for all blobs 
-/// sent and received by this blob exchanger. 
+/// Allocates and returns a buffer large enough to store data for all blobs
+/// sent and received by this blob exchanger.
 /// * You can copy blobs in for sending using \ref blob_exchanger_copy_in
 /// * You can copy out blobs received using \ref blob_exchanger_copy_out
 /// The blob buffer can be freed with \ref blob_buffer_free.
-/// \param [in] size_factor A factor by which each blob size is multiplied. 
+/// \param [in] size_factor A factor by which each blob size is multiplied.
 ///                         1 means each blob is the same size as that for which
-///                         the blob exchanger was created, 2 means each blob is 
+///                         the blob exchanger was created, 2 means each blob is
 ///                         twice that size, and so on.
 /// \memberof blob_exchanger
 blob_buffer_t* blob_exchanger_create_buffer(blob_exchanger_t* ex,
@@ -88,17 +89,17 @@ blob_buffer_t* blob_exchanger_create_buffer(blob_exchanger_t* ex,
 /// \param [in] tag The MPI tag used in the underlying exchange of data.
 /// \param [in,out] buffer The blob buffer used for the exchange.
 /// \memberof blob_exchanger
-void blob_exchanger_exchange(blob_exchanger_t* ex, 
+void blob_exchanger_exchange(blob_exchanger_t* ex,
                              int tag,
                              blob_buffer_t* buffer);
 
-/// Begins an asynchronous data exchange. 
+/// Begins an asynchronous data exchange.
 /// \param [in] tag The MPI tag used in the underlying exchange of data.
 /// \param [in,out] buffer The blob buffer used for the exchange.
-/// \returns a unique token that can be passed to \ref exchanger_finish_exchange to finish the 
+/// \returns a unique token that can be passed to \ref exchanger_finish_exchange to finish the
 ///          exchange, and allows access to data for the exchange.
 /// \memberof blob_exchanger
-int blob_exchanger_start_exchange(blob_exchanger_t* ex, 
+int blob_exchanger_start_exchange(blob_exchanger_t* ex,
                                   int tag,
                                   blob_buffer_t* buffer);
 
@@ -112,41 +113,41 @@ void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token);
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] remote_process Stores the remote process in the next send transaction.
 /// \param [out] blob_index Stores an internal pointer to the index of the next blob being sent.
-/// \param [out] blob_size Stores an internal pointer to the size (in bytes) of the next blob 
+/// \param [out] blob_size Stores an internal pointer to the size (in bytes) of the next blob
 ///                        being sent.
-/// \returns true if another send transaction is available in the blob exchanger, false 
+/// \returns true if another send transaction is available in the blob exchanger, false
 /// otherwise.
 /// \memberof blob_exchanger
-bool blob_exchanger_next_send_blob(blob_exchanger_t* ex, 
-                                   int* pos, 
-                                   int* remote_process, 
-                                   int* blob_index, 
+bool blob_exchanger_next_send_blob(blob_exchanger_t* ex,
+                                   int* pos,
+                                   int* remote_process,
+                                   int* blob_index,
                                    size_t* blob_size);
 
 /// Allows the traversal of the set of blobs being received by other processes.
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] remote_process Stores the remote process in the next receive transaction.
 /// \param [out] blob_index Stores an internal pointer to the index of the next blob being received.
-/// \param [out] blob_size Stores an internal pointer to the size (in bytes) of the next blob 
+/// \param [out] blob_size Stores an internal pointer to the size (in bytes) of the next blob
 ///                        being received.
-/// \returns true if another receive transaction is available in the blob exchanger, false 
+/// \returns true if another receive transaction is available in the blob exchanger, false
 /// otherwise.
 /// \memberof blob_exchanger
-bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex, 
-                                      int* pos, 
-                                      int* remote_process, 
-                                      int* blob_index, 
+bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
+                                      int* pos,
+                                      int* remote_process,
+                                      int* blob_index,
                                       size_t* blob_size);
 
 /// Copies data for the blob with the given index into the blob buffer
 /// to be sent to other processes.
 /// \param [in] blob_index The index of the blob for which data is copied in.
-/// \param [in] size_factor A factor by which the desired blob is bigger than the 
+/// \param [in] size_factor A factor by which the desired blob is bigger than the
 ///                         "base" blob size (the size known to the blob exchanger).
 ///                         Make sure you use the same size factor here as you used
-///                         to create your blob buffer. 
+///                         to create your blob buffer.
 /// \param [in] blob An array of data representing the blob. The blob exchanger
-///                  knows the size of the blob from its index and copies the 
+///                  knows the size of the blob from its index and copies the
 ///                  appropriate number of bytes in.
 /// \param [out] buffer The blob buffer that stores the data.
 /// \memberof blob_exchanger
@@ -160,12 +161,12 @@ void blob_exchanger_copy_in(blob_exchanger_t* ex,
 /// Call this after an exchange to fetch blobs received from other processes.
 /// \param [in] buffer The blob buffer holding the blob data.
 /// \param [in] blob_index The index of the blob for which data is copied out.
-/// \param [in] size_factor A factor by which the desired blob is bigger than the 
+/// \param [in] size_factor A factor by which the desired blob is bigger than the
 ///                         "base" blob size (the size known to the blob exchanger).
 ///                         Make sure you use the same size factor here as you used
-///                         to create your blob buffer. 
+///                         to create your blob buffer.
 /// \param [out] blob An array of data representing the blob. The blob exchanger
-///                   knows the size of the blob from its index and copies the 
+///                   knows the size of the blob from its index and copies the
 ///                   appropriate number of bytes out.
 /// \memberof blob_exchanger
 void blob_exchanger_copy_out(blob_exchanger_t* ex,
@@ -175,28 +176,28 @@ void blob_exchanger_copy_out(blob_exchanger_t* ex,
                              void* blob);
 
 /// Verifies the consistency of the blob exchanger.
-/// This function is expensive and involves parallel communication. It must be called 
-/// by all processes on the communicator for the exchanger. 
-/// \param [in] handler A function that accepts a formatted string. If non-NULL, 
-///                     this function is called with a string describing any errors 
-///                     encountered. 
-/// \returns true if the verification succeeds, false if not. 
+/// This function is expensive and involves parallel communication. It must be called
+/// by all processes on the communicator for the exchanger.
+/// \param [in] handler A function that accepts a formatted string. If non-NULL,
+///                     this function is called with a string describing any errors
+///                     encountered.
+/// \returns true if the verification succeeds, false if not.
 /// \memberof blob_exchanger
 /// \collective Collective on the blob exchanger's communicator.
-bool blob_exchanger_verify(blob_exchanger_t* ex, 
+bool blob_exchanger_verify(blob_exchanger_t* ex,
                            void (*handler)(const char* format, ...));
 
-/// Enables deadlock detection, setting the threshold to the given number of 
+/// Enables deadlock detection, setting the threshold to the given number of
 /// seconds. Deadlocks will be reported to the given rank on the given stream.
-/// \param [in] threshold The number of seconds after which an exchanger transaction 
-///                       (a send or receive) is considered to have hung because of a 
+/// \param [in] threshold The number of seconds after which an exchanger transaction
+///                       (a send or receive) is considered to have hung because of a
 ///                       deadlock condition.
 /// \param [in] output_rank The MPI rank on which any diagnostic output is reported
 ///                         for a deadlock condition.
-/// \param [in] stream If non-NULL on the given output rank, specifies the stream to which 
+/// \param [in] stream If non-NULL on the given output rank, specifies the stream to which
 ///                    diagnostic output is written.
 /// \memberof blob_exchanger
-void blob_exchanger_enable_deadlock_detection(blob_exchanger_t* ex, 
+void blob_exchanger_enable_deadlock_detection(blob_exchanger_t* ex,
                                               real_t threshold,
                                               int output_rank,
                                               FILE* stream);

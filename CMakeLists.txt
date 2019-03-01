@@ -63,7 +63,7 @@ add_custom_target(update_version_h ALL
                   ${BASH} ${PROJECT_SOURCE_DIR}/tools/update_version_h.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/core/polymec_version.h
                   BYPRODUCTS ${PROJECT_BINARY_DIR}/core/polymec_version.h)
 set_target_properties(update_version_h PROPERTIES FOLDER Misc)
-                  
+
 # Figure out the system type.
 if (APPLE)
   set(SYS_FLAGS "-DAPPLE=1")
@@ -97,8 +97,8 @@ else ()
       set(NUMBER_OF_CORES 1)
     endif()
 
-    # Physical cores: tricky in general. We'll parse the lscpu command to 
-    # find out the number of threads per core and then just divide 
+    # Physical cores: tricky in general. We'll parse the lscpu command to
+    # find out the number of threads per core and then just divide
     # NUMBER_OF_CORES by that to get NUMBER_OF_PHYSICAL_CORES.
     execute_process(COMMAND lscpu OUTPUT_VARIABLE lscpu_output)
     string(FIND ${lscpu_output} "Thread(s) per core:" pos)
@@ -106,7 +106,7 @@ else ()
     string(FIND ${lscpu_output} "\n" pos)
     string(SUBSTRING ${lscpu_output} 0 ${pos} lscpu_output) # chop the back
     string(REPLACE "Thread(s) per core: " "" lscpu_output ${lscpu_output})
-    string(REPLACE " " "" THREADS_PER_CORE ${lscpu_output}) 
+    string(REPLACE " " "" THREADS_PER_CORE ${lscpu_output})
     math(EXPR NUMBER_OF_PHYSICAL_CORES "${NUMBER_OF_CORES} / ${THREADS_PER_CORE}")
 
     message(STATUS "Configuring on Linux with ${NUMBER_OF_CORES} logical (${NUMBER_OF_PHYSICAL_CORES} physical) cores.")
@@ -149,7 +149,7 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-double-promotion -Wno-conversion")
   endif()
 
-  # Clang proper behaves differently from Apple Clang, and requires 
+  # Clang proper behaves differently from Apple Clang, and requires
   # more suppressions.
   if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
     # tolower() is a recursive macro, which causes issues.
@@ -200,7 +200,7 @@ if (BUILD_SHARED_LIBS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
   endif()
 
-  # Here we make sure CMake-installed binaries use the correct runpath, and 
+  # Here we make sure CMake-installed binaries use the correct runpath, and
   # that the path is not stripped during installation.
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
@@ -240,7 +240,7 @@ if (COVERAGE)
 
   add_custom_target(coverage ${LCOV} --gcov-tool=${GCOV} --directory ${PROJECT_BINARY_DIR} -c -q -o lcov.info
                     COMMAND ${LCOV} --remove lcov.info '*valgrind.h' '*/tests/*' -o lcov.info
-                    COMMAND ${GENHTML} -o coverage lcov.info 
+                    COMMAND ${GENHTML} -o coverage lcov.info
                     COMMENT "Writing code coverage report to ${PROJECT_BINARY_DIR}/coverage.")
 endif()
 
@@ -277,7 +277,7 @@ if (HAVE_MPI)
   message(STATUS "MPI is enabled.")
   set(HAVE_MPI 1) # Normalize.
 
-  # NOTE: Disable C++ bindings for MPI, since they have never worked for anyone. 
+  # NOTE: Disable C++ bindings for MPI, since they have never worked for anyone.
   set(NO_MPI_CXX_FLAGS "-DMPICH_SKIP_MPICXX -UHAVE_MPI_CPP -DLAM_WANT_MPI2CPP=0 -DLAM_BUILDING=1 -DOMPI_WANT_CXX_BINDINGS=0 -DOMPI_BUILDING=1")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NO_MPI_CXX_FLAGS}")
 else()
@@ -310,7 +310,7 @@ endif()
 # Other third-party libraries.
 add_subdirectory(3rdparty)
 
-# Record the libraries we've gathered so far as the "base" libraries that 
+# Record the libraries we've gathered so far as the "base" libraries that
 # Polymec needs. We use this for efficiently linking unit tests.
 set(POLYMEC_BASE_LIBRARIES ${POLYMEC_LIBRARIES})
 
@@ -356,8 +356,8 @@ add_subdirectory(io)
 add_custom_target(generate_headers ALL
                   ${BASH} ${PROJECT_SOURCE_DIR}/tools/generate_headers.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/include core geometry solvers model io)
 set_target_properties(generate_headers PROPERTIES FOLDER Misc)
-                  
-# Now that we have gathered all our libraries, generate a polymec.cmake 
+
+# Now that we have gathered all our libraries, generate a polymec.cmake
 # file that contains all the vital information.
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates/polymec.cmake.in"
@@ -439,7 +439,7 @@ if (DOXYGEN_FOUND)
   set(DOXYGEN_SHOW_FILES NO)
   set(DOXYGEN_SHOW_NAMESPACES NO)
   set(DOXYGEN_CALL_GRAPH YES)
-  set(DOXYGEN_ALIASES 
+  set(DOXYGEN_ALIASES
       [[collective="\xrefitem collective \"Collective functions\" \"Collective (MPI) functions\""]]
       [[refcounted="\xrefitem refcounted \"Reference counted resources\" \"Reference counted resources\""]]
      )
