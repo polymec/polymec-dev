@@ -8,11 +8,14 @@
 #include "core/array.h"
 #include "core/blob_exchanger.h"
 
-// A blob buffer is really just a big chunk of memory with an associated type.
+// A blob buffer is functionally just a big chunk of memory with an associated 
+// type. But it also needs to conduct its own message-passing business.
 struct blob_buffer_t 
 {
+  // Sizing factor for blobs.
   int size_factor;
 
+  // Message passing metadata.
   int num_sends;
   int num_receives;
   int num_requests;
@@ -30,6 +33,20 @@ struct blob_buffer_t
 
 void blob_buffer_free(blob_buffer_t* buffer)
 {
+  if (buffer->dest_procs != NULL)
+    polymec_free(buffer->dest_procs);
+  if (buffer->send_buffers != NULL)
+    polymec_free(buffer->send_buffers);
+  if (buffer->send_buffer_sizes != NULL)
+    polymec_free(buffer->send_buffer_sizes);
+  if (buffer->source_procs != NULL)
+    polymec_free(buffer->source_procs);
+  if (buffer->receive_buffers != NULL)
+    polymec_free(buffer->receive_buffers);
+  if (buffer->receive_buffer_sizes != NULL)
+    polymec_free(buffer->receive_buffer_sizes);
+  if (buffer->requests != NULL)
+    polymec_free(buffer->requests);
   polymec_free(buffer);
 }
 
@@ -37,7 +54,7 @@ struct blob_exchanger_t
 {
   MPI_Comm comm;
 
-  // Pending messages.
+  // Pending messages (buffers).
   ptr_array_t* pending_msgs;
 
   // Deadlock detection.
@@ -65,6 +82,7 @@ void blob_exchanger_proc_map_add_index(blob_exchanger_proc_map_t* map,
 static void blob_exchanger_free(void* context)
 {
   blob_exchanger_t* ex = context;
+  ptr_array_free(ex->pending_msgs);
 }
 
 blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
