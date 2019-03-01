@@ -23,9 +23,9 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     ${CMAKE_CURRENT_BINARY_DIR}/lua_thirdparty.c)
 set_target_properties(polymec_core PROPERTIES LINKER_LANGUAGE C)
 
-# polymec.c depends on the creation of polymec_version.h and on the creation
-# of the high-level headers
-add_dependencies(polymec_core update_version_h generate_headers)
+# polymec.c depends on the creation of polymec_version.h, the creation
+# of the high-level headers, and the building of 3rd-party libraries.
+add_dependencies(polymec_core update_version_h generate_headers all_3rdparty_libs)
 
 set(POLYMEC_LIBRARIES polymec_core;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_core;${POLYMEC_LIBRARIES})
