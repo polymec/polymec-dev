@@ -95,8 +95,8 @@ GENERATOR="Unix Makefiles"
 # Code::Blocks (with Ninja underneath).
 #GENERATOR="CodeBlocks - Ninja"
 
-# XCode (shudder).
-#GENERATOR="XCode"
+# Xcode. You can't use this for parallel (MPI) builds.
+#GENERATOR="Xcode"
 
 # CodeLite (with UNIX makefiles underneath).
 #GENERATOR="CodeLite - Unix Makefiles"
@@ -156,11 +156,9 @@ GENERATOR="Unix Makefiles"
 if [ "\$MPI" = "ON" ]; then
   CC=mpicc
   CXX=mpic++
-  FC=mpif90
 else
   CC=cc
   CXX=c++
-  FC=gfortran
 fi
 
 # Override compilers here (ONLY if you know what you're doing!).
@@ -170,9 +168,6 @@ fi
 
 # C++ compiler.
 #CXX=c++
-
-# Fortran compiler.
-#FC=gfortran
 
 #-----------------------------------------------------------------------------
 #                   Don't change anything below here.
@@ -209,7 +204,6 @@ cmake \
  -DCMAKE_BUILD_TYPE=\$BUILD_TYPE \
  -DCMAKE_C_COMPILER=\$CC \
  -DCMAKE_CXX_COMPILER=\$CXX \
- -DCMAKE_Fortran_COMPILER=\$FC \
  -DPOLYMEC_PRECISION=\$PRECISION \
  \$OPTIONS \
  -G "\$GENERATOR" \
