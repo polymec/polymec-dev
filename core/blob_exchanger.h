@@ -56,11 +56,14 @@ DEFINE_UNORDERED_MAP(blob_exchanger_size_map, int, size_t, int_hash, int_equals)
 /// Constructs a new blob exchanger on the given communicator.
 /// \param [in] comm The MPI communicator on which the blob exchanger is defined.
 /// \param [in] send_map A map whose keys are processes to which this exchanger sends blobs,
-///                      and whose values are arrays of indices for blobs sent.
+///                      and whose values are arrays of indices for blobs sent. Consumed
+///                      by the new blob exchanger.
 /// \param [in] receive_map A map whose keys are processes from which this exchanger receives
 ///                         blobs, and whose values are arrays of indices for blobs received.
+///                         Consumed by the new blob exchanger.
 /// \param [in] blob_size_map A map whose keys are blob indices, and whose values are sizes
-///                           (in bytes) for blobs with those indices.
+///                           (in bytes) for blobs with those indices. Consumed by the new 
+///                           blob exchanger.
 /// \memberof blob_exchanger
 blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
                                      blob_exchanger_proc_map_t* send_map,

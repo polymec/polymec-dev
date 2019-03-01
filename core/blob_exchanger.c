@@ -53,7 +53,18 @@ void blob_buffer_free(blob_buffer_t* buffer)
 struct blob_exchanger_t
 {
   MPI_Comm comm;
+  int rank;
 
+  // Mapping from processes to indices for blobs sent.
+  blob_exchanger_proc_map_t* send_map;
+  blob_exchanger_proc_map_t* receive_map;
+
+  // Sizes for blob indices.
+  blob_exchanger_size_map_t* blob_sizes;
+
+  // Base size of buffers created by this blob_exchanger.
+  size_t buffer_size;
+  
   // Pending messages (buffers).
   ptr_array_t* pending_msgs;
 
@@ -67,14 +78,14 @@ void blob_exchanger_proc_map_add_index(blob_exchanger_proc_map_t* map,
                                        int process,
                                        int blob_index)
 {
-  int_array_t** indices_p = exchanger_proc_map_get(map, process);
+  int_array_t** indices_p = blob_exchanger_proc_map_get(map, process);
   int_array_t* indices = NULL;
   if (indices_p != NULL)
     indices = *indices_p;
   else
   {
     indices = int_array_new();
-    exchanger_proc_map_insert_with_v_dtor(map, process, indices, int_array_free);
+    blob_exchanger_proc_map_insert_with_v_dtor(map, process, indices, int_array_free);
   }
   int_array_append(indices, blob_index);
 }
@@ -90,9 +101,37 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
                                      blob_exchanger_proc_map_t* receive_map,
                                      blob_exchanger_size_map_t* blob_size_map)
 {
+  // Validate the maps against one another. There must be a blob size for every
+  // index found in the send and receive maps.
+#ifndef NDEBUG
+  int pos = 0, proc;
+  int_array_t* indices;
+  while (blob_exchanger_proc_map_next(send_map, &pos, &proc, &indices))
+  {
+    for (size_t i = 0; i < indices->size; ++i)
+    {
+      int index = indices->data[i];
+      ASSERT(blob_exchanger_size_map_contains(blob_size_map, index));
+    }
+  }
+  pos = 0;
+  while (blob_exchanger_proc_map_next(receive_map, &pos, &proc, &indices))
+  {
+    for (size_t i = 0; i < indices->size; ++i)
+    {
+      int index = indices->data[i];
+      ASSERT(blob_exchanger_size_map_contains(blob_size_map, index));
+    }
+  }
+#endif
+
   blob_exchanger_t* ex = polymec_refcounted_malloc(sizeof(blob_exchanger_t),
                                                    blob_exchanger_free);
   ex->comm = comm;
+  MPI_Comm_rank(comm, &ex->rank);
+  ex->send_map = send_map;
+  ex->receive_map = receive_map;
+  ex->blob_sizes = blob_size_map;
   return ex;
 }
 
@@ -208,13 +247,13 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
             if (expecting_data && (i < ex->receive_map->size)) // outstanding receive
             {
               outstanding_receive_procs[num_outstanding_receives] = buffer->source_procs[i];
-              outstanding_receive_bytes[num_outstanding_receives] = buffer->receive_buffer_sizes[i] * buffer->data_size;
+              outstanding_receive_bytes[num_outstanding_receives] = buffer->receive_buffer_sizes[i];
               ++num_outstanding_receives;
             }
             else if (sent_data) // outstanding send
             {
               outstanding_send_procs[num_outstanding_sends] = buffer->dest_procs[i - buffer->num_receives];
-              outstanding_send_bytes[num_outstanding_sends] = buffer->send_buffer_sizes[i - buffer->num_receives] * buffer->data_size;
+              outstanding_send_bytes[num_outstanding_sends] = buffer->send_buffer_sizes[i - buffer->num_receives];
               ++num_outstanding_sends;
             }
           }
@@ -223,13 +262,13 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
             if (expecting_data && (i < buffer->num_receives)) // completed receive
             {
               completed_receive_procs[num_completed_receives] = buffer->source_procs[i];
-              completed_receive_bytes[num_completed_receives] = buffer->receive_buffer_sizes[i] * buffer->data_size;
+              completed_receive_bytes[num_completed_receives] = buffer->receive_buffer_sizes[i];
               ++num_completed_receives;
             }
             else if (sent_data) // completed send
             {
               completed_send_procs[num_completed_sends] = buffer->dest_procs[i - buffer->num_receives];
-              completed_send_bytes[num_completed_sends] = buffer->send_buffer_sizes[i - buffer->num_receives] * buffer->data_size;
+              completed_send_bytes[num_completed_sends] = buffer->send_buffer_sizes[i - buffer->num_receives];
               ++num_completed_sends;
             }
           }
@@ -323,11 +362,11 @@ void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
 {
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
-  ASSERT(token < ex->num_pending_msgs);
+  ASSERT(token < (int)ex->pending_msgs->size);
 
   // Retrieve the message for the given token.
-  blob_buffer_t* buffer = ex->pending_msgs[token];
-  exchanger_waitall(ex, buffer);
+  blob_buffer_t* buffer = ex->pending_msgs->data[token];
+  blob_exchanger_waitall(ex, buffer);
 
   // Pull the buffer out of our list of pending messages.
   ex->pending_msgs->data[token] = NULL;
