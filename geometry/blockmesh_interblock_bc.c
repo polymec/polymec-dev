@@ -471,7 +471,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
   }
   else
 #else
-  int nproc = 1, rank = 0;
+  int rank = 0;
 #endif
   {
     // nproc == 1. Set proc2 to proc1 for each connection in 
@@ -673,7 +673,7 @@ void* ib_buffer_far_local_data(ib_buffer_t* buffer,
     return NULL;
 }
 
-#ifdef POLYMEC_HAVE_MPI
+#if POLYMEC_HAVE_MPI
 void* ib_buffer_send_data(ib_buffer_t* buffer,
                           int i, int j, int k,
                           unimesh_boundary_t boundary)
@@ -1167,8 +1167,8 @@ void ib_buffer_finish_receiving(ib_buffer_t* buffer, int tag)
 
 void ib_buffer_gather_procs(ib_buffer_t* buffer)
 {
-  buffer->procs = int_array_new();
 #if POLYMEC_HAVE_MPI
+  buffer->procs = int_array_new();
   int pos = 0, index;
   cxn_t* cxn = NULL;
   while (cxn_map_next(buffer->cxns, &pos, &index, &cxn))

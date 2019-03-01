@@ -113,7 +113,7 @@ GENERATOR="Unix Makefiles"
 # Kate (with UNIX makefiles underneath).
 #GENERATOR="Kate - Unix Makefiles"
 
-# Kate (with Ninjaunderneath).
+# Kate (with Ninja underneath).
 #GENERATOR="Kate - Ninja"
 
 # Sublime Text 2 (with UNIX makefiles underneath).
