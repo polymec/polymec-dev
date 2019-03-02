@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -49,9 +49,9 @@ struct blockmesh_t
   bool finalized;
 };
 
-blockmesh_t* blockmesh_new(MPI_Comm comm, 
-                           int patch_nx, 
-                           int patch_ny, 
+blockmesh_t* blockmesh_new(MPI_Comm comm,
+                           int patch_nx,
+                           int patch_ny,
                            int patch_nz)
 {
   ASSERT(patch_nx > 0);
@@ -74,11 +74,11 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   return mesh;
 }
 
-int blockmesh_add_block(blockmesh_t* mesh, 
+int blockmesh_add_block(blockmesh_t* mesh,
                         bbox_t* block_domain,
                         coord_mapping_t* block_coords,
-                        int num_x_patches, 
-                        int num_y_patches, 
+                        int num_x_patches,
+                        int num_y_patches,
                         int num_z_patches)
 {
   ASSERT(!mesh->finalized);
@@ -101,18 +101,18 @@ int blockmesh_add_block(blockmesh_t* mesh,
   return index;
 }
 
-bool blockmesh_can_connect_blocks(blockmesh_t* mesh, 
-                                  int block1_index, 
+bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
+                                  int block1_index,
                                   int block1_nodes[4],
                                   int block2_index,
                                   int block2_nodes[4],
                                   char** reason)
 {
-  return blockmesh_pair_validate(mesh, block1_index, block1_nodes, 
+  return blockmesh_pair_validate(mesh, block1_index, block1_nodes,
                                  block2_index, block2_nodes, reason);
 }
 
-void blockmesh_connect_blocks(blockmesh_t* mesh, 
+void blockmesh_connect_blocks(blockmesh_t* mesh,
                               int block1_index, int block1_nodes[4],
                               int block2_index, int block2_nodes[4])
 {
@@ -123,8 +123,8 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
   blockmesh_pair_t* pair = blockmesh_pair_new(mesh, block1_index, block1_nodes,
                                                     block2_index, block2_nodes);
 
-  // Traverse all the locally-stored patches in block1 and connect them to 
-  // corresponding patches in block2. This is a bit grisly, since we have to 
+  // Traverse all the locally-stored patches in block1 and connect them to
+  // corresponding patches in block2. This is a bit grisly, since we have to
   // account for rotations and different sets of boundary pairs.
   unimesh_t* block1 = blockmesh_block(mesh, block1_index);
   unimesh_t* block2 = blockmesh_block(mesh, block2_index);
@@ -199,7 +199,7 @@ static void assign_patches(blockmesh_t* mesh)
       }
     }
   }
-  
+
 done_selecting_patches:
   for (size_t p = 0; p < patch_list->size/4; ++p)
   {
@@ -223,9 +223,9 @@ void blockmesh_finalize(blockmesh_t* mesh)
   // Finalize the inter-block boundaries.
   blockmesh_interblock_bc_finalize(mesh->interblock_bc);
 
-  // The boundary conditions for a given field at a block boundary depends on 
+  // The boundary conditions for a given field at a block boundary depends on
   // the structure of that field, since there's likely a change in coordinate
-  // systems. These boundary conditions should be set up already. So I think we 
+  // systems. These boundary conditions should be set up already. So I think we
   // have nothing to do here except finalize the blocks within the mesh.
   for (size_t i = 0; i < mesh->blocks->size; ++i)
     unimesh_finalize(mesh->blocks->data[i]);
@@ -275,8 +275,8 @@ coord_mapping_t* blockmesh_block_coords(blockmesh_t* mesh, int index)
   return mesh->coords->data[index];
 }
 
-extern bool blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc, 
-                                                        int block_index, 
+extern bool blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
+                                                        int block_index,
                                                         int block_neighbor_indices[6]);
 bool blockmesh_block_is_connected(blockmesh_t* mesh,
                                   int index,
@@ -288,8 +288,8 @@ bool blockmesh_block_is_connected(blockmesh_t* mesh,
   return (nblocks[b] != -1);
 }
 
-bool blockmesh_next_block(blockmesh_t* mesh, 
-                          int* pos, 
+bool blockmesh_next_block(blockmesh_t* mesh,
+                          int* pos,
                           unimesh_t** block,
                           bbox_t* block_domain,
                           coord_mapping_t** block_coords)
@@ -314,8 +314,8 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
 
-  // Create a graph whose vertices are all of the patches within the mesh's 
-  // blocks. NOTE that we associate this graph with the MPI_COMM_SELF 
+  // Create a graph whose vertices are all of the patches within the mesh's
+  // blocks. NOTE that we associate this graph with the MPI_COMM_SELF
   // communicator because it's a global graph.
   int num_blocks = (int)mesh->blocks->size, num_patches = 0;
   int patch_offsets[num_blocks+1]; // patch offsets by block
@@ -454,10 +454,10 @@ static int64_t* source_vector(blockmesh_t* mesh)
   // Gather the numbers of patches owned by each process.
   int num_my_patches = (int)my_patches->size;
   int num_patches_for_proc[mesh->nproc];
-  MPI_Allgather(&num_my_patches, 1, MPI_INT, 
+  MPI_Allgather(&num_my_patches, 1, MPI_INT,
                 num_patches_for_proc, 1, MPI_INT, mesh->comm);
 
-  // Arrange for the storage of the patch indices for the patches stored 
+  // Arrange for the storage of the patch indices for the patches stored
   // on each process.
   int proc_offsets[mesh->nproc+1];
   proc_offsets[0] = 0;
@@ -468,7 +468,7 @@ static int64_t* source_vector(blockmesh_t* mesh)
   int num_all_patches = block_offsets[num_blocks];
   ASSERT(num_all_patches == proc_offsets[mesh->nproc]);
   int* all_patches = polymec_malloc(sizeof(int) * num_all_patches);
-  MPI_Allgatherv(my_patches->data, num_my_patches, MPI_INT, 
+  MPI_Allgatherv(my_patches->data, num_my_patches, MPI_INT,
                  all_patches, num_patches_for_proc, proc_offsets,
                  MPI_INT, mesh->comm);
 
@@ -488,7 +488,7 @@ static int64_t* source_vector(blockmesh_t* mesh)
   return sources;
 }
 
-static void redistribute_blockmesh(blockmesh_t** mesh, 
+static void redistribute_blockmesh(blockmesh_t** mesh,
                                    int64_t* partition)
 {
   START_FUNCTION_TIMER();
@@ -510,7 +510,7 @@ static void redistribute_blockmesh(blockmesh_t** mesh,
     int npx, npy, npz;
     unimesh_get_extents(block, &npx, &npy, &npz);
     block_offsets[b+1] = block_offsets[b] + npx*npy*npz;
-    blockmesh_add_block(new_mesh, &old_mesh->bboxes->data[b], 
+    blockmesh_add_block(new_mesh, &old_mesh->bboxes->data[b],
                         old_mesh->coords->data[b], npx, npy, npz);
   }
 
@@ -544,9 +544,9 @@ static void redistribute_blockmesh(blockmesh_t** mesh,
   STOP_FUNCTION_TIMER();
 }
 
-// Redistributes the given block mesh using the given partition vector, but 
+// Redistributes the given block mesh using the given partition vector, but
 // does not finalize the mesh.
-static void redistribute_blockmesh_field(blockmesh_field_t** field, 
+static void redistribute_blockmesh_field(blockmesh_field_t** field,
                                          int64_t* partition,
                                          int64_t* sources,
                                          blockmesh_t* new_mesh)
@@ -583,7 +583,7 @@ static void redistribute_blockmesh_field(blockmesh_field_t** field,
     block_offsets[b+1] = block_offsets[b] + npx*npy*npz;
   }
 
-  // Send and receive data one block at a time. This isn't optimal, but 
+  // Send and receive data one block at a time. This isn't optimal, but
   // neither is our message-per-patch strategy as a whole.
   for (int b = 0; b < num_blocks; ++b)
   {
@@ -603,7 +603,7 @@ static void redistribute_blockmesh_field(blockmesh_field_t** field,
       int p = block_offsets[b] + npy*npz*i + npz*j + k;
       if (partition[p] == new_mesh->rank)
       {
-        size_t data_size = unimesh_patch_data_size(patch->centering, 
+        size_t data_size = unimesh_patch_data_size(patch->centering,
                                                    patch->nx, patch->ny, patch->nz,
                                                    patch->nc) / sizeof(real_t);
         int err = MPI_Irecv(patch->data, (int)data_size, MPI_REAL_T, (int)sources[p],
@@ -626,7 +626,7 @@ static void redistribute_blockmesh_field(blockmesh_field_t** field,
       int p = block_offsets[b] + npy*npz*i + npz*j + k;
       if (sources[p] == new_mesh->rank)
       {
-        size_t data_size = unimesh_patch_data_size(patch->centering, 
+        size_t data_size = unimesh_patch_data_size(patch->centering,
                                                    patch->nx, patch->ny, patch->nz,
                                                    patch->nc) / sizeof(real_t);
         int err = MPI_Isend(patch->data, (int)data_size, MPI_REAL_T, (int)partition[p],
@@ -649,7 +649,7 @@ static void redistribute_blockmesh_field(blockmesh_field_t** field,
 }
 #endif
 
-void repartition_blockmesh(blockmesh_t** mesh, 
+void repartition_blockmesh(blockmesh_t** mesh,
                            int* weights,
                            real_t imbalance_tol,
                            blockmesh_field_t** fields,
@@ -665,7 +665,7 @@ void repartition_blockmesh(blockmesh_t** mesh,
 
   // On a single process, repartitioning has no meaning.
   blockmesh_t* old_mesh = *mesh;
-  if (old_mesh->nproc == 1) 
+  if (old_mesh->nproc == 1)
   {
     STOP_FUNCTION_TIMER();
     return;
@@ -675,17 +675,17 @@ void repartition_blockmesh(blockmesh_t** mesh,
   adj_graph_t* graph = graph_from_blocks(old_mesh);
 
   // Map the graph to the different domains, producing a partition vector.
-  // We need the partition vector on all processes, so we scatter it 
+  // We need the partition vector on all processes, so we scatter it
   // from rank 0.
   log_debug("repartition_blockmesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
   int64_t* partition = partition_graph(graph, old_mesh->comm, weights, imbalance_tol, true);
 
-  // Redistribute the mesh. 
+  // Redistribute the mesh.
   log_debug("repartition_blockmesh: Redistributing mesh.");
   redistribute_blockmesh(mesh, partition);
   blockmesh_finalize(*mesh);
 
-  // Build a sources vector whose ith component is the rank that used to own 
+  // Build a sources vector whose ith component is the rank that used to own
   // the ith patch.
   int64_t* sources = source_vector(old_mesh);
 

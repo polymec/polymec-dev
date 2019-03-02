@@ -815,8 +815,6 @@ static void ib_buffer_compute_recv_offsets(ib_buffer_t* buffer)
     indices[p] = int_array_new();
     remote_indices[p] = int_array_new();
   }
-  bool x_periodic, y_periodic, z_periodic;
-  unimesh_get_periodicity(buffer->block, &x_periodic, &y_periodic, &z_periodic);
   {
     // Iterate over all connections for this mesh.
     int pos = 0, index;
