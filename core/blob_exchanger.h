@@ -22,6 +22,11 @@
 /// point-to-point fashion. A blob exchanger is like an exchanger, but instead
 /// of filling in specific indices within arrays, it allows access to remote
 /// blobs for a specific transaction after each exchange.
+///
+/// Іn the context of a blob exchanger, a blob is referred to by an index that
+/// is unique to the current process. You can copy a blob into and out of a
+/// blob buffer using its index, and all blob-related metadata is associated
+/// with that same index.
 /// \note By "blob", we mean a sequence of bytes with a specific size.
 /// \refcounted
 typedef struct blob_exchanger_t blob_exchanger_t;
@@ -153,8 +158,10 @@ bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
 ///                  knows the size of the blob from its index and copies the
 ///                  appropriate number of bytes in.
 /// \param [out] buffer The blob buffer that stores the data.
+/// \returns true if the blob data was successfully copied to the buffer,
+///          false otherwise.
 /// \memberof blob_exchanger
-void blob_exchanger_copy_in(blob_exchanger_t* ex,
+bool blob_exchanger_copy_in(blob_exchanger_t* ex,
                             int blob_index,
                             int size_factor,
                             void* blob,
@@ -171,8 +178,10 @@ void blob_exchanger_copy_in(blob_exchanger_t* ex,
 /// \param [out] blob An array of data representing the blob. The blob exchanger
 ///                   knows the size of the blob from its index and copies the
 ///                   appropriate number of bytes out.
+/// \returns true if the blob data was successfully copied out of the buffer,
+///          false otherwise.
 /// \memberof blob_exchanger
-void blob_exchanger_copy_out(blob_exchanger_t* ex,
+bool blob_exchanger_copy_out(blob_exchanger_t* ex,
                              blob_buffer_t* buffer,
                              int blob_index,
                              int size_factor,

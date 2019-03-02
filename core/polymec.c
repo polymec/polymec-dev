@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -70,7 +70,7 @@ static bool polymec_initialized = false;
 static int world_rank = 0;
 static int world_nprocs = 1;
 
-// This function must be called to take advantage of Jonathan Shewchuk's 
+// This function must be called to take advantage of Jonathan Shewchuk's
 // exact geometric predicates.
 extern void exactinit(void);
 
@@ -124,9 +124,9 @@ static void shutdown()
     memory_info_t meminfo;
     get_memory_info(&meminfo);
     log_debug("polymec: Shutting down...");
-    log_debug("polymec: Final memory usage: %zu kB resident, %zu kB virtual.", 
+    log_debug("polymec: Final memory usage: %zu kB resident, %zu kB virtual.",
               meminfo.process_resident_size, meminfo.process_virtual_size);
-    log_debug("polymec: Peak memory usage: %zu kB.", 
+    log_debug("polymec: Peak memory usage: %zu kB.",
               meminfo.process_peak_resident_size);
   }
 
@@ -279,7 +279,7 @@ static void set_up_mpi_error_handling()
     MPI_Comm_set_errhandler(MPI_COMM_SELF, MPI_ERRORS_RETURN);
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
   }
-  else 
+  else
   {
     log_debug("polymec: unknown option for mpi_errors: %s", handler);
     log_debug("polymec: Using fatal MPI error handler.");
@@ -336,7 +336,7 @@ static void set_up_threads()
 #endif
 }
 
-// This somewhat delicate procedure implements a simple mechanism to pause 
+// This somewhat delicate procedure implements a simple mechanism to pause
 // and allow a developer to attach a debugger.
 static void pause_if_requested()
 {
@@ -345,10 +345,10 @@ static void pause_if_requested()
   bool free_delay = false;
   if (delay == NULL)
   {
-    // Are we maybe in a test environment, in which the pause=xxx 
+    // Are we maybe in a test environment, in which the pause=xxx
     // argument is the first one passed?
     char* arg = options_argument(opts, 1);
-    if ((arg != NULL) && (strstr(arg, "pause") == arg) && 
+    if ((arg != NULL) && (strstr(arg, "pause") == arg) &&
         (string_casecmp(arg, "pause=") != 0))
     {
       int num_words;
@@ -459,7 +459,7 @@ void polymec_init(int argc, char** argv)
     {
       char arg[strlen(polymec_argv[i])+2];
       if (i == polymec_argc-1)
-        sprintf(arg, "%s", polymec_argv[i]); 
+        sprintf(arg, "%s", polymec_argv[i]);
       else
         sprintf(arg, "%s ", polymec_argv[i]);
       strcat(polymec_invoc_str, arg);
@@ -507,7 +507,7 @@ void polymec_init(int argc, char** argv)
 
     set_up_mpi_error_handling();
 
-    // If we are given a set of paths to search for dynamically loadable libraries, 
+    // If we are given a set of paths to search for dynamically loadable libraries,
     // set them up here.
     set_up_dl_paths();
 
@@ -518,7 +518,7 @@ void polymec_init(int argc, char** argv)
     polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
     polymec_timer_start(polymec_timer);
 
-    // Set up any required signal handlers (if they haven't already been 
+    // Set up any required signal handlers (if they haven't already been
     // claimed).
     void (*prev_handler)(int) = signal(SIGINT, handle_sigint);
     if (prev_handler != NULL)
@@ -546,7 +546,7 @@ void polymec_init(int argc, char** argv)
     {
       memory_info_t meminfo;
       get_memory_info(&meminfo);
-      log_debug("polymec: initialization complete (%zu kB resident, %zu kB virtual).", 
+      log_debug("polymec: initialization complete (%zu kB resident, %zu kB virtual).",
                 meminfo.process_resident_size, meminfo.process_virtual_size);
     }
   }
@@ -566,7 +566,7 @@ static noreturn void default_error_handler(const char* message)
 
 #if POLYMEC_HAVE_MPI
 // Here are the error handlers for the Scotch partitioning library.
-// These are not part of polymec's public API, but are used by other 
+// These are not part of polymec's public API, but are used by other
 // parts of the library, so must be available externally.
 noreturn void SCOTCH_errorPrint(const char* const errstr, ...);
 noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
@@ -599,9 +599,9 @@ void polymec_abort(const char* message, ...)
   // Abort.
   fprintf(stderr, "%d: %s\n", world_rank, err);
 #if POLYMEC_HAVE_MPI
-  MPI_Abort(MPI_COMM_WORLD, -1); 
+  MPI_Abort(MPI_COMM_WORLD, -1);
 #else
-  abort(); 
+  abort();
 #endif
   polymec_unreachable();
 }
@@ -690,7 +690,7 @@ void polymec_disable_fpe()
 }
 
 
-// The following suspend/restore mechanism uses standard C99 floating point 
+// The following suspend/restore mechanism uses standard C99 floating point
 // kung fu.
 static fenv_t fpe_env;
 
@@ -717,7 +717,7 @@ void polymec_not_implemented(const char* component)
   polymec_unreachable();
 }
 
-void polymec_atexit(void (*func)(void)) 
+void polymec_atexit(void (*func)(void))
 {
   ASSERT(_atexit_funcs != NULL);
   bool found = false;
@@ -757,7 +757,7 @@ void* polymec_dlopen(const char* lib_name)
   for (size_t i = 0; i < _dl_paths->size; ++i)
   {
     char full_path[FILENAME_MAX+1];
-    snprintf(full_path, FILENAME_MAX, "%s/lib%s%s", _dl_paths->data[i], 
+    snprintf(full_path, FILENAME_MAX, "%s/lib%s%s", _dl_paths->data[i],
              lib_name, SHARED_LIBRARY_SUFFIX);
     log_debug("polymec_dlopen: Trying to open %s", full_path);
     if (file_exists(full_path))
@@ -838,7 +838,7 @@ void polymec_provenance_fprintf(FILE* stream)
     char* candidate = options_argument(options, arg);
     if (string_contains(candidate, "="))
       --arg;
-    else 
+    else
     {
       char path[FILENAME_MAX+1];
       if (strcmp(polymec_invoc_dir, "(unknown)") != 0)
@@ -871,7 +871,7 @@ void polymec_provenance_fprintf(FILE* stream)
       if (input_len_limit < end)
       {
         truncated = true;
-        end = input_len_limit; 
+        end = input_len_limit;
       }
       fprintf(stream, "=======================================================================\n");
       fprintf(stream, "Contents of input script:\n");
@@ -916,7 +916,7 @@ void polymec_append_provenance_data(const char* provenance_data)
 {
   if (polymec_extra_provenance == NULL)
     polymec_extra_provenance = string_array_new();
-  string_array_append_with_dtor(polymec_extra_provenance, 
+  string_array_append_with_dtor(polymec_extra_provenance,
                                 string_dup(provenance_data),
                                 string_free);
 }

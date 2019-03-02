@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -36,7 +36,7 @@ struct exchanger_reducer_t
   exchanger_reducer_vtable vtable;
 };
 
-// This is a record of a single communications channel for an exchanger 
+// This is a record of a single communications channel for an exchanger
 // to send or receive data to or from a remote process.
 typedef struct
 {
@@ -68,7 +68,7 @@ static void exchanger_channel_free(exchanger_channel_t* c)
 
 DEFINE_UNORDERED_MAP(exchanger_map, int, exchanger_channel_t*, int_hash, int_equals)
 
-typedef struct 
+typedef struct
 {
   MPI_Datatype type;
   int stride;     // Number of data per element
@@ -109,7 +109,7 @@ static size_t mpi_size(MPI_Datatype type)
     size = sizeof(char);
   else if (type == MPI_BYTE)
     size = sizeof(uint8_t);
-  else 
+  else
     polymec_error("Unsupported MPI data type used.");
   return size;
 }
@@ -145,10 +145,10 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
         dest[stride*j+s] = src[send_offset+stride*send_indices[j]+s]; \
   }
 
-static void mpi_message_pack(mpi_message_t* msg, 
-                             void* data, 
+static void mpi_message_pack(mpi_message_t* msg,
+                             void* data,
                              ssize_t send_offset,
-                             exchanger_map_t* send_map, 
+                             exchanger_map_t* send_map,
                              exchanger_map_t* receive_map)
 {
   ASSERT(send_map->size >= 0);
@@ -212,8 +212,8 @@ static void mpi_message_pack(mpi_message_t* msg,
         dest[receive_offset+stride*recv_indices[j]+s] = src[stride*j+s]; \
   }
 
-static void mpi_message_unpack(mpi_message_t* msg, 
-                               void* data, 
+static void mpi_message_unpack(mpi_message_t* msg,
+                               void* data,
                                ssize_t receive_offset,
                                exchanger_map_t* receive_map)
 {
@@ -291,8 +291,8 @@ static void mpi_message_unpack(mpi_message_t* msg,
 
 DEFINE_UNORDERED_MAP(agg_map, int, int_array_t*, int_hash, int_equals)
 
-static void mpi_message_unpack_and_reduce(mpi_message_t* msg, 
-                                          void* data, 
+static void mpi_message_unpack_and_reduce(mpi_message_t* msg,
+                                          void* data,
                                           ssize_t receive_offset,
                                           exchanger_map_t* receive_map,
                                           exchanger_reducer_t* reducer,
@@ -488,7 +488,7 @@ exchanger_t* exchanger_clone(exchanger_t* ex)
   int pos = 0, proc;
   int *indices, num_indices;
   while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
-    exchanger_set_send(clone, proc, indices, num_indices, true);   
+    exchanger_set_send(clone, proc, indices, num_indices, true);
   pos = 0;
   while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
     exchanger_set_receive(clone, proc, indices, num_indices, true);
@@ -505,10 +505,10 @@ static void delete_map_entry(int key, exchanger_channel_t* value)
   exchanger_channel_free(value);
 }
 
-void exchanger_set_send(exchanger_t* ex, 
-                        int remote_process, 
-                        int* indices, 
-                        int num_indices, 
+void exchanger_set_send(exchanger_t* ex,
+                        int remote_process,
+                        int* indices,
+                        int num_indices,
                         bool copy_indices)
 {
   ASSERT(remote_process >= 0);
@@ -582,10 +582,10 @@ bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int*
   }
 }
 
-static void set_receive(exchanger_t* ex, 
-                        int remote_process, 
-                        int* indices, 
-                        int num_indices, 
+static void set_receive(exchanger_t* ex,
+                        int remote_process,
+                        int* indices,
+                        int num_indices,
                         bool copy_indices)
 {
   if (num_indices > 0)
@@ -621,7 +621,7 @@ static void find_aggregates(exchanger_t* ex)
       int* proc_p = int_int_unordered_map_get(receive_indices, index);
       if (proc_p != NULL)
       {
-        // We've already encountered this receive index, so start 
+        // We've already encountered this receive index, so start
         // aggregating the processes.
         int_array_t** procs_p = agg_map_get(ex->agg_procs, index);
         int_array_t* procs = NULL;
@@ -643,10 +643,10 @@ static void find_aggregates(exchanger_t* ex)
   STOP_FUNCTION_TIMER();
 }
 
-void exchanger_set_receive(exchanger_t* ex, 
-                           int remote_process, 
-                           int* indices, 
-                           int num_indices, 
+void exchanger_set_receive(exchanger_t* ex,
+                           int remote_process,
+                           int* indices,
+                           int num_indices,
                            bool copy_indices)
 {
   ASSERT(remote_process >= 0);
@@ -665,7 +665,7 @@ void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map)
   int pos = 0, recv_proc;
   int_array_t* recv_indices;
   while (exchanger_proc_map_next(recv_map, &pos, &recv_proc, &recv_indices))
-    set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);   
+    set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);
   find_aggregates(ex);
   exchanger_proc_map_free(recv_map);
 }
@@ -724,14 +724,14 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
   START_FUNCTION_TIMER();
   log_debug("exchanger_verify: Checking connectivity.");
 
-  // An exchanger is valid/consistent iff the number of elements that 
-  // are exchanged between any two processors are agreed upon between those 
-  // two processors. 
-  
-  // First question: do our neighbors agree with us about being our 
+  // An exchanger is valid/consistent iff the number of elements that
+  // are exchanged between any two processors are agreed upon between those
+  // two processors.
+
+  // First question: do our neighbors agree with us about being our
   // neighbors?
 
-  // Tally up the number of indices we're sending to and receiving from 
+  // Tally up the number of indices we're sending to and receiving from
   // every other process in the communicator.
   int pos = 0, proc, *indices, num_indices;
   int my_neighbors[2*ex->nprocs];
@@ -742,10 +742,10 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
   while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
     my_neighbors[2*proc+1] += num_indices;
 
-  // Do an all-to-all exchange to get everyone's votes on who is whose 
+  // Do an all-to-all exchange to get everyone's votes on who is whose
   // neighbor.
   int* neighbors_for_proc = polymec_malloc(sizeof(int)*2*ex->nprocs*ex->nprocs);
-  MPI_Allgather(my_neighbors, 2*ex->nprocs, MPI_INT, 
+  MPI_Allgather(my_neighbors, 2*ex->nprocs, MPI_INT,
                 neighbors_for_proc, 2*ex->nprocs, MPI_INT, ex->comm);
 
   for (int p = 0; p < ex->nprocs; ++p)
@@ -794,7 +794,7 @@ int exchanger_max_receive(exchanger_t* ex)
   return ex->max_receive;
 }
 
-void exchanger_enable_deadlock_detection(exchanger_t* ex, 
+void exchanger_enable_deadlock_detection(exchanger_t* ex,
                                          real_t threshold,
                                          int output_rank,
                                          FILE* stream)
@@ -811,6 +811,10 @@ void exchanger_disable_deadlock_detection(exchanger_t* ex)
 {
   ex->dl_thresh = -1.0;
   ex->dl_output_rank = -1;
+  if ((ex->dl_output_stream != NULL) &&
+      (ex->dl_output_stream != stdout) &&
+      (ex->dl_output_stream != stderr))
+    fclose(ex->dl_output_stream);
   ex->dl_output_stream = NULL;
 }
 
@@ -837,10 +841,10 @@ static int exchanger_send_message(exchanger_t* ex, mpi_message_t* msg)
 #if POLYMEC_HAVE_MPI
     if (ex->rank != msg->source_procs[i])
     {
-      // If we are expecting data, post an asynchronous receive. 
-      int err = MPI_Irecv(msg->receive_buffers[i], 
+      // If we are expecting data, post an asynchronous receive.
+      int err = MPI_Irecv(msg->receive_buffers[i],
                           msg->stride * msg->receive_buffer_sizes[i],
-                          msg->type, msg->source_procs[i], msg->tag, ex->comm, 
+                          msg->type, msg->source_procs[i], msg->tag, ex->comm,
                           &(msg->requests[j++]));
       if (err != MPI_SUCCESS)
       {
@@ -848,7 +852,7 @@ static int exchanger_send_message(exchanger_t* ex, mpi_message_t* msg)
         char str[MPI_MAX_ERROR_STRING];
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
-        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n",
             ex->rank, msg->source_procs[i], err, str);
         polymec_error(err_msg);
       }
@@ -858,34 +862,34 @@ static int exchanger_send_message(exchanger_t* ex, mpi_message_t* msg)
       idest_local = i;
   }
 
-  // Send the data asynchronously. 
+  // Send the data asynchronously.
   for (int i = 0; i < msg->num_sends; ++i)
   {
 #if POLYMEC_HAVE_MPI
     if (ex->rank != msg->dest_procs[i])
     {
-      int err = MPI_Isend(msg->send_buffers[i], 
-                          msg->stride * msg->send_buffer_sizes[i], 
-                          msg->type, msg->dest_procs[i], msg->tag, ex->comm, 
-                          &(msg->requests[j++])); 
+      int err = MPI_Isend(msg->send_buffers[i],
+                          msg->stride * msg->send_buffer_sizes[i],
+                          msg->type, msg->dest_procs[i], msg->tag, ex->comm,
+                          &(msg->requests[j++]));
       if (err != MPI_SUCCESS)
       {
         int resultlen;
         char str[MPI_MAX_ERROR_STRING];
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
-        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
+        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n",
                  ex->rank, msg->dest_procs[i], err, str);
         polymec_error(err_msg);
       }
     }
-    else 
+    else
 #endif
     {
       // Do any local copying.
       ASSERT(idest_local != -1); // no local destination for this source?
       ASSERT(msg->receive_buffer_sizes[idest_local] == msg->send_buffer_sizes[i]);
-      memcpy(msg->receive_buffers[idest_local], msg->send_buffers[i], 
+      memcpy(msg->receive_buffers[idest_local], msg->send_buffers[i],
              mpi_size(msg->type) * msg->stride * msg->send_buffer_sizes[i]);
     }
   }
@@ -921,7 +925,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
   mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
-  
+
   // Begin the transmission and allocate a token for it.
   int token = exchanger_send_message(ex, msg);
   ex->orig_buffers[token] = data;
@@ -935,11 +939,11 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
   // Allocate storage for statuses of sends/receives.
   int num_requests = msg->num_requests;
   MPI_Status statuses[num_requests];
-  
+
   int err = 0;
   if (ex->dl_thresh <= 0.0)
   {
-    // If we're not using deadlock detection, simply call MPI_Waitall. 
+    // If we're not using deadlock detection, simply call MPI_Waitall.
     err = MPI_Waitall(num_requests, msg->requests, statuses);
   }
   else
@@ -968,25 +972,25 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
         }
       }
 
-      // If the transmissions have finished at this point, we 
-      // can break out of the loop. 
+      // If the transmissions have finished at this point, we
+      // can break out of the loop.
       if (all_finished) break;
 
-      // Take a look at the time. 
+      // Take a look at the time.
       real_t t2 = (real_t)MPI_Wtime();
 
-      // If we've passed the deadlock threshold, set our error flag and 
-      // and gather some diagnostic data. 
+      // If we've passed the deadlock threshold, set our error flag and
+      // and gather some diagnostic data.
       if ((t2 - t1) > ex->dl_thresh)
       {
-        // Cancel all unfinished communications. 
+        // Cancel all unfinished communications.
         for (int i = 0; i < num_requests; ++i)
         {
           if (!finished[i])
             MPI_Cancel(&(msg->requests[i]));
         }
 
-        // Now generate a comprehensive report. 
+        // Now generate a comprehensive report.
         err = -1;
 
         int num_outstanding_sends = 0, num_outstanding_receives = 0,
@@ -1003,13 +1007,13 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
         {
           if (!finished[i])
           {
-            if (expecting_data && (i < ex->receive_map->size)) // outstanding receive 
+            if (expecting_data && (i < ex->receive_map->size)) // outstanding receive
             {
               outstanding_receive_procs[num_outstanding_receives] = msg->source_procs[i];
               outstanding_receive_bytes[num_outstanding_receives] = msg->receive_buffer_sizes[i] * msg->data_size;
               ++num_outstanding_receives;
             }
-            else if (sent_data) // outstanding send 
+            else if (sent_data) // outstanding send
             {
               outstanding_send_procs[num_outstanding_sends] = msg->dest_procs[i - msg->num_receives];
               outstanding_send_bytes[num_outstanding_sends] = msg->send_buffer_sizes[i - msg->num_receives] * msg->data_size;
@@ -1018,13 +1022,13 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
           }
           else
           {
-            if (expecting_data && (i < msg->num_receives)) // completed receive 
+            if (expecting_data && (i < msg->num_receives)) // completed receive
             {
               completed_receive_procs[num_completed_receives] = msg->source_procs[i];
               completed_receive_bytes[num_completed_receives] = msg->receive_buffer_sizes[i] * msg->data_size;
               ++num_completed_receives;
             }
-            else if (sent_data) // completed send 
+            else if (sent_data) // completed send
             {
               completed_send_procs[num_completed_sends] = msg->dest_procs[i - msg->num_receives];
               completed_send_bytes[num_completed_sends] = msg->send_buffer_sizes[i - msg->num_receives] * msg->data_size;
@@ -1033,8 +1037,8 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
           }
         }
 
-        // At this point, there must be at least one uncompleted 
-        // send and/or receive. 
+        // At this point, there must be at least one uncompleted
+        // send and/or receive.
         ASSERT((num_outstanding_sends > 0) || (num_outstanding_receives > 0));
 
         // Format the report.
@@ -1065,15 +1069,15 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
         }
         fprintf(ex->dl_output_stream, "%d: Grace period: %g seconds\n", ex->rank, ex->dl_thresh);
 
-        // Bug out. 
+        // Bug out.
         return -1;
       }
-      // Otherwise, slog onward. 
+      // Otherwise, slog onward.
     }
     while (!all_finished && (err == 0));
   }
 
-  // If the status buffer contains any errors, check it out. 
+  // If the status buffer contains any errors, check it out.
   if (err == MPI_ERR_IN_STATUS)
   {
     char errstr[MPI_MAX_ERROR_STRING];
@@ -1086,11 +1090,11 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
         if (i < msg->num_receives)
         {
           // Now we can really get nitty-gritty and try to diagnose the
-          // problem carefully! 
+          // problem carefully!
           if (statuses[i].MPI_ERROR == MPI_ERR_TRUNCATE)
           {
             fprintf(ex->dl_output_stream, "%d: MPI error receiving from %d (%d) %s\n"
-                    "(Expected %d bytes)\n", ex->rank, msg->source_procs[i], statuses[i].MPI_ERROR, 
+                    "(Expected %d bytes)\n", ex->rank, msg->source_procs[i], statuses[i].MPI_ERROR,
                     errstr, msg->receive_buffer_sizes[i]);
           }
           else
@@ -1099,14 +1103,14 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
                     ex->rank, msg->source_procs[i], statuses[i].MPI_ERROR, errstr);
           }
         }
-        else 
+        else
         {
           fprintf(ex->dl_output_stream, "%d: MPI error sending to %d (%d) %s\n",
                   ex->rank, msg->dest_procs[i - msg->num_receives], statuses[i].MPI_ERROR, errstr);
         }
         return -1;
       }
-      // We shouldn't get here. 
+      // We shouldn't get here.
     }
   }
 
@@ -1117,7 +1121,7 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 #endif
 }
 
-void exchanger_finish_exchange(exchanger_t* ex, int token) 
+void exchanger_finish_exchange(exchanger_t* ex, int token)
 {
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
@@ -1126,7 +1130,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];
   int err = exchanger_waitall(ex, msg);
-  if (err == MPI_SUCCESS) 
+  if (err == MPI_SUCCESS)
   {
     void* orig_buffer = ex->orig_buffers[token];
     if (ex->agg_procs->size == 0)
@@ -1138,7 +1142,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
     {
       ASSERT(ex->reducer != NULL);
       // Copy and reduce the received data into the original array.
-      mpi_message_unpack_and_reduce(msg, orig_buffer, ex->receive_offset, 
+      mpi_message_unpack_and_reduce(msg, orig_buffer, ex->receive_offset,
                                     ex->receive_map, ex->reducer,
                                     ex->agg_procs);
     }
@@ -1153,7 +1157,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
 
 void exchanger_fprintf(exchanger_t* ex, FILE* stream)
 {
-  fprintf(stream, "Exchanger(");
+  fprintf(stream, "exchanger(");
   if (ex->comm == MPI_COMM_WORLD)
     fprintf(stream, "MPI_COMM_WORLD");
   else if (ex->comm == MPI_COMM_SELF)
@@ -1380,7 +1384,7 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
   for (size_t i = 0; i < num_values; ++i) \
     result += values[i]; \
   return result; \
-} 
+}
 DEFINE_SUM(sum_double, double, 0.0)
 DEFINE_SUM(sum_float, float, 0.0)
 DEFINE_SUM(sum_double_complex, double complex, CMPLX(0.0, 0.0))
@@ -1400,7 +1404,7 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
   for (size_t i = 0; i < num_values; ++i) \
     result *= values[i]; \
   return result; \
-} 
+}
 DEFINE_PRODUCT(prod_double, double, 1.0)
 DEFINE_PRODUCT(prod_float, float, 1.0)
 DEFINE_PRODUCT(prod_double_complex, double complex, CMPLX(1.0, 0.0))
@@ -1420,7 +1424,7 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
   for (size_t i = 0; i < num_values; ++i) \
     result = min_or_max(result, values[i]); \
   return result; \
-} 
+}
 DEFINE_MINMAX(min_double, double, DBL_MAX, MIN)
 DEFINE_MINMAX(min_float, float, FLT_MAX, MIN)
 DEFINE_MINMAX(min_int, int, INT_MAX, MIN)
@@ -1444,34 +1448,34 @@ DEFINE_MINMAX(max_byte, uint8_t, 0, MAX)
 // For complex numbers, the MIN and MAX functions use the modulus.
 static double complex min_double_complex(void* context, double complex* values, int* processes, size_t num_values)
 {
-  double complex result = CMPLX(DBL_MAX, 0.0); 
-  for (size_t i = 0; i < num_values; ++i) 
-    result = MIN(cabs(result), cabs(values[i])); 
-  return result; 
+  double complex result = CMPLX(DBL_MAX, 0.0);
+  for (size_t i = 0; i < num_values; ++i)
+    result = MIN(cabs(result), cabs(values[i]));
+  return result;
 }
 
 static double complex max_double_complex(void* context, double complex* values, int* processes, size_t num_values)
 {
-  double complex result = CMPLX(0.0, 0.0); 
-  for (size_t i = 0; i < num_values; ++i) 
-    result = MAX(cabs(result), cabs(values[i])); 
-  return result; 
+  double complex result = CMPLX(0.0, 0.0);
+  for (size_t i = 0; i < num_values; ++i)
+    result = MAX(cabs(result), cabs(values[i]));
+  return result;
 }
 
 static float complex min_float_complex(void* context, float complex* values, int* processes, size_t num_values)
 {
-  float complex result = CMPLXF(FLT_MAX, 0.0); 
-  for (size_t i = 0; i < num_values; ++i) 
-    result = MIN(cabsf(result), cabsf(values[i])); 
-  return result; 
+  float complex result = CMPLXF(FLT_MAX, 0.0);
+  for (size_t i = 0; i < num_values; ++i)
+    result = MIN(cabsf(result), cabsf(values[i]));
+  return result;
 }
 
 static float complex max_float_complex(void* context, float complex* values, int* processes, size_t num_values)
 {
-  float complex result = CMPLXF(0.0, 0.0); 
-  for (size_t i = 0; i < num_values; ++i) 
-    result = MAX(cabsf(result), cabsf(values[i])); 
-  return result; 
+  float complex result = CMPLXF(0.0, 0.0);
+  for (size_t i = 0; i < num_values; ++i)
+    result = MAX(cabsf(result), cabsf(values[i]));
+  return result;
 }
 
 #define DEFINE_MIN_RANK(func_name, c_type) \
@@ -1488,7 +1492,7 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
     } \
   } \
   return result; \
-} 
+}
 DEFINE_MIN_RANK(minr_double, double)
 DEFINE_MIN_RANK(minr_float, float)
 DEFINE_MIN_RANK(minr_double_complex, double complex)
@@ -1515,7 +1519,7 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
     } \
   } \
   return result; \
-} 
+}
 DEFINE_MAX_RANK(maxr_double, double)
 DEFINE_MAX_RANK(maxr_float, float)
 DEFINE_MAX_RANK(maxr_double_complex, double complex)
