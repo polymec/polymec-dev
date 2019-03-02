@@ -80,20 +80,24 @@ static void test_blob_exchanger_exchange(void** state)
 
   // Create a blob buffer that can be used with this exchanger.
   blob_buffer_t* buffer = blob_exchanger_create_buffer(ex, 1);
-  (void)buffer;
 
   // Initialize small and big widgets to exchange and copy them into
   // our buffer.
   int small_blob = 0, big_blob = 1;
   small_widget_t smallw;
+  strcpy(smallw.name, "lil widget!");
+  smallw.age = 10;
   blob_exchanger_copy_in(ex, small_blob, 1, &smallw, buffer);
   big_widget_t bigw;
+  strcpy(bigw.name, "BIG widget!");
+  bigw.age = 100;
+  for (int i = 0; i < 100; ++i)
+    bigw.spectrum[i] = 1.0 * i;
   blob_exchanger_copy_in(ex, big_blob, 1, &bigw, buffer);
 
   // Do the exchange.
   blob_exchanger_exchange(ex, 0, buffer);
 
-/*
   // Now get our received data.
   small_widget_t smallw1;
   blob_exchanger_copy_out(ex, buffer, small_blob, 1, &smallw1);
@@ -101,14 +105,18 @@ static void test_blob_exchanger_exchange(void** state)
   blob_exchanger_copy_out(ex, buffer, big_blob, 1, &bigw1);
 
   // Did we get what we expected?
+  assert_int_equal(0, strcmp(smallw.name, "lil widget!"));
+  assert_int_equal(10, smallw.age);
+  assert_int_equal(0, strcmp(bigw.name, "BIG widget!"));
+  assert_int_equal(100, bigw.age);
+  for (int i = 0; i < 100; ++i)
+    assert_true(reals_equal(1.0*i, bigw.spectrum[i]));
 
   // Clean up.
   blob_buffer_free(buffer);
   release_ref(ex);
-*/
 }
 
-/*
 // This sets up a bad exchanger to use for deadlock detection.
 static blob_exchanger_t* bad_exchanger(void** state)
 {
@@ -146,6 +154,12 @@ static blob_exchanger_t* bad_exchanger(void** state)
 
 static void test_blob_exchanger_verify_and_dl_detection(void** state)
 {
+  // We skip this for single process runs.
+  int nproc;
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+  if (nproc == 1)
+    return;
+
   // Create a busted exchanger.
   blob_exchanger_t* ex = bad_exchanger(state);
 
@@ -189,7 +203,6 @@ static void test_blob_exchanger_verify_and_dl_detection(void** state)
   blob_buffer_free(buffer);
   release_ref(ex);
 }
-*/
 
 int main(int argc, char* argv[])
 {
@@ -198,7 +211,7 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_blob_exchanger_construct),
     cmocka_unit_test(test_blob_exchanger_exchange),
-//    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
+    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

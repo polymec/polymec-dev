@@ -169,35 +169,35 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
   // Validate the maps against one another. There must be a blob size for every
   // index found in the send and receive maps.
 #ifndef NDEBUG
-  bool does_local_copy = false;
+  size_t local_bytes_sent = 0;
   int pos = 0, proc;
   int_array_t* indices;
   while (blob_exchanger_proc_map_next(send_map, &pos, &proc, &indices))
   {
-    if (proc == rank)
-      does_local_copy = true;
     for (size_t i = 0; i < indices->size; ++i)
     {
       int index = indices->data[i];
       ASSERT(blob_exchanger_size_map_contains(blob_size_map, index));
+      if (proc == rank)
+        local_bytes_sent += *blob_exchanger_size_map_get(blob_size_map, index);
     }
   }
+
+  size_t local_bytes_received = 0;
   pos = 0;
-  bool found_local_rank = false;
   while (blob_exchanger_proc_map_next(receive_map, &pos, &proc, &indices))
   {
-    if (proc == rank)
-      found_local_rank = true;
     for (size_t i = 0; i < indices->size; ++i)
     {
       int index = indices->data[i];
       ASSERT(blob_exchanger_size_map_contains(blob_size_map, index));
+      if (proc == rank)
+        local_bytes_received += *blob_exchanger_size_map_get(blob_size_map, index);
     }
   }
 
   // Make sure any local copies are consistent.
-  ASSERT((does_local_copy && found_local_rank) ||
-         (!does_local_copy && !found_local_rank));
+  ASSERT(local_bytes_sent == local_bytes_received);
 #endif
 
   blob_exchanger_t* ex = polymec_refcounted_malloc(sizeof(blob_exchanger_t),
@@ -276,7 +276,6 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
                   (ex->recv_proc_offsets->data[p+1] -
                    ex->recv_proc_offsets->data[p]);
     void* data = &(((char*)buffer->storage)[size_factor * ex->recv_proc_offsets->data[p]]);
-//    log_debug("Expecting %d bytes from %d", (int)(sizeof(real_t) * size), proc);
     if (proc != ex->rank)
     {
       int err = MPI_Irecv(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
@@ -315,7 +314,6 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
                   (ex->send_proc_offsets->data[p+1] -
                    ex->send_proc_offsets->data[p]);
     void* data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p]]);
-//    log_debug("Sending %d bytes to %d", (int)(sizeof(real_t) * size), proc);
     if (proc != ex->rank)
     {
       int err = MPI_Isend(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
@@ -345,7 +343,7 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
   int num_requests = buffer->num_requests;
   MPI_Status statuses[num_requests];
 
-  int num_sends = (int)ex->recv_procs->size;
+  int num_sends = (int)ex->send_procs->size;
   int num_receives = (int)ex->recv_procs->size;
   if (ex->does_local_copy)
   {
