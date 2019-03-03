@@ -285,6 +285,13 @@ coord_mapping_t* blockmesh_block_coords(blockmesh_t* mesh, int index)
   return mesh->coords->data[index];
 }
 
+void blockmesh_get_patch_size(blockmesh_t* mesh, int* nx, int* ny, int* nz)
+{
+  *nx = mesh->patch_nx;
+  *ny = mesh->patch_ny;
+  *nz = mesh->patch_nz;
+}
+
 extern bool blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
                                                         int block_index,
                                                         int block_neighbor_indices[6]);

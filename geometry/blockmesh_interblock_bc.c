@@ -138,10 +138,12 @@ struct blockmesh_interblock_bc_t
 {
   blockmesh_t* mesh;
   cxn_map_t* cxns;
-  blob_exchanger_t* ex;
 
-  // Mapping of exchange tokens to buffers.
-  int_ptr_unordered_map_t* ex_buffers;
+  // Blob exchangers for all centerings
+  blob_exchanger_t* ex[8];
+
+  // Mapping of exchange tokens to buffers (segregated by centering).
+  int_ptr_unordered_map_t* ex_buffers[8];
 };
 
 static void ibc_start_update(void* context, unimesh_t* block,
@@ -256,16 +258,6 @@ static void ibc_about_to_finish_boundary_updates(void* context,
   ib_buffer_finish_receiving(buffer, token);
 }
 
-static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh)
-{
-  MPI_Comm comm = blockmesh_comm(mesh);
-  blob_exchangeṟ_proc_map_t* send_map = blob_exchangeṟ_proc_map_new();
-  blob_exchangeṟ_proc_map_t* recv_map = blob_exchangeṟ_proc_map_new();
-  blob_exchangeṟ_size_map_t* blob_sizes = blob_exchanger_size_map_new();
-  // FIXME
-  return blob_exchanger_new(comm, send_map, recv_map, blob_sizes);
-}
-
 //------------------------------------------------------------------------
 //                     Inter-block BC public API
 //------------------------------------------------------------------------
@@ -274,8 +266,8 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
 {
   blockmesh_interblock_bc_t* bc = polymec_malloc(sizeof(blockmesh_interblock_bc_t));
   bc->mesh = mesh;
-  bc->ex = interblock_exchanger_new(mesh);
-  bc->ex_buffers = int_ptr_unordered_map_new();
+  memset(bc->ex、0, sizeof(blob_exchanger_t*)*8);
+  memset(bc->ex_buffers、0, sizeof(ptr_array_t*)*8);
   bc->cxns = cxn_map_new();
   return bc;
 }
@@ -283,8 +275,13 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
 void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
 {
   cxn_map_free(bc->cxns);
-  int_ptr_unordered_map_free(bc->ex_buffers);
-  release_ref(bc->ex);
+  for (int c = 0; c < 8; ++c)
+  {
+    if (bc->ex[c] != NULL)
+      release_ref(bc->ex[c]);
+    if (bc->ex_buffers[c] != NULL)
+      int_ptr_unordered_map_free(bc->ex_buffers[c]);
+  }
   polymec_free(bc);
 }
 
@@ -341,12 +338,89 @@ bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
   return result;
 }
 
+static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh,
+                                                  cxn_map_t* cxns,
+                                                  unimesh_centering_t centering)
+{
+  blob_exchangeṟ_proc_map_t* send_map = blob_exchangeṟ_proc_map_new();
+  blob_exchangeṟ_proc_map_t* recv_map = blob_exchangeṟ_proc_map_new();
+  blob_exchangeṟ_size_map_t* blob_sizes = blob_exchanger_size_map_new();
+
+  // Get the dimensions of the patch boundaries. These are our blob sizes.
+  int nx, ny, nz;
+  blockmesh_get_patch_size(mesh, &nx, &ny, &nz);
+  size_t boundary_sizes[8][6] =  { // cells (including ghosts for simplicity)
+                                  {(ny+2)*(nz+2), (ny+2)*(nz+2),
+                                   (nx+2)*(nz+2), (nx+2)*(nz+2),
+                                   (nx+2)*(ny+2), (nx+2)*(ny+2)},
+                                   // x faces
+                                  {ny*nz, ny*nz,
+                                   (nx+1)*nz, (nx+1)*nz,
+                                   (nx+1)*ny, (nx+1)*ny},
+                                   // y faces
+                                  {(ny+1)*nz, (ny+1)*nz,
+                                   nx*nz, nx*nz,
+                                   nx*(ny+1), nx*(ny+1)},
+                                   // z faces
+                                  {ny*(nz+1), ny*(nz+1),
+                                   nx*(nz+1), nx*(nz+1),
+                                   nx*ny, nx*ny},
+                                   // x edges
+                                  {(ny+1)*(nz+1), (ny+1)*(nz+1),
+                                   nx*(nz+1), nx*(nz+1),
+                                   nx*(ny+1), nx*(ny+1)},
+                                   // y edges
+                                  {ny*(nz+1), ny*(nz+1),
+                                   (nx+1)*(nz+1), (nx+1)*(nz+1),
+                                   (nx+1)*ny, (nx+1)*ny},
+                                   // z edges
+                                  {(ny+1)*nz, (ny+1)*nz,
+                                   (nx+1)*nz, (nx+1)*nz,
+                                   (nx+1)*(ny+1), (nx+1)*(ny+1)},
+                                   // nodes
+                                  {(ny+1)*(nz+1), (ny+1)*(nz+1),
+                                   (nx+1)*(nz+1), (nx+1)*(nz+1),
+                                   (nx+1)*(ny+1), (nx+1)*(ny+1)}};
+
+  int pos = 0, b1_index;
+  cxn_t* cxn;
+  while (cxn_map_next(cxns, &pos, &b1_index, &cxn))
+  {
+    // b1_index is the patch boundary index for the near boundary in the
+    // connection. Let's map it to a send blob.
+    blob_exchanger_proc_map_add_index(send_map, cxn->proc2, b1_index);
+
+    // Now we map the far boundary to a receive blob.
+    int b2_index = boundary_index(mesh, cxn->block2,
+                                  cxn->i2, cxn->j2, cxn->k2,
+                                  cxn->boundary2);
+    blob_exchanger_proc_map_add_index(recv_map, cxn->proc2, b2_index);
+
+    // Compute boundary sizes and map them too.
+    int b1_size = boundary_sizes[(int)centering][(int)cxn->boundary1];
+    blob_exchanger_size_map_insert(blob_sizes, b1_index, b1_size);
+    int b2_size = boundary_sizes[(int)centering][(int)cxn->boundary2];
+    blob_exchanger_size_map_insert(blob_sizes, b2_index, b2_size);
+  }
+
+  return blob_exchanger_new(comm, send_map, recv_map, blob_sizes);
+}
+
 extern void unimesh_set_patch_bc(unimesh_t* mesh,
                                  int i, int j, int k,
                                  unimesh_boundary_t patch_boundary,
                                  unimesh_patch_bc_t* patch_bc);
 void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
 {
+  // Create the exchanger for our connections for each of our centerings,
+  // plus a list of buffers.
+  for (int c = 0; c < 8; ++c)
+  {
+    unimesh_centering_t centering = (unimesh_centering_t)c;
+    bc->ex[c] = interblock_exchanger_new(bc->mesh, bc->cxns, centering);
+    bc->ex_buffers[c] = ptr_array_new();
+  }
+
   // Traverse all the connections for this BC and create
   // unimesh_patch_bc objects for each block.
   int num_blocks = blockmesh_num_blocks(bc->mesh);

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,7 +15,7 @@
 
 /// \class unimesh
 /// A unimesh, or uniform mesh, is a three-dimensional cartesian mesh whose
-/// cells are all identical. It consists of a set of uniformly-sized patches. 
+/// cells are all identical. It consists of a set of uniformly-sized patches.
 /// The mesh manages these patches and their connectivity.
 typedef struct unimesh_t unimesh_t;
 
@@ -59,8 +59,8 @@ typedef struct field_metadata_t field_metadata_t;
 // constructed.
 //------------------------------------------------------------------------
 
-/// Creates a new empty unimesh defined on the region filling the given bounding box 
-/// with npx x npy x npz patches of size nx x ny x nz. Use periodic_in_[x,y,z] to 
+/// Creates a new empty unimesh defined on the region filling the given bounding box
+/// with npx x npy x npz patches of size nx x ny x nz. Use periodic_in_[x,y,z] to
 /// indicate whether the mesh is periodic in the x, y, and/or z directions.
 /// \param [in] comm The communicator on which this unimesh is defined.
 /// \param [in] bbox A bounding box defining the boundary for the unimesh.
@@ -74,8 +74,8 @@ typedef struct field_metadata_t field_metadata_t;
 /// \param [in] periodic_in_y Specifies whether the mesh is periodic in the y direction.
 /// \param [in] periodic_in_z Specifies whether the mesh is periodic in the z direction.
 /// \memberof unimesh
-unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox, 
-                                int npx, int npy, int npz, 
+unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
+                                int npx, int npy, int npz,
                                 int nx, int ny, int nz,
                                 bool periodic_in_x, bool periodic_in_y, bool periodic_in_z);
 
@@ -83,8 +83,8 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
 /// \memberof unimesh
 void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k);
 
-/// Finalizes the construction process for the mesh. This must be called 
-/// before any of the mesh's usage methods (below) are invoked. Should only 
+/// Finalizes the construction process for the mesh. This must be called
+/// before any of the mesh's usage methods (below) are invoked. Should only
 /// be called once.
 /// \memberof unimesh
 void unimesh_finalize(unimesh_t* mesh);
@@ -96,10 +96,10 @@ void unimesh_finalize(unimesh_t* mesh);
 // No need to call unimesh_finalize() on these.
 //------------------------------------------------------------------------
 
-/// Creates a new unimesh on the given MPI communicator with the given number 
+/// Creates a new unimesh on the given MPI communicator with the given number
 /// of patches in the x, y, and z directions, each patch having nx x ny x nz
 /// cells, filling the region defined by the given bounding box.
-/// The initial partitioning for this mesh isn't great, so you might want to 
+/// The initial partitioning for this mesh isn't great, so you might want to
 /// use \ref repartition_unimesh to improve it.
 /// \param comm [in] The communicator on which the unimesh is defined.
 /// \param bbox [in] The bounding box inside which the unimesh is defined.
@@ -114,14 +114,14 @@ void unimesh_finalize(unimesh_t* mesh);
 /// \param periodic_in_z [in] If true, the mesh is periodic in the z direction.
 /// \memberof unimesh
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
-                       int npx, int npy, int npz, 
+                       int npx, int npy, int npz,
                        int nx, int ny, int nz,
                        bool periodic_in_x, bool periodic_in_y, bool periodic_in_z);
 
 //------------------------------------------------------------------------
 //                          Usage methods
 //------------------------------------------------------------------------
-// The following methods can only be used after a unimesh has been 
+// The following methods can only be used after a unimesh has been
 // fully constructed and finalized.
 //------------------------------------------------------------------------
 
@@ -141,26 +141,26 @@ MPI_Comm unimesh_comm(unimesh_t* mesh);
 /// \memberof unimesh
 bbox_t* unimesh_bbox(unimesh_t* mesh);
 
-/// Fetches the spacings of a cell in the unimesh, storing them in 
+/// Fetches the spacings of a cell in the unimesh, storing them in
 /// dx, dy, and dz.
 /// \memberof unimesh
-void unimesh_get_spacings(unimesh_t* mesh, 
+void unimesh_get_spacings(unimesh_t* mesh,
                           real_t* dx, real_t* dy, real_t* dz);
 
-/// Fetches the number of patches this mesh can store in the x, y, and z directions, 
+/// Fetches the number of patches this mesh can store in the x, y, and z directions,
 /// placing them in npx, npy, npz.
 /// \memberof unimesh
 void unimesh_get_extents(unimesh_t* mesh, int* npx, int* npy, int* npz);
 
-/// Fetches the number of cells in each patch on this mesh in the x, y, and z 
+/// Fetches the number of cells in each patch on this mesh in the x, y, and z
 /// directions, storing them in nx, ny, nz.
 /// \memberof unimesh
 void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz);
 
-/// Retrieves flags that indicate whether the mesh is periodic in x, y, and z, 
+/// Retrieves flags that indicate whether the mesh is periodic in x, y, and z,
 /// storing them in periodic_in_x, periodic_in_y, and periodic_in_z.
 /// \memberof unimesh
-void unimesh_get_periodicity(unimesh_t* mesh, 
+void unimesh_get_periodicity(unimesh_t* mesh,
                              bool* periodic_in_x,
                              bool* periodic_in_y,
                              bool* periodic_in_z);
@@ -169,10 +169,10 @@ void unimesh_get_periodicity(unimesh_t* mesh,
 /// \memberof unimesh
 int unimesh_num_patches(unimesh_t* mesh);
 
-/// Traverses the locally-stored patches in the mesh, returning true and the 
-/// next (i, j, k) triple if the traversal is incomplete, false otherwise. 
-/// The traversal proceeds in lexicographic order through the triples of 
-/// locally-stored patches. Set *pos to zero to reset the traversal. 
+/// Traverses the locally-stored patches in the mesh, returning true and the
+/// next (i, j, k) triple if the traversal is incomplete, false otherwise.
+/// The traversal proceeds in lexicographic order through the triples of
+/// locally-stored patches. Set *pos to zero to reset the traversal.
 /// \param [inout] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] i The i index of the next patch in the traversal.
 /// \param [out] j The j index of the next patch in the traversal.
@@ -180,20 +180,20 @@ int unimesh_num_patches(unimesh_t* mesh);
 /// \param [inout] bbox If non-NULL, bbox's x1, x2, y1, y2, z1, z2 fields store
 ///                the coordinates of the patch's extent (excluding ghost cells).
 /// \memberof unimesh
-bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
+bool unimesh_next_patch(unimesh_t* mesh, int* pos,
                         int* i, int* j, int* k,
                         bbox_t* bbox);
 
-/// Returns true if the mesh stores the patch at (i, j, k) on the local process, 
+/// Returns true if the mesh stores the patch at (i, j, k) on the local process,
 /// false if not.
 /// \memberof unimesh
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 
 /// Return true if the mesh has its own boundary condition on the given
-/// boundary of a given patch, false if not. This is used to disallow 
+/// boundary of a given patch, false if not. This is used to disallow
 /// the adding of patch BCs to patch boundaries that the mesh maintains.
 /// \memberof unimesh
-bool unimesh_has_patch_bc(unimesh_t* mesh, int i, int j, int k, 
+bool unimesh_has_patch_bc(unimesh_t* mesh, int i, int j, int k,
                           unimesh_boundary_t patch_boundary);
 
 /// \class unimesh_observer
@@ -202,19 +202,19 @@ bool unimesh_has_patch_bc(unimesh_t* mesh, int i, int j, int k,
 typedef struct unimesh_observer_t unimesh_observer_t;
 
 /// \struct unimesh_observer_vtable
-/// This vtable defines the behavior of a unimesh observer. All methods are 
+/// This vtable defines the behavior of a unimesh observer. All methods are
 /// optional.
 typedef struct
 {
-  /// Called when a set of boundary updates is triggered by a field on the 
+  /// Called when a set of boundary updates is triggered by a field on the
   /// mesh, before any patch boundaries actually get updated.
   /// Arguments passed:
   /// * mesh - the mesh on which the boundary update is triggered
   /// * token - a unique integer token identifying the boundary update
   /// * centering - the centering of the field being updated
   /// * num_component - the number of components in the field being updated
-  void (*started_boundary_updates)(void* context, 
-                                   unimesh_t* mesh, 
+  void (*started_boundary_updates)(void* context,
+                                   unimesh_t* mesh,
                                    int token,
                                    unimesh_centering_t centering,
                                    int num_components);
@@ -228,24 +228,24 @@ typedef struct
   /// * boundary - the patch boundary being updated.
   /// * md - the metadata associated with the updated field
   /// * patch - the patch being updated.
-  void (*started_boundary_update)(void* context, 
-                                  unimesh_t* mesh, 
+  void (*started_boundary_update)(void* context,
+                                  unimesh_t* mesh,
                                   int token,
                                   int i, int j, int k,
-                                  real_t t, 
+                                  real_t t,
                                   unimesh_boundary_t boundary,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch);
 
-  /// Called just after boundary updates have all been started for a field on 
+  /// Called just after boundary updates have all been started for a field on
   /// the mesh. Yes, this is kind of a silly name for a method.
   /// Arguments passed:
   /// * mesh - the mesh on which the boundary update is triggered
   /// * token - a unique integer token identifying the boundary update
   /// * centering - the centering of the field being updated
   /// * num_components - the number of components in the field being updated
-  void (*finished_starting_boundary_updates)(void* context, 
-                                             unimesh_t* mesh, 
+  void (*finished_starting_boundary_updates)(void* context,
+                                             unimesh_t* mesh,
                                              int token,
                                              unimesh_centering_t centering,
                                              int num_components);
@@ -256,8 +256,8 @@ typedef struct
   /// * token - a unique integer token identifying the boundary update
   /// * centering - the centering of the field being updated
   /// * num_component - the number of components in the field being updated
-  void (*about_to_finish_boundary_updates)(void* context, 
-                                           unimesh_t* mesh, 
+  void (*about_to_finish_boundary_updates)(void* context,
+                                           unimesh_t* mesh,
                                            int token,
                                            unimesh_centering_t centering,
                                            int num_components);
@@ -270,12 +270,12 @@ typedef struct
   /// * boundary - the patch boundary being updated.
   /// * t - the time at which the patch is updated.
   /// * patch - the patch being updated.
-  void (*about_to_finish_boundary_update)(void* context, 
-                                          unimesh_t* mesh, 
+  void (*about_to_finish_boundary_update)(void* context,
+                                          unimesh_t* mesh,
                                           int token,
                                           int i, int j, int k,
                                           unimesh_boundary_t boundary,
-                                          real_t t, 
+                                          real_t t,
                                           unimesh_patch_t* patch);
 
   /// Called after a boundary update is completed for a patch on the mesh.
@@ -286,12 +286,12 @@ typedef struct
   /// * boundary - the patch boundary being updated.
   /// * t - the time at which the patch is updated.
   /// * patch - the patch being updated.
-  void (*finished_boundary_update)(void* context, 
-                                   unimesh_t* mesh, 
+  void (*finished_boundary_update)(void* context,
+                                   unimesh_t* mesh,
                                    int token,
                                    int i, int j, int k,
                                    unimesh_boundary_t boundary,
-                                   real_t t, 
+                                   real_t t,
                                    unimesh_patch_t* patch);
 
   /// Called after boundary updates are completed for a field on the mesh.
@@ -300,8 +300,8 @@ typedef struct
   /// * token - a unique integer token identifying the boundary update
   /// * centering - the centering of the field being updated
   /// * num_component - the number of components in the field being updated
-  void (*finished_boundary_updates)(void* context, 
-                                    unimesh_t* mesh, 
+  void (*finished_boundary_updates)(void* context,
+                                    unimesh_t* mesh,
                                     int token,
                                     unimesh_centering_t centering,
                                     int num_components);
@@ -310,7 +310,7 @@ typedef struct
   void (*dtor)(void* context);
 } unimesh_observer_vtable;
 
-/// Create a new unimesh observer with a state defined by the given context 
+/// Create a new unimesh observer with a state defined by the given context
 /// pointer and behavior defined by the vtable.
 /// \memberof unimesh_observer
 unimesh_observer_t* unimesh_observer_new(void* context,
@@ -328,17 +328,17 @@ void unimesh_remove_observer(unimesh_t* mesh,
 
 typedef struct unimesh_field_t unimesh_field_t;
 
-/// Repartitions the given unimesh and redistributes data to each of the 
-/// given fields. Here, the old meshes and fields are consumed, and new ones 
-/// are created in their place. Weights can be provided for each patch, and 
-/// the partitioning is performed so that the load imbalance does not exceed 
+/// Repartitions the given unimesh and redistributes data to each of the
+/// given fields. Here, the old meshes and fields are consumed, and new ones
+/// are created in their place. Weights can be provided for each patch, and
+/// the partitioning is performed so that the load imbalance does not exceed
 /// the given tolerance.
-/// \note In addition, each repartitioned field needs to have any boundary 
-/// conditions reinstated, since these boundary conditions are not 
+/// \note In addition, each repartitioned field needs to have any boundary
+/// conditions reinstated, since these boundary conditions are not
 /// transmitted between processes.
 /// \relates unimesh
 /// \collective Collective on mesh's communicator.
-void repartition_unimesh(unimesh_t** mesh, 
+void repartition_unimesh(unimesh_t** mesh,
                          int* weights,
                          real_t imbalance_tol,
                          unimesh_field_t** fields,
