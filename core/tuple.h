@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,8 +16,8 @@
 ///@{
 
 /// \def DEFINE_TUPLE(tuple_name, element, element_cmp)
-/// Defines a tuple for the given element type. A tuple is an N-tuple of elements 
-/// with some associated comparison functions. Really, the tuple interface 
+/// Defines a tuple for the given element type. A tuple is an N-tuple of elements
+/// with some associated comparison functions. Really, the tuple interface
 /// manipulates arrays of length N in an object-oriented fashion. The following
 /// interface is defined for a set with map_name `x`.
 /// * `x* x_tuple_new(int N)` - Creates a new N-tuple with N uninitialized elements.
@@ -28,13 +28,13 @@
 /// * `int x_tuple_cmp(x* tuple1, x* tuple2)` - Returns -1 if tuple1 < tuple2, 0 if tuple1 == tuple2, 1 if tuple1 > tuple2.
 /// * `bool x_tuple_equals(x* tuple1, x* tuple2)` - Returns true if tuple1 == tuple2, false otherwise.
 /// * `int x_tuple_hash(x* tuple)` - Returns a hash index for the given tuple.
-/// 
+///
 /// Data members for a tuple `tuple`:
 /// * `tuple[i]` - The ith value in the tuple.
 ///
 /// \param tuple_name The name of the tuple.
 /// \param element The data type stored in the tuple.
-/// \param element_cmp A comparator function that accepts two elements and 
+/// \param element_cmp A comparator function that accepts two elements and
 ///                    returns values specified in the `x_tuple_cmp` interface.
 #define DEFINE_TUPLE(tuple_name, element, element_cmp) \
 \

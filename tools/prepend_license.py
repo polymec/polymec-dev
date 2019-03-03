@@ -64,7 +64,10 @@ def add_new_license(source_file):
     f = open(source_file, 'w')
     license_lines = license_text.split('\n')
     for line in license_lines:
-        f.write('// ' + line + '\n')
+        if len(line) > 0:
+            f.write('// ' + line + '\n')
+        else:
+            f.write('//\n')
     if license_lines[0] in first_line:
         last_line = 1
         while license_lines[-1] not in lines[last_line]:
@@ -88,5 +91,5 @@ sources = find_sources(root)
 # Add the license.
 for source in sources:
     if (old_license_text != ''):
-        remove_old_license(source)   
-    add_new_license(source)   
+        remove_old_license(source)
+    add_new_license(source)

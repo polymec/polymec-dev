@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,7 +17,7 @@
 ///@{
 
 /// \def DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func)
-/// Defines an unordered map for the given key and value types. The following 
+/// Defines an unordered map for the given key and value types. The following
 /// interface is defined for a map with map_name `x_map`.
 /// * `x_map_t* x_map_new(void)` - Creates a new empty unordered map.
 /// * `x_map_t* x_map_new_with_capacity(int N)` - Creates a new empty hash map with initial capacity N.
@@ -44,7 +44,7 @@
 /// \param key_type The data type used as a key in the map.
 /// \param value_type The data type used as a value in the map.
 /// \param hash_func A hash function mapping a key to an integer.
-/// \param equals_func A comparator function that accepts two key arguments and 
+/// \param equals_func A comparator function that accepts two key arguments and
 ///                    returns true if these arguments are equal, false otherwise.
 
 #define DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func) \

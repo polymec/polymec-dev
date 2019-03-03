@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 #include "core/text_buffer.h"
 #include "core/slist.h"
 
-struct text_buffer_t 
+struct text_buffer_t
 {
   size_t size;
   size_t num_lines;
@@ -108,7 +108,7 @@ size_t text_buffer_num_lines(text_buffer_t* buffer)
 
 bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, size_t* line_length)
 {
-  if (*pos >= (int)buffer->num_lines) 
+  if (*pos >= (int)buffer->num_lines)
     return false;
   size_t offset = buffer->line_offsets[*pos];
   size_t next_offset = buffer->line_offsets[*pos+1];

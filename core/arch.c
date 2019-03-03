@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,7 +12,7 @@
 
 #ifdef APPLE
 
-typedef struct 
+typedef struct
 {
   size_t pos;
   size_t size;
@@ -20,26 +20,26 @@ typedef struct
   bool own_buff;
 } fmem_t;
 
-static int fmem_read(void* context, char* buf, int size) 
+static int fmem_read(void* context, char* buf, int size)
 {
   fmem_t* mem = context;
   size_t available = mem->size - mem->pos;
-  
-  if (size > available) 
+
+  if (size > available)
     size = (int)available;
 
   memcpy(buf, mem->buffer + mem->pos, sizeof(char) * size);
   mem->pos += size;
-  
+
   return size;
 }
 
-static int fmem_write(void* context, const char* buf, int size) 
+static int fmem_write(void* context, const char* buf, int size)
 {
   fmem_t* mem = context;
   size_t available = mem->size - mem->pos;
 
-  if (size > available) 
+  if (size > available)
     return -1;
 
   memcpy(mem->buffer + mem->pos, buf, sizeof(char)*size);
@@ -48,12 +48,12 @@ static int fmem_write(void* context, const char* buf, int size)
   return size;
 }
 
-static fpos_t fmem_seek(void* context, fpos_t offset, int whence) 
+static fpos_t fmem_seek(void* context, fpos_t offset, int whence)
 {
   size_t pos;
   fmem_t* mem = context;
 
-  switch (whence) 
+  switch (whence)
   {
     case SEEK_SET: pos = offset; break;
     case SEEK_CUR: pos = mem->pos + offset; break;
@@ -61,14 +61,14 @@ static fpos_t fmem_seek(void* context, fpos_t offset, int whence)
     default: errno = EINVAL; return -1;
   }
 
-  if (pos > mem->size) 
+  if (pos > mem->size)
     return -1;
 
   mem->pos = pos;
   return (fpos_t)pos;
 }
 
-static int fmem_close(void *context) 
+static int fmem_close(void *context)
 {
   fmem_t* fmem = context;
   if (fmem->own_buff)
@@ -77,7 +77,7 @@ static int fmem_close(void *context)
   return 0;
 }
 
-FILE *fmemopen(void *buf, size_t size, const char *mode) 
+FILE *fmemopen(void *buf, size_t size, const char *mode)
 {
   fmem_t* fmem = polymec_malloc(sizeof(fmem_t)); // Context pointer.
   fmem->pos = 0;
@@ -95,14 +95,14 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
   return funopen(fmem, fmem_read, fmem_write, fmem_seek, fmem_close);
 }
 
-typedef struct 
+typedef struct
 {
-  char **buf; 
-  size_t *len; 
-  size_t pos; 
-  size_t eof; 
-  size_t allocated; 
-  char c; 
+  char **buf;
+  size_t *len;
+  size_t pos;
+  size_t eof;
+  size_t allocated;
+  char c;
 } memstream_t;
 
 static int memstream_write(void* context, const char *buf, int n)
@@ -145,7 +145,7 @@ static int memstream_write(void* context, const char *buf, int n)
   return n;
 }
 
-static fpos_t memstream_seek(void *context, fpos_t pos, int whence) 
+static fpos_t memstream_seek(void *context, fpos_t pos, int whence)
 {
   memstream_t *stream = context;
   off_t offset = pos;

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -39,7 +39,7 @@
 /// \param set_name The name of the unordered set.
 /// \param element The data type stored by the set.
 /// \param hash_func A hash function mapping an element to an integer.
-/// \param equals_func A comparator function that accepts two elements and 
+/// \param equals_func A comparator function that accepts two elements and
 ///                    returns true if these elements are equal, false otherwise.
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \

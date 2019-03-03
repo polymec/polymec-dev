@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,7 @@
 ///@{
 
 /// \class options
-/// A type that stores command line options. 
+/// A type that stores command line options.
 /// \refcounted
 typedef struct options_t options_t;
 
@@ -22,19 +22,19 @@ typedef struct options_t options_t;
 /// \memberof options
 options_t* options_new(void);
 
-/// Returns the options_argv singleton that holds all of the parsed command 
+/// Returns the options_argv singleton that holds all of the parsed command
 /// line options.
 /// \memberof options
 options_t* options_argv(void);
 
-/// Parses options from the command line, initializing the command line 
+/// Parses options from the command line, initializing the command line
 /// options singleton.
 /// \memberof options
 void options_parse(int argc, char** argv);
 
-/// Returns an internal string holding the numbered argument passed on the 
-/// command line, in the same way argv would store it, or NULL if no such 
-/// argument was given. 
+/// Returns an internal string holding the numbered argument passed on the
+/// command line, in the same way argv would store it, or NULL if no such
+/// argument was given.
 /// \memberof options
 char* options_argument(options_t* opts, size_t n);
 
@@ -52,12 +52,12 @@ bool options_has_argument(options_t* opts, const char* arg);
 /// \memberof options
 void options_add_argument(options_t* opts, const char* arg);
 
-/// Removes the given argument from the list. Use with caution. This has 
+/// Removes the given argument from the list. Use with caution. This has
 /// no effect if the given argument doesn't exist.
 /// \memberof options
 void options_remove_argument(options_t* opts, size_t n);
 
-/// Returns a string holding the given named value, or NULL if no such 
+/// Returns a string holding the given named value, or NULL if no such
 /// parameter exists within opts.
 /// \memberof options
 char* options_value(options_t* opts, const char* name);

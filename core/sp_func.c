@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/sp_func.h"
 
-struct sp_func_t 
+struct sp_func_t
 {
   char* name;
   void* context;
@@ -41,7 +41,7 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_func_vtable vtable,
   return f;
 }
 
-sp_func_t* sp_func_from_func(const char* name, sp_eval_func func, 
+sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
                              sp_func_homogeneity_t homogeneity,
                              int num_comp)
 {
@@ -136,7 +136,7 @@ static void constant_dtor(void* ctx)
 
 sp_func_t* constant_sp_func_new(real_t components[], int num_components)
 {
-  sp_func_vtable vtable = {.eval = constant_eval, 
+  sp_func_vtable vtable = {.eval = constant_eval,
                            .eval_n = constant_eval_n,
                            .dtor = constant_dtor};
   char name[1025];

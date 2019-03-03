@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,7 +11,7 @@
 #include "core/array.h"
 #include "core/serializer.h"
 
-struct polymec_timer_t 
+struct polymec_timer_t
 {
   char* name;
 
@@ -197,9 +197,9 @@ void polymec_timer_stop_all()
   }
 }
 
-static void report_timer(polymec_timer_t* root, 
-                         polymec_timer_t* t, 
-                         int indentation, 
+static void report_timer(polymec_timer_t* root,
+                         polymec_timer_t* t,
+                         int indentation,
                          FILE* file)
 {
   double percent = (double)(100.0 * t->accum_time / root->accum_time);
@@ -209,7 +209,7 @@ static void report_timer(polymec_timer_t* root,
   else
     strcpy(call_string, "call");
   int name_len = (int)strlen(t->name);
-  fprintf(file, "%*s%*s%10.4f s  %5.1f%%  %10lld %s\n", indentation + name_len, t->name, 
+  fprintf(file, "%*s%*s%10.4f s  %5.1f%%  %10lld %s\n", indentation + name_len, t->name,
           45 - indentation - name_len, " ", t->accum_time, percent, t->count, call_string);
   size_t num_children = t->children->size;
   for (size_t i = 0; i < num_children; ++i)
@@ -221,7 +221,7 @@ static void report_timer(polymec_timer_t* root,
 
 static void polymec_timer_finalize()
 {
-  // Now we delete all the timers! Since they're all stored in an array, 
+  // Now we delete all the timers! Since they're all stored in an array,
   // we can delete the array and be done with it.
   if (all_timers != NULL)
   {
@@ -234,7 +234,7 @@ static void polymec_timer_finalize()
 static size_t polymec_timer_byte_size(void* obj)
 {
   polymec_timer_t* timer = obj;
-  
+
   size_t byte_size = 2 * sizeof(size_t) +                  // metadata
                      sizeof(char) * strlen(timer->name) +  // name
                      sizeof(double) * 2 +                  // timings
@@ -279,7 +279,7 @@ static void* polymec_timer_byte_read(byte_array_t* bytes, size_t* offset)
     child->parent = timer;
     ptr_array_append_with_dtor(timer->children, child, DTOR(polymec_timer_free));
   }
-  
+
   return timer;
 }
 
@@ -307,10 +307,10 @@ static void polymec_timer_byte_write(void* obj, byte_array_t* bytes, size_t* off
 
 static serializer_t* timer_serializer()
 {
-  return serializer_new("timer", 
-                        polymec_timer_byte_size, 
-                        polymec_timer_byte_read, 
-                        polymec_timer_byte_write, 
+  return serializer_new("timer",
+                        polymec_timer_byte_size,
+                        polymec_timer_byte_read,
+                        polymec_timer_byte_write,
                         NULL);
 }
 
@@ -365,14 +365,14 @@ void polymec_timer_report()
 
           // Clean up.
           byte_array_free(bytes);
-        } 
+        }
 
         // Write out a textual representation of the timer.
         if (mpi_nproc > 1)
         {
-          fprintf(report_file, "\n------------\n"); 
-          fprintf(report_file, "Rank %6d:\n", p); 
-          fprintf(report_file, "------------\n"); 
+          fprintf(report_file, "\n------------\n");
+          fprintf(report_file, "Rank %6d:\n", p);
+          fprintf(report_file, "------------\n");
         }
         report_timer(timer, timer, 0, report_file);
 
@@ -382,7 +382,7 @@ void polymec_timer_report()
       }
       else if (mpi_rank == p)
       {
-        // We pack up our local timer into a send buffer. 
+        // We pack up our local timer into a send buffer.
         serializer_t* s = timer_serializer();
         byte_array_t* bytes = byte_array_new();
         size_t offset = 0;

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -43,7 +43,7 @@ int string_casecmp(const char* s1, const char* s2)
     return -1;
   else if (l1 > l2)
     return 1;
-  else 
+  else
     return 0;
 }
 
@@ -153,15 +153,15 @@ bool string_is_integer(const char* s)
 
 bool string_as_boolean(const char* s)
 {
-  return ((s != NULL) && 
-          ((strcmp(s, "1") == 0) || 
+  return ((s != NULL) &&
+          ((strcmp(s, "1") == 0) ||
            (string_casecmp(s, "true") == 0) ||
            (string_casecmp(s, "yes") == 0) ||
            (string_casecmp(s, "on") == 0)));
 }
 
-int string_find_in_list(const char* s, 
-                        const char** string_list, 
+int string_find_in_list(const char* s,
+                        const char** string_list,
                         bool case_sensitive)
 {
   ASSERT(string_list != NULL);
@@ -201,7 +201,7 @@ static int string_subst_data_cmp(const void* left, const void* right)
 
 char* string_substitute(const char* string, string_substitution_t substitutions[])
 {
-  if (string == NULL) 
+  if (string == NULL)
     return NULL;
   else if (substitutions == NULL)
     return string_dup(string);
@@ -218,7 +218,7 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
     value_lengths[i] = (int)strlen(substitutions[i].value);
   }
 
-  // Now traverse the given string and jot down where each token occurs 
+  // Now traverse the given string and jot down where each token occurs
   // (and which one it is).
   int_slist_t* token_occ = int_slist_new();
   int_slist_t* token_which = int_slist_new();
@@ -240,7 +240,7 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
   }
   size_t num_occ = token_occ->size;
 
-  // If there are no occurrences of the tokens, we simply copy 
+  // If there are no occurrences of the tokens, we simply copy
   // the original string.
   if (num_occ == 0)
   {
@@ -287,7 +287,7 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
     int occ_index = subst_data[i].occ_index;
 
     // Calculate the number of bytes to read / write.
-    int read_len = occ_index; 
+    int read_len = occ_index;
     if (i > 0)
     {
       int prev_occ = subst_data[i-1].occ_index;
