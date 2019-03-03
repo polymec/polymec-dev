@@ -24,14 +24,20 @@
 //------------------------------------------------------------------------
 extern int unimesh_boundary_update_token(unimesh_t* mesh);
 
-// Maps (i, j, k) to a flat patch index.
-static inline int patch_index(unimesh_t* mesh, int i, int j, int k)
+// Maps the given boundary for the patch at (i, j, k) in the given block
+// within the given mesh to a flat index.
+static inline int boundary_index(blockmesh_t* mesh,
+                                 unimesh_t* block,
+                                 int i, int j, int k,
+                                 unimesh_boundary_t boundary)
 {
+  int block_index = blockmesh_block_index(mesh, block);
   int npx, npy, npz;
-  unimesh_get_extents(mesh, &npx, &npy, &npz);
-  return npy*npz*i + npz*j + k;
+  unimesh_get_extents(block, &npx, &npy, &npz);
+  return 6*(npx*npy*npz*block_index + npy*npz*i + npz*j + k) + (int)boundary;
 }
 
+#if 0
 //------------------------------------------------------------------------
 //                ib_buffer -- An inter-block storage buffer.
 //------------------------------------------------------------------------
@@ -81,6 +87,7 @@ DEFINE_ARRAY(ib_buffer_array, ib_buffer_t*)
 
 // Mapping from block pointers to array of ib_buffers.
 DEFINE_UNORDERED_MAP(ib_buffer_map, void*, ib_buffer_array_t*, ptr_hash, ptr_equals)
+#endif
 
 //------------------------------------------------------------------------
 //                        cxn - an inter-block connection
@@ -103,7 +110,7 @@ typedef struct
   unimesh_patch_t* work[8];
 } cxn_t;
 
-// Mapping of 6*patch_index+b -> connection
+// Mapping of boundary indices -> connections
 DEFINE_UNORDERED_MAP(cxn_map, int, cxn_t*, int_hash, int_equals)
 
 // Constructor and destructor.
@@ -131,7 +138,10 @@ struct blockmesh_interblock_bc_t
 {
   blockmesh_t* mesh;
   cxn_map_t* cxns;
-  ib_buffer_map_t* buffers;
+  blob_exchanger_t* ex;
+
+  // Mapping of exchange tokens to buffers.
+  int_ptr_unordered_map_t* ex_buffers;
 };
 
 static void ibc_start_update(void* context, unimesh_t* block,
@@ -143,9 +153,8 @@ static void ibc_start_update(void* context, unimesh_t* block,
   blockmesh_interblock_bc_t* ibc = context;
 
   // Find our list of connections for this patch boundary.
-  int p_index = patch_index(block, i, j, k);
-  int b = (int)boundary;
-  cxn_t** cxn_p = cxn_map_get(ibc->cxns, 6*p_index+b);
+  int b_index = boundary_index(ibc->mesh, block, i, j, k, boundary);
+  cxn_t** cxn_p = cxn_map_get(ibc->cxns, b_index);
   ASSERT(cxn_p != NULL);
 
   cxn_t* cxn = *cxn_p;
@@ -247,6 +256,16 @@ static void ibc_about_to_finish_boundary_updates(void* context,
   ib_buffer_finish_receiving(buffer, token);
 }
 
+static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh)
+{
+  MPI_Comm comm = blockmesh_comm(mesh);
+  blob_exchangeṟ_proc_map_t* send_map = blob_exchangeṟ_proc_map_new();
+  blob_exchangeṟ_proc_map_t* recv_map = blob_exchangeṟ_proc_map_new();
+  blob_exchangeṟ_size_map_t* blob_sizes = blob_exchanger_size_map_new();
+  // FIXME
+  return blob_exchanger_new(comm, send_map, recv_map, blob_sizes);
+}
+
 //------------------------------------------------------------------------
 //                     Inter-block BC public API
 //------------------------------------------------------------------------
@@ -255,7 +274,8 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
 {
   blockmesh_interblock_bc_t* bc = polymec_malloc(sizeof(blockmesh_interblock_bc_t));
   bc->mesh = mesh;
-  bc->buffers = ib_buffer_map_new();
+  bc->ex = interblock_exchanger_new(mesh);
+  bc->ex_buffers = int_ptr_unordered_map_new();
   bc->cxns = cxn_map_new();
   return bc;
 }
@@ -263,7 +283,8 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
 void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
 {
   cxn_map_free(bc->cxns);
-  ib_buffer_map_free(bc->buffers);
+  int_ptr_unordered_map_free(bc->ex_buffers);
+  release_ref(bc->ex);
   polymec_free(bc);
 }
 
@@ -523,6 +544,7 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
   }
 }
 
+#if 0
 //------------------------------------------------------------------------
 //                    Inter-block buffer implementation
 //------------------------------------------------------------------------
@@ -1185,6 +1207,7 @@ void ib_buffer_gather_procs(ib_buffer_t* buffer)
   }
 #endif
 }
+#endif
 
 //------------------------------------------------------------------------
 //                   Connection class implementation

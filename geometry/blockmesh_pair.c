@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,10 +10,10 @@
 #include "geometry/blockmesh_pair.h"
 #include "geometry/unimesh_patch.h"
 
-// This represents a rotation that must be performed for a quantity to pass 
-// through the face connecting the two blocks. Expressed in units of 
+// This represents a rotation that must be performed for a quantity to pass
+// through the face connecting the two blocks. Expressed in units of
 // counterclockwise revolutions (turns).
-typedef enum 
+typedef enum
 {
   NO_ROTATION,
   QUARTER_TURN,
@@ -39,8 +39,8 @@ static block_rotation_t determine_rotation(bbox_t* block1_domain,
                                            int block2_boundary,
                                            int block2_nodes[4])
 {
-  // We calculate "twists" for each pair of nodes, consisting of an integer number of 
-  // counter-clockwise turns from 0 to 3. If all the twists are the same, that's the 
+  // We calculate "twists" for each pair of nodes, consisting of an integer number of
+  // counter-clockwise turns from 0 to 3. If all the twists are the same, that's the
   // valid twist. Otherwise, the twist is invalid.
   int twists[4];
   for (int i = 0; i < 4; ++i)
@@ -54,7 +54,7 @@ static block_rotation_t determine_rotation(bbox_t* block1_domain,
     int twist = (offset2 - offset1 + 4) % 4;
     twists[i] = twist;
     if ((i > 0) && (twists[i] != twists[0]))
-      return INVALID_ROTATION; 
+      return INVALID_ROTATION;
   }
   block_rotation_t rotation = INVALID_ROTATION;
   switch (twists[0])
@@ -67,7 +67,7 @@ static block_rotation_t determine_rotation(bbox_t* block1_domain,
   return rotation;
 }
 
-struct blockmesh_pair_t 
+struct blockmesh_pair_t
 {
   unimesh_t* block1;
   unimesh_t* block2;
@@ -116,7 +116,7 @@ static int block_boundary_for_nodes(int block_nodes[4])
   return face;
 }
 
-bool blockmesh_pair_validate(blockmesh_t* mesh, 
+bool blockmesh_pair_validate(blockmesh_t* mesh,
                              int block1_index, int block1_nodes[4],
                              int block2_index, int block2_nodes[4],
                              char** reason)
@@ -132,7 +132,7 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
   static const char* boundary_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
 
   int b1 = block_boundary_for_nodes(block1_nodes);
-  if (b1 == -1) 
+  if (b1 == -1)
   {
     if (reason != NULL)
     {
@@ -153,7 +153,7 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
     return false;
   }
 
-  // A block can connect to itself, but only if the connection is between two 
+  // A block can connect to itself, but only if the connection is between two
   // different block faces.
   if ((block1_index == block2_index) && (b1 == b2))
   {
@@ -171,14 +171,14 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
   bbox_t* block2_domain = blockmesh_block_domain(mesh, block2_index);
   coord_mapping_t* block2_coords = blockmesh_block_coords(mesh, block2_index);
 
-  block_rotation_t rotation = determine_rotation(block1_domain, block1_coords, b1, block1_nodes, 
+  block_rotation_t rotation = determine_rotation(block1_domain, block1_coords, b1, block1_nodes,
                                                  block1_domain, block2_coords, b2, block2_nodes);
   if (rotation == INVALID_ROTATION)
   {
     // Try again with block2_nodes reversed.
-    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2], 
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2],
                                block2_nodes[1], block2_nodes[0]};
-    rotation = determine_rotation(block1_domain, block1_coords, b1, block1_nodes, 
+    rotation = determine_rotation(block1_domain, block1_coords, b1, block1_nodes,
                                   block2_domain, block2_coords, b2, rev_block2_nodes);
   }
   if (rotation == INVALID_ROTATION)
@@ -206,7 +206,7 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
 
   // Identify the relevant patch extents/sizes and make sure they're compatible.
   int N1, NP1_1, NP1_2;
-  if ((b1 == 0) || (b1 == 1)) 
+  if ((b1 == 0) || (b1 == 1))
   {
     N1 = nx;
     NP1_1 = npy1;
@@ -226,7 +226,7 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
   }
 
   int N2, NP2_1, NP2_2;
-  if ((b2 == 0) || (b2 == 1)) 
+  if ((b2 == 0) || (b2 == 1))
   {
     N2 = nx;
     NP2_1 = npy2;
@@ -245,25 +245,25 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
     NP2_2 = npy2;
   }
 
-  if (((rotation == NO_ROTATION) || (rotation == HALF_TURN)) && 
+  if (((rotation == NO_ROTATION) || (rotation == HALF_TURN)) &&
       ((N1 != N2) || (NP1_1 != NP2_1) || (NP1_2 != NP2_2)))
   {
     if (reason != NULL)
     {
       snprintf(_reason, 1024, "Second block's patch extents for %s boundary (%d and %d) "
-                              "don't match first block's extents for %s boundary (%d and %d)", 
+                              "don't match first block's extents for %s boundary (%d and %d)",
                boundary_names[b2], NP2_1, NP2_2, boundary_names[b1], NP1_1, NP1_2);
       *reason = _reason;
     }
     return false;
   }
-  else if (((rotation == QUARTER_TURN) || (rotation == THREE_QUARTERS_TURN)) && 
+  else if (((rotation == QUARTER_TURN) || (rotation == THREE_QUARTERS_TURN)) &&
            ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1)))
   {
     if (reason != NULL)
     {
       snprintf(_reason, 1024, "Second block's patch extents for %s boundary (%d and %d) "
-                              "don't match first block's extents for %s boundary (%d and %d)", 
+                              "don't match first block's extents for %s boundary (%d and %d)",
                boundary_names[b2], NP2_2, NP2_1, boundary_names[b1], NP1_1, NP1_2);
       *reason = _reason;
     }
@@ -274,16 +274,16 @@ bool blockmesh_pair_validate(blockmesh_t* mesh,
   return true;
 }
 
-blockmesh_pair_t* blockmesh_pair_new(blockmesh_t* mesh, 
+blockmesh_pair_t* blockmesh_pair_new(blockmesh_t* mesh,
                                      int block1_index, int block1_nodes[4],
                                      int block2_index, int block2_nodes[4])
 {
-  bool valid = blockmesh_pair_validate(mesh, block1_index, block1_nodes, 
+  bool valid = blockmesh_pair_validate(mesh, block1_index, block1_nodes,
                                        block2_index, block2_nodes, NULL);
   if (!valid)
     return NULL;
 
-  blockmesh_pair_t* pair = polymec_refcounted_malloc(sizeof(blockmesh_pair_t), 
+  blockmesh_pair_t* pair = polymec_refcounted_malloc(sizeof(blockmesh_pair_t),
                                                      blockmesh_pair_free);
   unimesh_t* block1 = blockmesh_block(mesh, block1_index);
   pair->block1 = block1;
@@ -309,7 +309,7 @@ blockmesh_pair_t* blockmesh_pair_new(blockmesh_t* mesh,
   if (pair->rotation == INVALID_ROTATION)
   {
     // Try again with block2_nodes reversed.
-    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2], 
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2],
                                block2_nodes[1], block2_nodes[0]};
     pair->rotation = determine_rotation(&pair->block1_domain, pair->block1_coords, (unimesh_boundary_t)b1, block1_nodes,
                                         &pair->block2_domain, pair->block2_coords, (unimesh_boundary_t)b2, rev_block2_nodes);
@@ -339,8 +339,8 @@ unimesh_boundary_t blockmesh_pair_block2_boundary(blockmesh_pair_t* pair)
 }
 
 static void find_far_patch(blockmesh_pair_t* pair,
-                           int i1, int j1, 
-                           int i2_max, int j2_max, 
+                           int i1, int j1,
+                           int i2_max, int j2_max,
                            int* i2, int* j2)
 {
   if (pair->rotation == NO_ROTATION)
@@ -392,7 +392,7 @@ void blockmesh_pair_find_patch(blockmesh_pair_t* pair,
     {
     }
   }
-  else if ((b1 == 1) && (i1 == (npx1 - 1))) 
+  else if ((b1 == 1) && (i1 == (npx1 - 1)))
   {
     if (b2 == 0)      // +x <-> -x connection
     {
@@ -442,7 +442,7 @@ void blockmesh_pair_find_patch(blockmesh_pair_t* pair,
     {
     }
   }
-  else if ((b1 == 3) && (j1 == (npy1 - 1))) 
+  else if ((b1 == 3) && (j1 == (npy1 - 1)))
   {
     if (b2 == 0)      // +y <-> -x connection
     {
@@ -492,7 +492,7 @@ void blockmesh_pair_find_patch(blockmesh_pair_t* pair,
       find_far_patch(pair, i1, j1, npx1, npy1, i2, j2);
     }
   }
-  else if ((b1 == 5) && (k1 == (npz1 - 1))) 
+  else if ((b1 == 5) && (k1 == (npz1 - 1)))
   {
     if (b2 == 0)      // +z <-> -x connection
     {

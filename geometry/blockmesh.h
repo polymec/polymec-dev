@@ -165,6 +165,12 @@ int blockmesh_num_blocks(blockmesh_t* mesh);
 /// \memberof blockmesh
 unimesh_t* blockmesh_block(blockmesh_t* mesh, int index);
 
+/// Returns the index of the given block within the mesh, or -1 if this block
+/// does not appear within the mesh.
+/// \param [in] block The block for which the index is requested.
+/// \memberof blockmesh
+int blockmesh_block_index(blockmesh_t* mesh, unimesh_t* block);
+
 /// Returns the domain for the block with the given index within the mesh.
 /// \param [in] index The index of the requested block.
 /// \memberof blockmesh

@@ -24,7 +24,7 @@
 /// blobs for a specific transaction after each exchange.
 ///
 /// Іn the context of a blob exchanger, a blob is referred to by an index that
-/// is unique to the current process. You can copy a blob into and out of a
+/// is unique within its communicator. You can copy a blob into and out of a
 /// blob buffer using its index, and all blob-related metadata is associated
 /// with that same index.
 /// \note By "blob", we mean a sequence of bytes with a specific size.

@@ -265,6 +265,16 @@ unimesh_t* blockmesh_block(blockmesh_t* mesh, int index)
   return mesh->blocks->data[index];
 }
 
+int blockmesh_block_index(blockmesh_t* mesh, unimesh_t* block)
+{
+  for (size_t b = 0; b < mesh->blocks->size; ++b)
+  {
+    if (block == mesh->blocks->data[b])
+      return b;
+  }
+  return -1;
+}
+
 bbox_t* blockmesh_block_domain(blockmesh_t* mesh, int index)
 {
   return &(mesh->bboxes->data[index]);
