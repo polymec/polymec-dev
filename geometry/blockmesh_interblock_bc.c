@@ -369,9 +369,9 @@ static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh,
     blob_exchanger_proc_map_add_index(recv_map, cxn->proc2, b2_index);
 
     // Compute boundary sizes and map them too.
-    int b1_size = boundary_sizes[(int)centering][(int)cxn->boundary1];
+    size_t b1_size = boundary_sizes[(int)centering][(int)cxn->boundary1];
     blob_exchanger_size_map_insert(blob_sizes, b1_index, b1_size);
-    int b2_size = boundary_sizes[(int)centering][(int)cxn->boundary2];
+    size_t b2_size = boundary_sizes[(int)centering][(int)cxn->boundary2];
     blob_exchanger_size_map_insert(blob_sizes, b2_index, b2_size);
   }
 

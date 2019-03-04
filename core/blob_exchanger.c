@@ -126,9 +126,9 @@ static void compute_offsets(blob_exchanger_t* ex)
     for (size_t i = 0; i < indices->size; ++i)
     {
       int blob_index = indices->data[i];
-      int blob_size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
       int_int_unordered_map_insert(ex->send_blob_offsets, blob_index,
                                    ex->send_proc_offsets->data[p+1]);
+      size_t blob_size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
       ex->send_proc_offsets->data[p+1] += blob_size;
     }
   }
@@ -153,9 +153,9 @@ static void compute_offsets(blob_exchanger_t* ex)
     for (size_t i = 0; i < indices->size; ++i)
     {
       int blob_index = indices->data[i];
-      int blob_size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
       int_int_unordered_map_insert(ex->recv_blob_offsets, blob_index,
                                    ex->recv_proc_offsets->data[p+1]);
+      size_t blob_size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
       ex->recv_proc_offsets->data[p+1] += blob_size;
     }
   }

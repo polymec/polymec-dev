@@ -270,7 +270,7 @@ int blockmesh_block_index(blockmesh_t* mesh, unimesh_t* block)
   for (size_t b = 0; b < mesh->blocks->size; ++b)
   {
     if (block == mesh->blocks->data[b])
-      return b;
+      return (int)b;
   }
   return -1;
 }
