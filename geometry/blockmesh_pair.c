@@ -526,17 +526,17 @@ size_t blockmesh_pair_patch_data_size(blockmesh_pair_t* pair,
   return 0; // FIXME
 }
 
-void blockmesh_pair_copy_in(blockmesh_pair_t* pair,
-                            int i, int j, int k,
-                            unimesh_patch_t* source_patch,
-                            void* buffer)
+void blockmesh_pair_extract_boundary_values(blockmesh_pair_t* pair,
+                                            int i, int j, int k,
+                                            unimesh_patch_t* source_patch,
+                                            void* buffer)
 {
 }
 
-void blockmesh_pair_copy_out(blockmesh_pair_t* pair,
-                             void* buffer,
-                             int i, int j, int k,
-                             unimesh_patch_t* dest_patch)
+void blockmesh_pair_inject_boundary_values(blockmesh_pair_t* pair,
+                                           void* buffer,
+                                           int i, int j, int k,
+                                           unimesh_patch_t* dest_patch)
 {
 }
 

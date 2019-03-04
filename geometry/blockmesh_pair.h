@@ -101,29 +101,29 @@ size_t blockmesh_pair_patch_data_size(blockmesh_pair_t* pair,
                                       unimesh_centering_t centering,
                                       int num_comp);
 
-/// Copies data to a buffer from a source patch in the first block.
+/// Extracts boundary data from the given source patch, copying it to a buffer.
 /// \param [in] i The first logical coordinate for the source patch.
 /// \param [in] j The second logical coordinate for the source patch.
 /// \param [in] k The third logical coordinate for the source patch.
 /// \param [in] source_patch The patch containing the data to copy to the buffer.
 /// \param [out] buffer The buffer to which the patch data is copied.
 /// \memberof blockmesh_pair
-void blockmesh_pair_copy_in(blockmesh_pair_t* pair,
-                            int i, int j, int k,
-                            unimesh_patch_t* source_patch,
-                            void* buffer);
+void blockmesh_pair_extract_boundary_values(blockmesh_pair_t* pair,
+                                            int i, int j, int k,
+                                            unimesh_patch_t* source_patch,
+                                            void* buffer);
 
-/// Copies data from a buffer to a destinaton patch in the second block.
+/// Copies data from a buffer to a destinaton patch.
 /// \param [in] buffer The buffer to which the patch data is copied.
 /// \param [in] i The first logical coordinate for the destination patch.
 /// \param [in] j The second logical coordinate for the destination patch.
 /// \param [in] k The third logical coordinate for the destination patch.
 /// \param [out] dest_patch The patch to which data is copied from the buffer.
 /// \memberof blockmesh_pair
-void blockmesh_pair_copy_out(blockmesh_pair_t* pair,
-                             void* buffer,
-                             int i, int j, int k,
-                             unimesh_patch_t* dest_patch);
+void blockmesh_pair_inject_boundary_values(blockmesh_pair_t* pair,
+                                           void* buffer,
+                                           int i, int j, int k,
+                                           unimesh_patch_t* dest_patch);
 
 ///@}
 

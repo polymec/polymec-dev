@@ -27,6 +27,11 @@ struct blob_buffer_t
   void* storage;
 };
 
+int blob_buffer_size_factor(blob_buffer_t* buffer)
+{
+  return buffer->size_factor;
+}
+
 void blob_buffer_free(blob_buffer_t* buffer)
 {
   polymec_free(buffer->storage);
@@ -225,6 +230,15 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
 MPI_Comm blob_exchanger_comm(blob_exchanger_t* ex)
 {
   return ex->comm;
+}
+
+size_t blob_exchanger_blob_size(blob_exchanger_t* ex, int blob_index)
+{
+  size_t* size_p = blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
+  if (size_p != NULL)
+    return *size_p;
+  else
+    return 0;
 }
 
 blob_buffer_t* blob_exchanger_create_buffer(blob_exchanger_t* ex,
@@ -548,11 +562,12 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
 #endif
 }
 
-void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
+bool blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
 {
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
-  ASSERT(token < (int)ex->pending_msgs->size);
+  if (token < (int)ex->pending_msgs->size)
+    return false;
 
   // Retrieve the message for the given token.
   blob_buffer_t* buffer = ex->pending_msgs->data[token];
@@ -561,6 +576,7 @@ void blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
   // Pull the buffer out of our list of pending messages.
   ex->pending_msgs->data[token] = NULL;
   STOP_FUNCTION_TIMER();
+  return true;
 }
 
 bool blob_exchanger_next_send_blob(blob_exchanger_t* ex,
