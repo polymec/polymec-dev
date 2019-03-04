@@ -132,8 +132,9 @@ static void ibc_started_boundary_updates(void* context,
 // the patch to our blob buffer.
 static void ibc_started_boundary_update(void* context,
                                         unimesh_t* block, int token,
-                                        int i, int j, int k, real_t t,
+                                        int i, int j, int k, 
                                         unimesh_boundary_t boundary,
+                                        real_t t,
                                         field_metadata_t* md,
                                         unimesh_patch_t* patch)
 {
@@ -150,9 +151,9 @@ static void ibc_started_boundary_update(void* context,
   int c = (int)patch->centering;
   size_t boundary_size = blob_exchanger_blob_size(ibc->ex[c], b_index);
   char bvalues[boundary_size];
-  blockmesh_pair_extract_boundary_values(cxn->pair,
-                                         cxn->i1, cxn->j1, cxn->k1,
-                                         patch, bvalues);
+  blockmesh_pair_unmap_boundary_values(cxn->pair,
+                                       cxn->i1, cxn->j1, cxn->k1,
+                                       md, patch, bvalues);
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_in(ibc->ex[c], b_index, patch->nc, bvalues, buffer);
 }
@@ -210,6 +211,7 @@ static void ibc_about_to_finish_boundary_update(void* context,
                                                 int i, int j, int k,
                                                 unimesh_boundary_t boundary,
                                                 real_t t,
+                                                field_metadata_t* md,
                                                 unimesh_patch_t* patch)
 {
   blockmesh_interblock_bc_t* ibc = context;
@@ -227,8 +229,9 @@ static void ibc_about_to_finish_boundary_update(void* context,
   char bvalues[boundary_size];
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, patch->nc, bvalues);
-  blockmesh_pair_inject_boundary_values(cxn->pair, bvalues,
-                                        cxn->i1, cxn->j1, cxn->k1, patch);
+  blockmesh_pair_map_boundary_values(cxn->pair, bvalues,
+                                     cxn->i1, cxn->j1, cxn->k1, 
+                                     md, patch);
 }
 
 //------------------------------------------------------------------------

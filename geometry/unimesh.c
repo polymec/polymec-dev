@@ -877,7 +877,7 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
     {
       obs->vtable.started_boundary_update(obs->context, mesh, token, 
                                           update->i, update->j, update->k,
-                                          update->t, update->boundary, 
+                                          update->boundary, update->t,
                                           update->md, update->patch);
     }
   }
@@ -970,7 +970,8 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
       {
         obs->vtable.about_to_finish_boundary_update(obs->context, mesh, token, 
                                                     update->i, update->j, update->k,
-                                                    update->boundary, update->t, update->patch);
+                                                    update->boundary, update->t,
+                                                    update->md, update->patch);
       }
     }
 

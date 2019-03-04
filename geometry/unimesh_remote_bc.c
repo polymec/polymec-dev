@@ -1588,8 +1588,8 @@ static void remote_bc_started_boundary_updates(void* context,
 static void remote_bc_started_boundary_update(void* context, 
                                               unimesh_t* mesh, int token, 
                                               int i, int j, int k, 
-                                              real_t t,
                                               unimesh_boundary_t boundary,
+                                              real_t t,
                                               field_metadata_t* md,
                                               unimesh_patch_t* patch)
 {
@@ -1647,6 +1647,7 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
                                                       int i, int j, int k, 
                                                       unimesh_boundary_t boundary,
                                                       real_t t,
+                                                      field_metadata_t* md,
                                                       unimesh_patch_t* patch)
 {  
   // Access our remote BC object.

@@ -101,29 +101,39 @@ size_t blockmesh_pair_patch_data_size(blockmesh_pair_t* pair,
                                       unimesh_centering_t centering,
                                       int num_comp);
 
-/// Extracts boundary data from the given source patch, copying it to a buffer.
+/// Extracts boundary data from the given source patch in the first block of
+/// the pair, copying it to a buffer. If the coordinate system for the is 
+/// given by the function \f$\Phi_1\f$, the inverse transformation 
+/// \f$\Phi_1^{-1}\f$ and any required rotations are applied to the boundary 
+/// data.
 /// \param [in] i The first logical coordinate for the source patch.
 /// \param [in] j The second logical coordinate for the source patch.
 /// \param [in] k The third logical coordinate for the source patch.
+/// \param [in] field_metadata The metadata for the field values being unmapped.
 /// \param [in] source_patch The patch containing the data to copy to the buffer.
 /// \param [out] buffer The buffer to which the patch data is copied.
 /// \memberof blockmesh_pair
-void blockmesh_pair_extract_boundary_values(blockmesh_pair_t* pair,
-                                            int i, int j, int k,
-                                            unimesh_patch_t* source_patch,
-                                            void* buffer);
+void blockmesh_pair_unmap_boundary_values(blockmesh_pair_t* pair,
+                                          int i, int j, int k,
+                                          field_metadata_t* field_metadata,
+                                          unimesh_patch_t* source_patch,
+                                          void* buffer);
 
-/// Copies data from a buffer to a destinaton patch.
+/// Copies data from a buffer to a destination patch in the first block of the 
+/// pair. The coordinate mapping \f$\Phi_1\f$ for the block is applied to 
+/// the boundary data.
 /// \param [in] buffer The buffer to which the patch data is copied.
 /// \param [in] i The first logical coordinate for the destination patch.
 /// \param [in] j The second logical coordinate for the destination patch.
 /// \param [in] k The third logical coordinate for the destination patch.
+/// \param [in] field_metadata The metadata for the field values being mapped.
 /// \param [out] dest_patch The patch to which data is copied from the buffer.
 /// \memberof blockmesh_pair
-void blockmesh_pair_inject_boundary_values(blockmesh_pair_t* pair,
-                                           void* buffer,
-                                           int i, int j, int k,
-                                           unimesh_patch_t* dest_patch);
+void blockmesh_pair_map_boundary_values(blockmesh_pair_t* pair,
+                                        void* buffer,
+                                        int i, int j, int k,
+                                        field_metadata_t* field_metadata,
+                                        unimesh_patch_t* dest_patch);
 
 ///@}
 

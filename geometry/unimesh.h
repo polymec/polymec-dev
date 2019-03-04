@@ -232,8 +232,8 @@ typedef struct
                                   unimesh_t* mesh,
                                   int token,
                                   int i, int j, int k,
-                                  real_t t,
                                   unimesh_boundary_t boundary,
+                                  real_t t,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch);
 
@@ -269,6 +269,7 @@ typedef struct
   /// * i, j, k - the indices identifying the updated patch.
   /// * boundary - the patch boundary being updated.
   /// * t - the time at which the patch is updated.
+  /// * md - the metadata associated with the updated field
   /// * patch - the patch being updated.
   void (*about_to_finish_boundary_update)(void* context,
                                           unimesh_t* mesh,
@@ -276,6 +277,7 @@ typedef struct
                                           int i, int j, int k,
                                           unimesh_boundary_t boundary,
                                           real_t t,
+                                          field_metadata_t* md,
                                           unimesh_patch_t* patch);
 
   /// Called after a boundary update is completed for a patch on the mesh.
