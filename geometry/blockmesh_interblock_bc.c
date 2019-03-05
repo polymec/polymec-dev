@@ -18,9 +18,8 @@
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
-//------------------------------------------------------------------------
-//                    Utility functions and types
-//------------------------------------------------------------------------
+// This returns the integer token for the current send/receive transaction
+// in a block.
 extern int unimesh_boundary_update_token(unimesh_t* mesh);
 
 // Maps the given boundary for the patch at (i, j, k) in the given block
@@ -43,6 +42,7 @@ DEFINE_UNORDERED_MAP(blob_buffer_map, int, blob_buffer_t*, int_hash, int_equals)
 // across a block boundary.
 typedef struct
 {
+  // Metadata for the near block.
   unimesh_t* block1;
   bbox_t* domain1;
   coord_mapping_t* coords1;
@@ -50,14 +50,19 @@ typedef struct
   unimesh_boundary_t boundary1;
   int proc1;
 
+  // The number of discrete counterclockwise rotations between blocks.
   int rotation;
 
+  // Metadata for the far block.
   unimesh_t* block2;
   bbox_t* domain2;
   coord_mapping_t* coords2;
   int i2, j2, k2;
   unimesh_boundary_t boundary2;
   int proc2;
+
+  // Canonically ordered dimensions of boundary faces.
+  int n1, n2;
 } cxn_t;
 
 // Mapping of boundary indices -> connections
@@ -144,6 +149,17 @@ static void map_boundary_values(cxn_t* cxn,
                                 void* boundary_values,
                                 void* mapped_boundary_values)
 {
+  size_t boundary_size = cxn->n1 * cxn->n2 * field_metadata_num_components(md);
+
+  // If we've only got scalar data, nothing needs mapping.
+  if (!field_metadata_has_vectors(md) && !field_metadata_has_tensor2s(md) &&
+      !field_metadata_has_symtensor2s(md))
+    memcpy(mapped_boundary_values, boundary_values, boundary_size);
+  else
+  {
+    // Otherwise we've got some vector and/or tensor components.
+    // Map all the things.
+  }
 }
 
 // This helper performs the given number of counterclockwise rotations
@@ -658,24 +674,51 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
   ASSERT(rotation < 4);
 
   cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
+
+  // Metadata for the near end.
   cxn->block1 = block1;
   cxn->domain1 = block1_domain;
   cxn->coords1 = block1_coords;
+  cxn->boundary1 = block1_boundary;
   cxn->i1 = i1;
   cxn->j1 = j1;
   cxn->k1 = k1;
   MPI_Comm comm = unimesh_comm(block1);
   MPI_Comm_rank(comm, &cxn->proc1);
 
+  // Rotation between blocks.
   cxn->rotation = rotation;
 
+  // Metadata for the far end.
   cxn->block2 = block2;
   cxn->domain2 = block2_domain;
   cxn->coords2 = block2_coords;
+  cxn->boundary2 = block2_boundary;
   cxn->i2 = i2;
   cxn->j2 = j2;
   cxn->k2 = k2;
   cxn->proc2 = -1;
+
+  // Figure out canonical boundary face patch dimensions.
+  int nx, ny, nz;
+  blockmesh_get_patch_size(bc->mesh, &nx, &ny, &nz);
+  switch (block1_boundary)
+  {
+    case UNIMESH_X1_BOUNDARY:
+    case UNIMESH_X2_BOUNDARY:
+      cxn->n1 = ny;
+      cxn->n2 = nz;
+      break;
+    case UNIMESH_Y1_BOUNDARY:
+    case UNIMESH_Y2_BOUNDARY:
+      cxn->n1 = nx;
+      cxn->n2 = nz;
+      break;
+    case UNIMESH_Z1_BOUNDARY:
+    case UNIMESH_Z2_BOUNDARY:
+      cxn->n1 = nx;
+      cxn->n2 = ny;
+  }
 
   return cxn;
 }

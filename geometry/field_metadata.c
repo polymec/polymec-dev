@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,10 +11,10 @@
 // Tensor types for field components.
 typedef enum
 {
-  FIELD_UNDEFINED = 0,
-  FIELD_VECTOR = 1,
-  FIELD_TENSOR2 = 2,
-  FIELD_SYMTENSOR2 = 3
+  FIELD_SCALAR = 0,
+  FIELD_VECTOR = 2,
+  FIELD_TENSOR2 = 3,
+  FIELD_SYMTENSOR2 = 4
 } field_comp_type_t;
 
 struct field_metadata_t
@@ -22,15 +22,15 @@ struct field_metadata_t
   // Number of field components.
   int num_comps;
   // Component names.
-  char** names; 
+  char** names;
   // Component units.
-  char** units; 
+  char** units;
   // Component conserved quantity flags.
-  bool* conserved; 
+  bool* conserved;
   // Component extensive quantity flags.
-  bool* extensive; 
+  bool* extensive;
   // Component types.
-  field_comp_type_t* comp_types; 
+  field_comp_type_t* comp_types;
 };
 
 static void field_metadata_free(void* context)
@@ -92,7 +92,7 @@ const char* field_metadata_name(field_metadata_t* md, int component)
   return md->names[component];
 }
 
-void field_metadata_set_name(field_metadata_t* md, 
+void field_metadata_set_name(field_metadata_t* md,
                              int component,
                              const char* name)
 {
@@ -113,8 +113,8 @@ const char* field_metadata_units(field_metadata_t* md, int component)
   return md->units[component];
 }
 
-void field_metadata_set_units(field_metadata_t* md, 
-                              int component, 
+void field_metadata_set_units(field_metadata_t* md,
+                              int component,
                               const char* units)
 {
   ASSERT(component >= 0);
@@ -134,7 +134,7 @@ bool field_metadata_conserved(field_metadata_t* md, int component)
   return md->conserved[component];
 }
 
-void field_metadata_set_conserved(field_metadata_t* md, 
+void field_metadata_set_conserved(field_metadata_t* md,
                                   int component,
                                   bool conserved)
 {
@@ -150,13 +150,48 @@ bool field_metadata_extensive(field_metadata_t* md, int component)
   return md->extensive[component];
 }
 
-void field_metadata_set_extensive(field_metadata_t* md, 
+void field_metadata_set_extensive(field_metadata_t* md,
                                   int component,
                                   bool extensive)
 {
   ASSERT(component >= 0);
   ASSERT(component < md->num_comps);
   md->extensive[component] = extensive;
+}
+
+void field_metadata_set_scalar(field_metadata_t* md, int component)
+{
+  ASSERT(component >= 0);
+  ASSERT(component <= (md->num_comps - 3));
+  md->comp_types[component] = FIELD_SCALAR;
+}
+
+bool field_metadata_has_scalars(field_metadata_t* md)
+{
+  for (int c = 0; c < md->num_comps; ++c)
+  {
+    if (md->comp_types[c] == FIELD_SCALAR)
+      return true;
+  }
+  return false;
+}
+
+bool field_metadata_next_scalar(field_metadata_t* md,
+                                int* pos,
+                                int* comp)
+{
+  if (*pos >= md->num_comps)
+    return false;
+  while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_SCALAR))
+    ++(*pos);
+  if (*pos < md->num_comps)
+  {
+    ASSERT(md->comp_types[*pos] == FIELD_SCALAR);
+    *comp = *pos;
+    return true;
+  }
+  else
+    return false;
 }
 
 void field_metadata_set_vector(field_metadata_t* md, int component)
@@ -184,7 +219,7 @@ bool field_metadata_next_vector(field_metadata_t* md,
     return false;
   while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_VECTOR))
     ++(*pos);
-  if (*pos < md->num_comps) 
+  if (*pos < md->num_comps)
   {
     ASSERT(md->comp_types[*pos] == FIELD_VECTOR);
     *comp = *pos;
@@ -219,7 +254,7 @@ bool field_metadata_next_tensor2(field_metadata_t* md,
     return false;
   while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_TENSOR2))
     ++(*pos);
-  if (*pos < md->num_comps) 
+  if (*pos < md->num_comps)
   {
     ASSERT(md->comp_types[*pos] == FIELD_TENSOR2);
     *comp = *pos;
@@ -254,7 +289,7 @@ bool field_metadata_next_symtensor2(field_metadata_t* md,
     return false;
   while ((*pos < md->num_comps) && (md->comp_types[*pos] != FIELD_SYMTENSOR2))
     ++(*pos);
-  if (*pos < md->num_comps) 
+  if (*pos < md->num_comps)
   {
     ASSERT(md->comp_types[*pos] == FIELD_TENSOR2);
     *comp = *pos;
