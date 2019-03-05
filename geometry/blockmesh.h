@@ -47,29 +47,41 @@ typedef struct blockmesh_t blockmesh_t;
 //------------------------------------------------------------------------
 
 /// Creates a new blockmesh with no blocks, defined on the given communicator.
-/// The blockmesh can house unimesh blocks whose patches have the given dimensions.
+/// The blockmesh can house unimesh blocks whose patches have the given
+/// dimensions.
 /// \param [in] comm The MPI communicator for the blockmesh.
-/// \param [in] patch_nx The number of "x" cells in a patch within each block of the blockmesh.
-/// \param [in] patch_ny The number of "y" cells in a patch within each block of the blockmesh.
-/// \param [in] patch_nx The number of "z" cells in a patch within each block of the blockmesh.
+/// \param [in] patch_nx The number of "x" cells in a patch within each block
+///                      of the blockmesh.
+/// \param [in] patch_ny The number of "y" cells in a patch within each block
+///                      of the blockmesh.
+/// \param [in] patch_nx The number of "z" cells in a patch within each block
+///                      of the blockmesh.
 /// \memberof blockmesh
 blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_nz);
 
-/// Adds a new empty block to the blockmesh with the given numbers of patches in the "x", "y",
-/// and "z" directions. The block is empty in the sense that it contains no patches.
-/// \param [in] block_domain A bounding box containing the "logical" domain of the block's
-///                          coordinate mapping (e.g. [-1, +1] x [-1, +1] x [-1, +1]).
-/// \param [in] block_coords A coordinate mapping from the block's domain to the new block's
-///                          local coordinate system.
-///                          * Must be non-NULL, since the coordinate systems for the blocks
-///                            within the mesh must form a smooth atlas of compatible charts
-///                            (permitting diffeomorphisms between charts).
-///                          * This diffeomorphism also requires block_coords to have an inverse.
-///                          * The blockmesh assumes ownership of block_coords, so you must
-///                            retain a reference to continue using it outside of this context.
-/// \param [in] num_x_patches The number of patches in the "x" direction within the new block.
-/// \param [in] num_y_patches The number of patches in the "y" direction within the new block.
-/// \param [in] num_z_patches The number of patches in the "z" direction within the new block.
+/// Adds a new empty block to the blockmesh with the given numbers of patches
+/// in the "x", "y", and "z" directions. The block is empty in the sense that
+/// it contains no patches.
+/// \param [in] block_domain A bounding box containing the "logical" domain of
+///                          the block's coordinate mapping
+///                          (e.g. [-1, +1] x [-1, +1] x [-1, +1]).
+/// \param [in] block_coords A coordinate mapping from the block's domain to
+///                          the new block's local coordinate system.
+///                          * Must be non-NULL, since the coordinate systems
+///                            for the blocks within the mesh must form a
+///                            smooth atlas of compatible charts (permitting
+///                            diffeomorphisms between charts).
+///                          * This diffeomorphism also requires block_coords
+///                            to have an inverse.
+///                          * The blockmesh assumes ownership of block_coords,
+///                            so you must retain a reference to continue using
+///                            it outside of this context.
+/// \param [in] num_x_patches The number of patches in the "x" direction within
+///                           the new block.
+/// \param [in] num_y_patches The number of patches in the "y" direction within
+///                           the new block.
+/// \param [in] num_z_patches The number of patches in the "z" direction within
+///                           the new block.
 /// \returns the index of the new block within the blockmesh.
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh,
@@ -184,11 +196,11 @@ coord_mapping_t* blockmesh_block_coords(blockmesh_t* mesh, int index);
 
 /// Fetches the number of cells in each patch on this mesh in the x, y, and z
 /// directions, storing them in nx, ny, nz.
-/// \param [out] nx Stores the number of cells in each patch within the mesh, 
+/// \param [out] nx Stores the number of cells in each patch within the mesh,
 ///                 in the logical 'x' direction
-/// \param [out] ny Stores the number of cells in each patch within the mesh, 
+/// \param [out] ny Stores the number of cells in each patch within the mesh,
 ///                 in the logical 'y' direction
-/// \param [out] nz Stores the number of cells in each patch within the mesh, 
+/// \param [out] nz Stores the number of cells in each patch within the mesh,
 ///                 in the logical 'z' direction
 /// \memberof blockmesh
 void blockmesh_get_patch_size(blockmesh_t* mesh, int* nx, int* ny, int* nz);
@@ -196,22 +208,21 @@ void blockmesh_get_patch_size(blockmesh_t* mesh, int* nx, int* ny, int* nz);
 /// Returns true if the block with the given index in the mesh is connected
 /// to another block in the mesh on the given boundary, false if not.
 /// \param [in] index The index of the block.
-/// \param [in] boundary The boundary of the block for the connection in question.
+/// \param [in] boundary The boundary of the block for the connection in
+///                      question.
 /// \memberof blockmesh
 bool blockmesh_block_is_connected(blockmesh_t* field,
                                   int index,
                                   unimesh_boundary_t boundary);
 
 /// Allows the traversal of all blocks in the blockmesh.
-/// \param [inout] pos Stores the index of the next block in the mesh.
-///                    Set *pos to 0 to reset the traversal.
+/// \param [inout] pos Stores the index of the next block in the mesh. Set
+///                    *pos to 0 to reset the traversal.
 /// \param [out] block Stores the next block in the mesh.
-/// \param [out] block_domain If not NULL, stores the bounding box
-///                           representing the logical domain of the
-///                           next block.
-/// \param [out] block_coords If not NULL, stores the coordinate
-///                           mapping for the representing the next
-///                           block.
+/// \param [out] block_domain If not NULL, stores the bounding box representing
+///                           the logical domain of the next block.
+/// \param [out] block_coords If not NULL, stores the coordinate mapping for
+///                           the representing the next block.
 /// \returns True if the mesh contains another block, false if not.
 /// \memberof blockmesh
 bool blockmesh_next_block(blockmesh_t* mesh,
@@ -224,17 +235,18 @@ typedef struct blockmesh_field_t blockmesh_field_t;
 
 /// Repartitions the given blockmesh and redistributes data to each of the
 /// given fields.
-/// \param [inout] mesh A pointer that stores the old mesh, which is consumed and
-///                     replaced with the repartitioned mesh.
-/// \param [in] weights If non-NULL, this is an array containing an integer weight
-///                     for each locally-stored patch within the blockmesh. The
-///                     weights can be assigned with a nested traversal of
-///                     blocks over the mesh, and patches over each block.
-/// \param [in] imbalance_tol A tolerance that governs the partitioning. The load
-///                           imbalance produced by the repartitioning doesn't
-///                           exceed this tolerance.
-/// \param [inout] fields An array of field pointers containing fields whose data
-///                       is repartitioned in tandem with the blockmesh.
+/// \param [inout] mesh A pointer that stores the old mesh, which is consumed
+///                     and replaced with the repartitioned mesh.
+/// \param [in] weights If non-NULL, this is an array containing an integer
+///                     weight for each locally-stored patch within the
+///                     blockmesh. The weights can be assigned with a nested
+///                     traversal of blocks over the mesh, and patches over
+///                     each block.
+/// \param [in] imbalance_tol A tolerance that governs the partitioning. The
+///                           load imbalance produced by the repartitioning
+///                           doesn't exceed this tolerance.
+/// \param [inout] fields An array of field pointers containing fields whose
+///                       data is repartitioned in tandem with the blockmesh.
 /// \param [in] num_fields The length of the fields array.
 /// \note In addition, each repartitioned field needs to have any boundary
 /// conditions reinstated, since these boundary conditions are not

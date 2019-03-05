@@ -15,7 +15,6 @@
 #include "core/unordered_map.h"
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_interblock_bc.h"
-#include "geometry/blockmesh_pair.h"
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
@@ -45,14 +44,17 @@ DEFINE_UNORDERED_MAP(blob_buffer_map, int, blob_buffer_t*, int_hash, int_equals)
 typedef struct
 {
   blockmesh_interblock_bc_t* ibc;
-  blockmesh_pair_t* pair;
 
   unimesh_t* block1;
+  bbox_t* domain1;
+  coord_mapping_t* coords1;
   int i1, j1, k1;
   unimesh_boundary_t boundary1;
   int proc1;
 
   unimesh_t* block2;
+  bbox_t* domain2;
+  coord_mapping_t* coords2;
   int i2, j2, k2;
   unimesh_boundary_t boundary2;
   int proc2;
@@ -63,8 +65,13 @@ DEFINE_UNORDERED_MAP(cxn_map, int, cxn_t*, int_hash, int_equals)
 
 // Constructor and destructor.
 static cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
-                      blockmesh_pair_t* block_pair,
-                      int i1, int j1, int k1,
+                      unimesh_t* block1, bbox_t* block1_domain, 
+                      coord_mapping_t* block1_coords, 
+                      unimesh_boundary_t block1_boundary, int i1, int j1, int k1, 
+                      int rotation,
+                      unimesh_t* block2, bbox_t* block2_domain, 
+                      coord_mapping_t* block2_coords,
+                      unimesh_boundary_t block2_boundary,
                       int i2, int j2, int k2);
 static void cxn_free(cxn_t* cxn);
 
@@ -132,7 +139,7 @@ static void ibc_started_boundary_updates(void* context,
 // the patch to our blob buffer.
 static void ibc_started_boundary_update(void* context,
                                         unimesh_t* block, int token,
-                                        int i, int j, int k, 
+                                        int i, int j, int k,
                                         unimesh_boundary_t boundary,
                                         real_t t,
                                         field_metadata_t* md,
@@ -145,15 +152,16 @@ static void ibc_started_boundary_update(void* context,
   cxn_t** cxn_p = cxn_map_get(ibc->cxns, b_index);
   ASSERT(cxn_p != NULL);
   cxn_t* cxn = *cxn_p;
+  (void)cxn; // FIXME
 
   // Extract the boundary values from the patch and copy them to our blob
   // buffer.
   int c = (int)patch->centering;
   size_t boundary_size = blob_exchanger_blob_size(ibc->ex[c], b_index);
   char bvalues[boundary_size];
-  blockmesh_pair_unmap_boundary_values(cxn->pair,
-                                       cxn->i1, cxn->j1, cxn->k1,
-                                       md, patch, bvalues);
+//  blockmesh_pair_unmap_boundary_values(cxn->pair,
+//                                       cxn->i1, cxn->j1, cxn->k1,
+//                                       md, patch, bvalues);
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_in(ibc->ex[c], b_index, patch->nc, bvalues, buffer);
 }
@@ -221,6 +229,7 @@ static void ibc_about_to_finish_boundary_update(void* context,
   cxn_t** cxn_p = cxn_map_get(ibc->cxns, b_index);
   ASSERT(cxn_p != NULL);
   cxn_t* cxn = *cxn_p;
+  (void)cxn; // FIXME
 
   // Extract the boundary values from the blob buffer and copy them to our
   // patch.
@@ -229,9 +238,9 @@ static void ibc_about_to_finish_boundary_update(void* context,
   char bvalues[boundary_size];
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, patch->nc, bvalues);
-  blockmesh_pair_map_boundary_values(cxn->pair, bvalues,
-                                     cxn->i1, cxn->j1, cxn->k1, 
-                                     md, patch);
+//  blockmesh_pair_map_boundary_values(cxn->pair, bvalues,
+//                                     cxn->i1, cxn->j1, cxn->k1,
+//                                     md, patch);
 }
 
 //------------------------------------------------------------------------
@@ -262,12 +271,21 @@ void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
 }
 
 void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
-                                     blockmesh_pair_t* block_pair,
+                                     int block1_index,
+                                     unimesh_boundary_t block1_boundary,
                                      int i1, int j1, int k1,
+                                     int rotation,
+                                     int block2_index,
+                                     unimesh_boundary_t block2_boundary,
                                      int i2, int j2, int k2)
 {
-  unimesh_t* block1 = blockmesh_pair_block1(block_pair);
-  unimesh_t* block2 = blockmesh_pair_block2(block_pair);
+  unimesh_t* block1 = blockmesh_block(bc->mesh, block1_index);
+  bbox_t* block1_domain = blockmesh_block_domain(bc->mesh, block1_index);
+  coord_mapping_t* block1_coords = blockmesh_block_coords(bc->mesh, block1_index);
+
+  unimesh_t* block2 = blockmesh_block(bc->mesh, block2_index);
+  bbox_t* block2_domain = blockmesh_block_domain(bc->mesh, block2_index);
+  coord_mapping_t* block2_coords = blockmesh_block_coords(bc->mesh, block2_index);
 
   // Does block1 store patch (i1, j1, k1) locally? If not, we do nothing.
   if (!unimesh_has_patch(block1, i1, j1, k1))
@@ -284,33 +302,13 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
 #endif
 
   // Create a new connection and map it.
-  unimesh_boundary_t boundary1 = blockmesh_pair_block1_boundary(block_pair);
-  int b_index = boundary_index(bc->mesh, block1, i1, j1, k1, boundary1);
-  cxn_t* cxn = cxn_new(bc, block_pair, i1, j1, k1, i2, j2, k2);
+  int b_index = boundary_index(bc->mesh, block1, i1, j1, k1, block1_boundary);
+  cxn_t* cxn = cxn_new(bc,
+                       block1, block1_domain, block1_coords, block1_boundary,
+                       i1, j1, k1, rotation,
+                       block2, block2_domain, block2_coords, block2_boundary,
+                       i2, j2, k2);
   cxn_map_insert_with_v_dtor(bc->cxns, b_index, cxn, cxn_free);
-}
-
-bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
-                                             int* pos,
-                                             blockmesh_pair_t** block_pair,
-                                             int* i1, int* j1, int* k1,
-                                             int* i2, int* j2, int* k2)
-{
-  int index;
-  cxn_t* cxn;
-  bool result = cxn_map_next(bc->cxns, pos, &index, &cxn);
-  if (result)
-  {
-    *block_pair = cxn->pair;
-    *i1 = cxn->i1;
-    *j1 = cxn->j1;
-    *k1 = cxn->k1;
-    *i2 = cxn->i2;
-    *j2 = cxn->j2;
-    *k2 = cxn->k2;
-  }
-
-  return result;
 }
 
 static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh,
@@ -603,21 +601,29 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
 //------------------------------------------------------------------------
 
 cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
-               blockmesh_pair_t* block_pair,
-               int i1, int j1, int k1,
+               unimesh_t* block1, bbox_t* block1_domain, 
+               coord_mapping_t* block1_coords, 
+               unimesh_boundary_t block1_boundary, int i1, int j1, int k1, 
+               int rotation,
+               unimesh_t* block2, bbox_t* block2_domain, 
+               coord_mapping_t* block2_coords,
+               unimesh_boundary_t block2_boundary,
                int i2, int j2, int k2)
 {
   cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
   cxn->ibc = bc;
-
-  cxn->pair = block_pair;
-
+  cxn->block1 = block1;
+  cxn->domain1 = block1_domain;
+  cxn->coords1 = block1_coords;
   cxn->i1 = i1;
   cxn->j1 = j1;
   cxn->k1 = k1;
-  MPI_Comm comm = unimesh_comm(blockmesh_pair_block1(block_pair));
+  MPI_Comm comm = unimesh_comm(block1);
   MPI_Comm_rank(comm, &cxn->proc1);
 
+  cxn->block2 = block2;
+  cxn->domain2 = block2_domain;
+  cxn->coords2 = block2_coords;
   cxn->i2 = i2;
   cxn->j2 = j2;
   cxn->k2 = k2;

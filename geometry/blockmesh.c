@@ -12,7 +12,6 @@
 #include "geometry/blockmesh.h"
 #include "geometry/blockmesh_interblock_bc.h"
 #include "geometry/blockmesh_field.h"
-#include "geometry/blockmesh_pair.h"
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
@@ -101,6 +100,66 @@ int blockmesh_add_block(blockmesh_t* mesh,
   return index;
 }
 
+// Only certain combos of block faces are acceptible.
+static int _valid_block_face_nodes[6][4] = {{0, 4, 7, 3},  // -x
+                                            {2, 6, 5, 1},  // +x
+                                            {0, 1, 5, 4},  // -y
+                                            {7, 6, 2, 3},  // +y
+                                            {0, 1, 2, 3},  // -z
+                                            {7, 6, 5, 4}}; // +z
+
+static int determine_rotation(int block1_boundary, int block1_nodes[4],
+                              int block2_boundary, int block2_nodes[4])
+{
+  // We calculate "twists" for each pair of nodes, consisting of an integer number of
+  // counter-clockwise turns from 0 to 3. If all the twists are the same, that's the
+  // valid twist. Otherwise, the twist is invalid.
+  int twists[4];
+  for (int i = 0; i < 4; ++i)
+  {
+    int n1 = block1_nodes[i];
+    int* valid_nodes1 = _valid_block_face_nodes[block1_boundary];
+    int offset1 = (int)(int_lsearch(valid_nodes1, 4, n1) - valid_nodes1);
+    int n2 = block2_nodes[i];
+    int* valid_nodes2 = _valid_block_face_nodes[block2_boundary];
+    int offset2 = (int)(int_lsearch(valid_nodes2, 4, n2) - valid_nodes2);
+    int twist = (offset2 - offset1 + 4) % 4;
+    twists[i] = twist;
+    if ((i > 0) && (twists[i] != twists[0]))
+      return -1;
+  }
+  return twists[0];
+}
+
+static int block_boundary_for_nodes(int block_nodes[4])
+{
+  int face = -1;
+  for (int f = 0; f < 6; ++f)
+  {
+    bool face_matches = true;
+    for (int n = 0; n < 4; ++n)
+    {
+      bool node_matches = false;
+      for (int nn = 0; nn < 4; ++nn)
+      {
+        if (block_nodes[n] == _valid_block_face_nodes[f][nn])
+        {
+          node_matches = true;
+          break;
+        }
+      }
+      if (!node_matches)
+        face_matches = false;
+    }
+    if (face_matches)
+    {
+      face = f;
+      break;
+    }
+  }
+  return face;
+}
+
 bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
                                   int block1_index,
                                   int block1_nodes[4],
@@ -108,8 +167,169 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
                                   int block2_nodes[4],
                                   char** reason)
 {
-  return blockmesh_pair_validate(mesh, block1_index, block1_nodes,
-                                 block2_index, block2_nodes, reason);
+  ASSERT(block1_index >= 0);
+  ASSERT(block1_index < blockmesh_num_blocks(mesh));
+  ASSERT(block2_index >= 0);
+  ASSERT(block2_index < blockmesh_num_blocks(mesh));
+
+  // This string holds the reason for failed block connections.
+  static char _reason[1025];
+
+  static const char* boundary_names[6] = {"-x", "+x", "-y", "+y", "-z", "+z"};
+
+  int b1 = block_boundary_for_nodes(block1_nodes);
+  if (b1 == -1)
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "First block's nodes don't correspond to a "
+                              "block boundary.");
+      *reason = _reason;
+    }
+    return false;
+  }
+
+  int b2 = block_boundary_for_nodes(block2_nodes);
+  if (b2 == -1)
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Second block's nodes don't correspond to a "
+                              "block boundary.");
+      *reason = _reason;
+    }
+    return false;
+  }
+
+  // A block can connect to itself, but only if the connection is between two
+  // different block faces.
+  if ((block1_index == block2_index) && (b1 == b2))
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "A block can't connect to itself via a single "
+                              "boundary (%s).", boundary_names[b1]);
+      *reason = _reason;
+    }
+    return false;
+  }
+
+  // Now make sure the two blocks are compatible on the shared boundary.
+  int rotation = determine_rotation(b1, block1_nodes, b2, block2_nodes);
+  if (rotation == -1)
+  {
+    // Try again with block2_nodes reversed.
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2],
+                               block2_nodes[1], block2_nodes[0]};
+    rotation = determine_rotation(b1, block1_nodes, b2, rev_block2_nodes);
+  }
+  if (rotation == -1)
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Block boundaries aren't connected in a valid "
+                              "way.");
+      *reason = _reason;
+    }
+    return false;
+  }
+
+  // Fetch the patch extents.
+  unimesh_t* block1 = blockmesh_block(mesh, block1_index);
+  int npx1, npy1, npz1;
+  unimesh_get_extents(block1, &npx1, &npy1, &npz1);
+
+  unimesh_t* block2 = blockmesh_block(mesh, block2_index);
+  int npx2, npy2, npz2;
+  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
+
+  // All patches within the mesh are the same size.
+  int nx, ny, nz;
+  unimesh_get_patch_size(block1, &nx, &ny, &nz);
+
+  // Identify the relevant patch extents/sizes and make sure they're compatible.
+  int N1, NP1_1, NP1_2;
+  if ((b1 == 0) || (b1 == 1))
+  {
+    N1 = nx;
+    NP1_1 = npy1;
+    NP1_2 = npz1;
+  }
+  else if ((b1 == 2) || (b1 == 3))
+  {
+    N1 = ny;
+    NP1_1 = npz1;
+    NP1_2 = npx1;
+  }
+  else
+  {
+    N1 = nz;
+    NP1_1 = npx1;
+    NP1_2 = npy1;
+  }
+
+  int N2, NP2_1, NP2_2;
+  if ((b2 == 0) || (b2 == 1))
+  {
+    N2 = nx;
+    NP2_1 = npy2;
+    NP2_2 = npz2;
+  }
+  else if ((b2 == 2) || (b2 == 3))
+  {
+    N2 = ny;
+    NP2_1 = npz2;
+    NP2_2 = npx2;
+  }
+  else
+  {
+    N2 = nz;
+    NP2_1 = npx2;
+    NP2_2 = npy2;
+  }
+
+  if (((rotation == 0) || (rotation == 2)) &&
+      ((N1 != N2) || (NP1_1 != NP2_1) || (NP1_2 != NP2_2)))
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Second block's patch extents for %s boundary "
+                              "(%d and %d) don't match first block's extents "
+                              "for %s boundary (%d and %d)",
+               boundary_names[b2], NP2_1, NP2_2, boundary_names[b1], NP1_1,
+               NP1_2);
+      *reason = _reason;
+    }
+    return false;
+  }
+  else if (((rotation == 1) || (rotation == 3)) &&
+           ((N1 != N2) || (NP1_1 != NP2_2) || (NP1_2 != NP2_1)))
+  {
+    if (reason != NULL)
+    {
+      snprintf(_reason, 1024, "Second block's patch extents for %s boundary "
+                              "(%d and %d) don't match first block's extents "
+                              "for %s boundary (%d and %d)",
+               boundary_names[b2], NP2_2, NP2_1, boundary_names[b1], NP1_1,
+               NP1_2);
+      *reason = _reason;
+    }
+    return false;
+  }
+
+  // I guess everything's okay.
+  return true;
+}
+
+static void find_connected_patch(blockmesh_t* mesh,
+                                 int block1_index,
+                                 unimesh_boundary_t block1_boundary,
+                                 int i1, int j1, int k1,
+                                 int rotation,
+                                 int block2_index,
+                                 unimesh_boundary_t block2_boundary,
+                                 int* i2, int* j2, int* k2)
+{
 }
 
 void blockmesh_connect_blocks(blockmesh_t* mesh,
@@ -119,33 +339,60 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
   ASSERT(blockmesh_can_connect_blocks(mesh, block1_index, block1_nodes,
                                             block2_index, block2_nodes, NULL));
 
-  // Construct a block pair.
-  blockmesh_pair_t* pair = blockmesh_pair_new(mesh, block1_index, block1_nodes,
-                                                    block2_index, block2_nodes);
+  // Figure out the block boundaries that connect to one another, and
+  // the (topological) rotation going from the first to the second.
+  int b1 = block_boundary_for_nodes(block1_nodes);
+  ASSERT(b1 != -1);
+
+  int b2 = block_boundary_for_nodes(block2_nodes);
+  ASSERT(b2 != -1);
+
+  int rotation = determine_rotation(b1, block1_nodes,
+                                    b2, block2_nodes);
+  if (rotation == -1)
+  {
+    // Try again with block2_nodes reversed.
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2],
+                               block2_nodes[1], block2_nodes[0]};
+    rotation = determine_rotation(b1, block1_nodes,
+                                  b2, rev_block2_nodes);
+  }
+  ASSERT(rotation != -1);
 
   // Traverse all the locally-stored patches in block1 and connect them to
   // corresponding patches in block2. This is a bit grisly, since we have to
   // account for rotations and different sets of boundary pairs.
   unimesh_t* block1 = blockmesh_block(mesh, block1_index);
+  unimesh_boundary_t block1_boundary = (unimesh_boundary_t)b1;
+
   unimesh_t* block2 = blockmesh_block(mesh, block2_index);
+  unimesh_boundary_t block2_boundary = (unimesh_boundary_t)b2;
+
   int pos = 0;
   int i1, j1, k1;
   while (unimesh_next_patch(block1, &pos, &i1, &j1, &k1, NULL))
   {
     // Figure out the coordinates of the corresponding patch in block2.
     int i2, j2, k2;
-    blockmesh_pair_find_patch(pair, i1, j1, k1, &i2, &j2, &k2);
+    find_connected_patch(mesh, block1_index, block1_boundary, i1, j1, k1,
+                         rotation,
+                         block2_index, block2_boundary, &i2, &j2, &k2);
     if ((i2 != -1) && (j2 != -1) && (k2 != -1))
     {
       // Connect block1's local patch to block2's patch.
-      blockmesh_interblock_bc_connect(mesh->interblock_bc, pair,
-                                      i1, j1, k1, i2, j2, k2);
+      blockmesh_interblock_bc_connect(mesh->interblock_bc,
+                                      block1_index, block1_boundary, i1, j1, k1,
+                                      rotation,
+                                      block2_index, block2_boundary, i2, j2, k2);
 
       // If block2's patch is locally stored, connect it to block1's.
       if (unimesh_has_patch(block2, i2, j2, k2))
       {
-        blockmesh_interblock_bc_connect(mesh->interblock_bc, pair,
-                                        i1, j1, k1, i2, j2, k2);
+        int opp_rotation = rotation; // FIXME
+        blockmesh_interblock_bc_connect(mesh->interblock_bc,
+                                        block2_index, block2_boundary, i2, j2, k2,
+                                        opp_rotation,
+                                        block1_index, block1_boundary, i1, j1, k1);
       }
     }
   }
