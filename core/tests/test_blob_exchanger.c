@@ -117,6 +117,7 @@ static void test_blob_exchanger_exchange(void** state)
   release_ref(ex);
 }
 
+/*
 // This sets up a bad exchanger to use for deadlock detection.
 static blob_exchanger_t* bad_exchanger(void** state)
 {
@@ -203,6 +204,7 @@ static void test_blob_exchanger_verify_and_dl_detection(void** state)
   blob_buffer_free(buffer);
   release_ref(ex);
 }
+*/
 
 int main(int argc, char* argv[])
 {
@@ -211,7 +213,7 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_blob_exchanger_construct),
     cmocka_unit_test(test_blob_exchanger_exchange),
-    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
+//    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

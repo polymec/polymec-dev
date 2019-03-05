@@ -54,10 +54,12 @@ struct blob_exchanger_t
 
   // Metadata for creating and manipulating buffers.
   bool does_local_copy;
+
   int_array_t* send_procs;
   int_array_t* send_proc_offsets;
   int_int_unordered_map_t* send_blob_offsets;
   int max_num_send_blobs;
+
   int_array_t* recv_procs;
   int_array_t* recv_proc_offsets;
   int_int_unordered_map_t* recv_blob_offsets;
@@ -96,6 +98,7 @@ static void blob_exchanger_free(void* context)
 {
   blob_exchanger_t* ex = context;
   ptr_array_free(ex->pending_msgs);
+
   int_array_free(ex->send_procs);
   int_array_free(ex->send_proc_offsets);
   int_int_unordered_map_free(ex->send_blob_offsets);
@@ -103,9 +106,9 @@ static void blob_exchanger_free(void* context)
   int_array_free(ex->recv_procs);
   int_array_free(ex->recv_proc_offsets);
   int_int_unordered_map_free(ex->recv_blob_offsets);
+
   blob_exchanger_proc_map_free(ex->send_map);
   blob_exchanger_proc_map_free(ex->recv_map);
-
   blob_exchanger_size_map_free(ex->blob_sizes);
 }
 
@@ -300,7 +303,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
         char str[MPI_MAX_ERROR_STRING];
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
-        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n",
                  ex->rank, proc, err, str);
         polymec_error(err_msg);
       }
@@ -338,7 +341,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
         char str[MPI_MAX_ERROR_STRING];
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
-        snprintf(err_msg, 1024, "%d: MPI Error sending from %d: %d\n(%s)\n", 
+        snprintf(err_msg, 1024, "%d: MPI Error sending from %d: %d\n(%s)\n",
                  ex->rank, proc, err, str);
         polymec_error(err_msg);
       }
@@ -366,7 +369,7 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
   }
   ASSERT(num_requests == num_sends + num_receives);
 
-  // If we're not actually doing remote communication, there's nothing 
+  // If we're not actually doing remote communication, there's nothing
   // to do here.
   if (num_requests == 0)
     return 0;
@@ -482,29 +485,45 @@ static int blob_exchanger_waitall(blob_exchanger_t* ex, blob_buffer_t* buffer)
         fprintf(ex->dl_output_stream, "%d: MPI Deadlock:\n", ex->rank);
         if (num_completed_sends > 0)
         {
-          fprintf(ex->dl_output_stream, "%d: Completed sending data to:\n", ex->rank);
+          fprintf(ex->dl_output_stream, "%d: Completed sending data to:\n",
+                  ex->rank);
           for (int i = 0; i < num_completed_sends; ++i)
-            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank, completed_send_procs[i], completed_send_bytes[i]);
+          {
+            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank,
+                    completed_send_procs[i], completed_send_bytes[i]);
+          }
         }
         if (num_completed_receives > 0)
         {
-          fprintf(ex->dl_output_stream, "%d: Completed receiving data from:\n", ex->rank);
+          fprintf(ex->dl_output_stream, "%d: Completed receiving data from:\n",
+                  ex->rank);
           for (int i = 0; i < num_completed_receives; ++i)
-            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank, completed_recv_procs[i], completed_recv_bytes[i]);
+          {
+            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank,
+                    completed_recv_procs[i], completed_recv_bytes[i]);
+          }
         }
         if (num_outstanding_sends > 0)
         {
-          fprintf(ex->dl_output_stream, "%d: Still sending data to:\n", ex->rank);
+          fprintf(ex->dl_output_stream, "%d: Still sending data to:\n",
+                  ex->rank);
           for (int i = 0; i < num_outstanding_sends; ++i)
-            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank, outstanding_send_procs[i], outstanding_send_bytes[i]);
+          {
+            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank,
+                    outstanding_send_procs[i], outstanding_send_bytes[i]);
+          }
         }
         if (num_outstanding_receives > 0)
         {
           fprintf(ex->dl_output_stream, "Still expecting data from:\n");
           for (int i = 0; i < num_outstanding_receives; ++i)
-            fprintf(ex->dl_output_stream, "  %d (%d bytes)\n", outstanding_recv_procs[i], outstanding_recv_bytes[i]);
+          {
+            fprintf(ex->dl_output_stream, "  %d (%d bytes)\n",
+                    outstanding_recv_procs[i], outstanding_recv_bytes[i]);
+          }
         }
-        fprintf(ex->dl_output_stream, "%d: Grace period: %g seconds\n", ex->rank, ex->dl_thresh);
+        fprintf(ex->dl_output_stream, "%d: Grace period: %g seconds\n",
+                ex->rank, ex->dl_thresh);
 
         // Bug out.
         return -1;
@@ -636,8 +655,9 @@ bool blob_exchanger_copy_in(blob_exchanger_t* ex,
   int* offset_p = int_int_unordered_map_get(ex->send_blob_offsets, blob_index);
   if (offset_p != NULL)
   {
+    int offset = size_factor * (*offset_p);
     size_t size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
-    memcpy(&(((char*)buffer->storage)[*offset_p]), blob, size*size_factor);
+    memcpy(&(((char*)buffer->storage)[offset]), blob, size*size_factor);
     return true;
   }
   else
@@ -655,8 +675,9 @@ bool blob_exchanger_copy_out(blob_exchanger_t* ex,
   int* offset_p = int_int_unordered_map_get(ex->recv_blob_offsets, blob_index);
   if (offset_p != NULL)
   {
+    int offset = size_factor * (*offset_p);
     size_t size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
-    memcpy(blob, &(((char*)buffer->storage)[*offset_p]), size*size_factor);
+    memcpy(blob, &(((char*)buffer->storage)[offset]), size*size_factor);
     return true;
   }
   else
@@ -722,7 +743,7 @@ bool blob_exchanger_verify(blob_exchanger_t* ex,
       if (handler != NULL)
       {
         handler("blob_exchanger_verify: Proc %d is sending %d blobs to proc %d,"
-                " which is expecting %d blobs.", p, num_theyre_sending, 
+                " which is expecting %d blobs.", p, num_theyre_sending,
                 ex->rank, num_im_receiving);
       }
       STOP_FUNCTION_TIMER();
@@ -747,8 +768,6 @@ void blob_exchanger_enable_deadlock_detection(blob_exchanger_t* ex,
   ex->dl_thresh = threshold;
   ex->dl_output_rank = output_rank;
   ex->dl_output_stream = stream;
-
-  // Set the MPI error handler to return error codes .
 }
 
 void blob_exchanger_disable_deadlock_detection(blob_exchanger_t* ex)
