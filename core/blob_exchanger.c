@@ -292,7 +292,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
     size_t size = size_factor *
                   (ex->recv_proc_offsets->data[p+1] -
                    ex->recv_proc_offsets->data[p]);
-    void* data = &(((char*)buffer->storage)[size_factor * ex->recv_proc_offsets->data[p]]);
+    char* data = &(((char*)buffer->storage)[size_factor * ex->recv_proc_offsets->data[p]]);
     if (proc != ex->rank)
     {
       int err = MPI_Irecv(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
@@ -318,7 +318,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
                          (ex->send_proc_offsets->data[p1+1] -
                           ex->send_proc_offsets->data[p1]);
       ASSERT(send_size == size);
-      void* send_data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p1]]);
+      char* send_data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p1]]);
       memmove(data, send_data, send_size);
     }
   }
@@ -330,7 +330,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
     size_t size = size_factor *
                   (ex->send_proc_offsets->data[p+1] -
                    ex->send_proc_offsets->data[p]);
-    void* data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p]]);
+    char* data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p]]);
     if (proc != ex->rank)
     {
       int err = MPI_Isend(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
