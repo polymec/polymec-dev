@@ -140,7 +140,6 @@ static void ibc_started_boundary_updates(void* context,
 // mapped_boundary_values.
 static void map_boundary_values(cxn_t* cxn,
                                 field_metadata_t* md,
-                                unimesh_boundary_t boundary,
                                 unimesh_centering_t centering,
                                 void* boundary_values,
                                 void* mapped_boundary_values)
@@ -149,8 +148,7 @@ static void map_boundary_values(cxn_t* cxn,
 
 // This helper performs the given number of counterclockwise rotations
 // on the given boundary values, placing the results in rotated_boundary_values.
-static void rotate_boundary_values(int rotation,
-                                   unimesh_boundary_t boundary,
+static void rotate_boundary_values(cxn_t* cxn,
                                    unimesh_centering_t centering,
                                    void* boundary_values,
                                    void* rotated_boundary_values)
@@ -191,14 +189,12 @@ static void ibc_started_boundary_update(void* context,
   // in the diffeomorphism).
   char invm_bvalues[boundary_size];
   coord_mapping_t* inv_map = coord_mapping_inverse(cxn->coords1);
-  map_boundary_values(cxn, md, boundary, patch->centering, bvalues,
-                      invm_bvalues);
+  map_boundary_values(cxn, md, patch->centering, bvalues, invm_bvalues);
   release_ref(inv_map);
 
   // Now rotate the boundary values.
   char rot_bvalues[boundary_size];
-  rotate_boundary_values(cxn->rotation, boundary, patch->centering,
-                         invm_bvalues, rot_bvalues);
+  rotate_boundary_values(cxn, patch->centering, invm_bvalues, rot_bvalues);
 
   // Finally copy the boundary values to our blob buffer.
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
@@ -285,8 +281,7 @@ static void ibc_about_to_finish_boundary_update(void* context,
   // Now apply the coordinate mapping to these values (this is the last part
   // of the diffeomorphism).
   char m_bvalues[boundary_size];
-  map_boundary_values(cxn, md, boundary, patch->centering, bvalues,
-                      m_bvalues);
+  map_boundary_values(cxn, md, patch->centering, bvalues, m_bvalues);
 
   // Copy the boundary values back into the patch.
   unimesh_patch_copy_bvalues_from_buffer(patch, boundary, m_bvalues);
@@ -659,6 +654,9 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
                unimesh_boundary_t block2_boundary,
                int i2, int j2, int k2)
 {
+  ASSERT(rotation >= 0);
+  ASSERT(rotation < 4);
+
   cxn_t* cxn = polymec_malloc(sizeof(cxn_t));
   cxn->block1 = block1;
   cxn->domain1 = block1_domain;
@@ -668,6 +666,8 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
   cxn->k1 = k1;
   MPI_Comm comm = unimesh_comm(block1);
   MPI_Comm_rank(comm, &cxn->proc1);
+
+  cxn->rotation = rotation;
 
   cxn->block2 = block2;
   cxn->domain2 = block2_domain;
