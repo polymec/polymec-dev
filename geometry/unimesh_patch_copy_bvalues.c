@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -754,14 +754,14 @@ static void copy_z2_node_from(unimesh_patch_t* patch, void* buffer)
 
 typedef void (*buffer_copy_func)(unimesh_patch_t* patch, void* buffer);
 
-void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch, 
-                                          unimesh_boundary_t boundary, 
+void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch,
+                                          unimesh_boundary_t boundary,
                                           void* buffer);
-void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch, 
-                                          unimesh_boundary_t boundary, 
+void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch,
+                                          unimesh_boundary_t boundary,
                                           void* buffer)
 {
-  static buffer_copy_func copy_to[8][6] = 
+  static buffer_copy_func copy_to[8][6] =
   {
     {copy_x1_cell_to, copy_x2_cell_to, copy_y1_cell_to, copy_y2_cell_to, copy_z1_cell_to, copy_z2_cell_to},
     {copy_x1_xface_to, copy_x2_xface_to, copy_y1_xface_to, copy_y2_xface_to, copy_z1_xface_to, copy_z2_xface_to},
@@ -777,14 +777,14 @@ void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch,
   copy_to[c][b](patch, buffer);
 }
 
-void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch, 
-                                            unimesh_boundary_t boundary, 
+void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch,
+                                            unimesh_boundary_t boundary,
                                             void* buffer);
-void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch, 
-                                            unimesh_boundary_t boundary, 
+void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch,
+                                            unimesh_boundary_t boundary,
                                             void* buffer)
 {
-  static buffer_copy_func copy_from[8][6] = 
+  static buffer_copy_func copy_from[8][6] =
   {
     {copy_x1_cell_from, copy_x2_cell_from, copy_y1_cell_from, copy_y2_cell_from, copy_z1_cell_from, copy_z2_cell_from},
     {copy_x1_xface_from, copy_x2_xface_from, copy_y1_xface_from, copy_y2_xface_from, copy_z1_xface_from, copy_z2_xface_from},
