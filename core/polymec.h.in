@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,44 +10,44 @@
 
 /// \mainpage The Polymec High Performance Computing Libraries
 ///
-/// Polymec is a set of libraries that can be used to construct models for 
-/// physical systems. These libraries are designed to allow a computational 
-/// scientist to construct low-maintenance science applications with robust 
+/// Polymec is a set of libraries that can be used to construct models for
+/// physical systems. These libraries are designed to allow a computational
+/// scientist to construct low-maintenance science applications with robust
 /// capabilities.
 ///
 /// The libraries are:
-/// * \ref core - A set of basic data structures useful for scientific 
-///   calculations: containers (arrays, hashes, trees), points, vectors, 
-///   spatial and spatio-temporal functions, adjacency graphs, timers, logging 
+/// * \ref core - A set of basic data structures useful for scientific
+///   calculations: containers (arrays, hashes, trees), points, vectors,
+///   spatial and spatio-temporal functions, adjacency graphs, timers, logging
 ///   facilities, and access to a simple but effective Lua interpreter.
-/// * \ref geometry - Data structures for expressing spatial and geometric 
-///   relationships: meshes, point clouds, signed distance functions, and 
+/// * \ref geometry - Data structures for expressing spatial and geometric
+///   relationships: meshes, point clouds, signed distance functions, and
 ///   facilities for partitioning and load balancing.
-/// * \ref solvers - Tools for constructing linear and nonlinear solvers for 
+/// * \ref solvers - Tools for constructing linear and nonlinear solvers for
 ///   the approximation of mathematical and physical systems.
-/// * \ref model - A simple framework for creating simulation models that 
+/// * \ref model - A simple framework for creating simulation models that
 ///   evolve systems in time.
-/// * \ref io - A parallel I/O library that includes an interface to the 
+/// * \ref io - A parallel I/O library that includes an interface to the
 ///   HDF5-based SILO format. Useful for any real high-performance science app.
 
-// We only use standard C11 around here. 
+// We only use standard C11 around here.
 #if (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) && !defined(__cplusplus)
 #error "Polymec requires a C11-compliant compiler."
 #endif
 
-// We require the availability of variable-length arrays, which where 
+// We require the availability of variable-length arrays, which where
 // mandatory in C99 but are optional in C11.
 #if defined(__STDC_NO_VLA__) && __STDC_NO_VLA__ == 1
 #error "Polymec requires the availability of variable-length arrays (VLA), which this compiler does not support."
 #endif
 
-// In a perfect world, we'd have full support for IEEE 754 floating point 
+// In a perfect world, we'd have full support for IEEE 754 floating point
 // arithmetic. The world in which we live is not presently perfect.
 //#if !defined(__STDC_IEC_559__) || __STDC_IEC_559__ == 0
 //#error "Polymec requires IEC 60559 (IEEE 754) floating point arithmetic support."
 //#endif
 
-// The Annex K bounds-checking interfaces would be really nice to have, and 
+// The Annex K bounds-checking interfaces would be really nice to have, and
 // someday we shall have them, but not today.
 //#if !defined(__STDC_LIB_EXT1__) || __STDC_LIB_EXT1__ == 0
 //#error "Polymec requires the availability of the bounds-checking interfaces in Annex K, which this compiler does not support."
@@ -62,7 +62,7 @@
 /// \addtogroup core core
 ///@{
 
-// Real number representation. 
+// Real number representation.
 #define POLYMEC_HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
 #define POLYMEC_HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
 #define POLYMEC_PRECISION @POLYMEC_PRECISION@
@@ -100,7 +100,7 @@
 #error "Could not determine MPI_SIZE_T."
 #endif
 
-// We have to redirect the declaration of the legacy function gamma 
+// We have to redirect the declaration of the legacy function gamma
 // to prevent it from interfering with our own.
 #define gamma old_gamma
 #include <math.h>
@@ -257,7 +257,7 @@ typedef float complex complex_t;
 
 #include <mpi.h>
 
-// In defining real_t, we have to accommodate Metis, which defines 
+// In defining real_t, we have to accommodate Metis, which defines
 // its own.
 #ifdef _METIS_H_
 #if POLYMEC_HAVE_SINGLE_PRECISION && REALTYPEWIDTH != 32
@@ -274,13 +274,13 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #undef MPI_REAL
 #endif
 
-/// \def MIN 
+/// \def MIN
 /// Returns the minimum of a and b.
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-/// \def MAX 
+/// \def MAX
 /// Returns the maximum of a and b.
 #ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
@@ -306,8 +306,8 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #endif
 
 /// \def REAL_CONSTANT
-/// Denotes a real-valued constant expression. Use REAL_CONSTANT(C) to 
-/// construct the floating point constant C manifestly in real_t form, rather 
+/// Denotes a real-valued constant expression. Use REAL_CONSTANT(C) to
+/// construct the floating point constant C manifestly in real_t form, rather
 /// than relying on explicit casting.
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 #define REAL_CONSTANT(C) C
@@ -321,7 +321,7 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #define ABS(a) (((a) >= REAL_CONSTANT(0.0)) ? (a) : -(a))
 #endif
 
-// Use polymec_unreachable() to tell the C compiler that a line in a function 
+// Use polymec_unreachable() to tell the C compiler that a line in a function
 // can never be reached.
 #if defined(__clang__) || defined(__GNUC__)
 // Both Clang and GNU have __builtin_unreachable.
@@ -343,7 +343,7 @@ typedef uint64_t index_t;
 #define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
 #define POLYMEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
-// The C standard no longer defines M_PI(!!!!). 
+// The C standard no longer defines M_PI(!!!!).
 // So we have to provide it ourselves.
 #ifndef M_PI
 #include <float.h>
@@ -360,9 +360,9 @@ typedef uint64_t index_t;
   { \
     if (!(x)) \
       polymec_abort("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__); \
-  } 
+  }
 #else
-#define ASSERT(x) 
+#define ASSERT(x)
 #endif
 
 /// \def DTOR
@@ -386,12 +386,12 @@ for (int i = start; i < start + num; ++i) \
 #include "core/string_utils.h"
 #include "core/file_utils.h"
 
-/// A function type for handling errors issued by the polymec libraries. 
+/// A function type for handling errors issued by the polymec libraries.
 typedef void (*polymec_error_handler_function)(const char*);
 
-/// Issues a run-time error with the given message. By default, an error sends a 
-/// message to stdout and exits the program with status -1. If you are 
-/// using lua_driver to provide an interpreter environment, the error will 
+/// Issues a run-time error with the given message. By default, an error sends a
+/// message to stdout and exits the program with status -1. If you are
+/// using lua_driver to provide an interpreter environment, the error will
 /// be issued to the interpreter. To override the default error handler(s), use
 /// polymec_set_error_handler().
 void polymec_error(const char* message, ...);
@@ -400,7 +400,7 @@ void polymec_error(const char* message, ...);
 /// to stdout and exiting the program with status -1.
 noreturn void polymec_fatal_error(const char* message, ...);
 
-/// Aborts execution in a proper manner that respects MPI if needed, 
+/// Aborts execution in a proper manner that respects MPI if needed,
 /// writing the given message to stderr.
 noreturn void polymec_abort(const char* message, ...);
 
@@ -416,11 +416,11 @@ void polymec_enable_fpe(void);
 /// This function disables floating point exceptions.
 void polymec_disable_fpe(void);
 
-/// This function suspends all currently-enabled floating point exceptions. 
+/// This function suspends all currently-enabled floating point exceptions.
 /// They can be restored later with polymec_restore_fpe.
 void polymec_suspend_fpe(void);
 
-/// This function restores the exceptions that were suspended by a prior call 
+/// This function restores the exceptions that were suspended by a prior call
 /// to polymec_suspend_fpe.
 void polymec_restore_fpe(void);
 
@@ -428,17 +428,17 @@ void polymec_restore_fpe(void);
 /// with a fatal exit.
 void polymec_not_implemented(const char* component);
 
-/// This registers a function to be called by polymec_init, after all of 
-/// polymec's services have been started. This function gets passed argc and 
+/// This registers a function to be called by polymec_init, after all of
+/// polymec's services have been started. This function gets passed argc and
 /// argv, and can make use of polymec's environment. If the function is already
 /// registered, it is not registered again. polymec_atinit must be called
 /// before polymec_init.
 void polymec_atinit(void (*func)(int argc, char** argv));
 
-/// Initializes polymec's services using the usual argc and argv parameters 
-/// for C programs, along with an optional absolute path to a directory that 
+/// Initializes polymec's services using the usual argc and argv parameters
+/// for C programs, along with an optional absolute path to a directory that
 /// will be used to store resources for the running process. Specifically:
-/// * If MPI has not been initialized, polymec assumes responsibility 
+/// * If MPI has not been initialized, polymec assumes responsibility
 ///   for initializing and finalizing it.
 /// * Logging is started at the default (or requested) level.
 /// * Paths for dynamically-loaded libraries are set up if requested.
@@ -451,36 +451,36 @@ void polymec_atinit(void (*func)(int argc, char** argv));
 void polymec_init(int argc, char** argv);
 
 /// Registers a function to be called upon exit. If the function is already
-/// registered, it is not registered again. polymec_atexit must be called 
+/// registered, it is not registered again. polymec_atexit must be called
 /// after polymec_init.
 void polymec_atexit(void (*func)(void));
 
-/// Adds the given absolute path to the list of directories that polymec 
-/// searches for dynamically loadable libraries. If the directory doesn't 
+/// Adds the given absolute path to the list of directories that polymec
+/// searches for dynamically loadable libraries. If the directory doesn't
 /// exist, this function has no effect.
 void polymec_add_dl_path(const char* path);
 
-/// Traverses all of the absolute paths that polymec searches for dynamically 
-/// loadable libraries. 
+/// Traverses all of the absolute paths that polymec searches for dynamically
+/// loadable libraries.
 /// \param [in,out] pos Controls the iteration. Set to 0 to reset the iteration.
 /// \param [out] path Stores the absolute path to the next loadable library.
 bool polymec_next_dl_path(int* pos, const char** path);
 
-/// Attempts to dynamically load the library with the given name, searching 
+/// Attempts to dynamically load the library with the given name, searching
 /// polymec's list of paths for dynamically loadable libraries.
 /// \param lib_name The name of the library to load, excluding any path,
 ///                 "lib" prefix, and dynamic library suffix (.so, .dylib, .dll).
 /// \returns A context pointer for the loaded library, or NULL if the library could not be loaded.
 void* polymec_dlopen(const char* lib_name);
 
-/// Retrieves the symbol with the given name from the given dynamically loaded 
+/// Retrieves the symbol with the given name from the given dynamically loaded
 /// library (which was obtained using polymec_dlopen).
 /// \param library The context pointer for the dynamically loaded library.
 /// \param symbol_name The name of the symbol to retrieve.
 /// \returns A pointer to the function/symbol with the given name, or NULL if no such symbol was found.
 void* polymec_dlsym(void* library, const char* symbol_name);
 
-/// Closes the previously open dynamically loaded library (which was obtained 
+/// Closes the previously open dynamically loaded library (which was obtained
 /// using polymec_dlopen).
 /// \param library The context pointer for the dynamically loaded library.
 void polymec_dlclose(void* library);
@@ -493,20 +493,20 @@ void polymec_version_fprintf(const char* exe_name, FILE* stream);
 /// \param stream The given file descriptor.
 void polymec_provenance_fprintf(FILE* stream);
 
-/// Returns an internal string containing the actual name of the executable 
-/// polymec application. This string contains just the name of the executable, 
+/// Returns an internal string containing the actual name of the executable
+/// polymec application. This string contains just the name of the executable,
 /// without any path information.
 const char* polymec_executable_name(void);
 
-/// Returns an internal string containing the command that invoked the 
+/// Returns an internal string containing the command that invoked the
 /// present instance of a polymec application.
 const char* polymec_invocation(void);
 
-/// Returns the time at which the present instance of a polymec application 
+/// Returns the time at which the present instance of a polymec application
 /// was invoked.
 time_t polymec_invocation_time(void);
 
-/// Call this function with a string to append additional information for 
+/// Call this function with a string to append additional information for
 /// provenance.
 /// \param [in] provenance_data A string that will be appended to provenance data.
 void polymec_append_provenance_data(const char* provenance_data);
@@ -525,8 +525,8 @@ static real_t _polymec_epsilon = 100.0*REAL_EPSILON;
 static real_t _polymec_epsilon = 10.0*REAL_EPSILON;
 #endif
 
-/// This function returns `true` if two real numbers are indistinguishable, 
-/// `false` if not. The distinguishability of two real numbers is set by 
+/// This function returns `true` if two real numbers are indistinguishable,
+/// `false` if not. The distinguishability of two real numbers is set by
 /// polymec's floating point tolerance (set by default to `REAL_EPSILON`,
 /// and set to specific values by \ref set_real_epsilon).
 /// \param [in] a The first real number.
@@ -550,11 +550,11 @@ static inline real_t real_epsilon(void)
   return _polymec_epsilon;
 }
 
-/// This function returns true if \f$ |a - b| < \epsilon \f$, false otherwise. 
+/// This function returns true if \f$ |a - b| < \epsilon \f$, false otherwise.
 /// \param [in] a The first real number.
 /// \param [in] b The second real number.
 /// \param [in] epsilon The tolerance \f$ \epsilon \f$.
-/// \returns true if \f$ |a - b| < \epsilon \f$, false otherwise. 
+/// \returns true if \f$ |a - b| < \epsilon \f$, false otherwise.
 static inline bool reals_nearly_equal(real_t a, real_t b, real_t epsilon)
 {
   return (ABS(a - b) < epsilon);

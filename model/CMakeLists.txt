@@ -1,6 +1,6 @@
 include(add_polymec_library)
 add_polymec_library(polymec_model model.c probe.c probe_stream_on_acquire.c
-                    stencil.c polymesh_stencils.c neighbor_pairing.c 
+                    stencil.c polymesh_stencils.c neighbor_pairing.c
                     partition_point_cloud_with_neighbors.c
                     lua_model.c)
 add_dependencies(polymec_model all_3rdparty_libs)
