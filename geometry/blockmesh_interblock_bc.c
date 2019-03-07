@@ -139,6 +139,20 @@ static void ibc_started_boundary_updates(void* context,
     buffer = *buffer_p;
 }
 
+static void find_boundary_point(cxn_t* cxn,
+                                bool inverse_mapping,
+                                unimesh_centering_t centering,
+                                int i, int j,
+                                point_t* x)
+{
+  if (inverse_mapping)
+  {
+  }
+  else
+  {
+  }
+}
+
 // This helper applies the coordinate mapping for the given connection (cxn)
 // to the given boundary values, using the given field metadata to figure out
 // which components are scalars, vectors, tensors, etc. Results are placed in
@@ -187,8 +201,11 @@ static void map_boundary_values(cxn_t* cxn,
         while (field_metadata_next_scalar(md, &pos, &c))
           mbv[i][j][c] = bv[i][j][c];
 
+        // Find the point in the (i, j)th position on the boundary.
+        point_t x;
+        find_boundary_point(cxn, inverse_mapping, centering, i, j, &x);
+
         // Map vectors.
-        point_t x; // FIXME: Where do we get this??
         pos = 0;
         while (field_metadata_next_vector(md, &pos, &c))
         {
@@ -222,9 +239,9 @@ static void map_boundary_values(cxn_t* cxn,
         pos = 0;
         while (field_metadata_next_symtensor2(md, &pos, &c))
         {
-          symtensor2_t t = {bv[i][j][c],   bv[i][j][c+1], bv[i][j][c+2],
-                                           bv[i][j][c+3], bv[i][j][c+4],
-                                                          bv[i][j][c+5]}, t1;
+          symtensor2_t t = {bv[i][j][c], bv[i][j][c+1], bv[i][j][c+2],
+                                         bv[i][j][c+3], bv[i][j][c+4],
+                                                        bv[i][j][c+5]}, t1;
           coord_mapping_map_symtensor2(map, &x, &t, &t1);
           mbv[i][j][c]   = t1.xx;
           mbv[i][j][c+1] = t1.xy;

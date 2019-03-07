@@ -388,7 +388,7 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
       // If block2's patch is locally stored, connect it to block1's.
       if (unimesh_has_patch(block2, i2, j2, k2))
       {
-        int opp_rotation = rotation; // FIXME
+        int opp_rotation = (rotation + 2) % 4;
         blockmesh_interblock_bc_connect(mesh->interblock_bc,
                                         block2_index, block2_boundary, i2, j2, k2,
                                         opp_rotation,

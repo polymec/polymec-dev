@@ -26,12 +26,15 @@ static void coord_mapping_free(void* ctx)
   free(mapping->name);
 }
 
-coord_mapping_t* coord_mapping_new(const char* name, void* context, coord_mapping_vtable vtable)
+coord_mapping_t* coord_mapping_new(const char* name,
+                                   void* context,
+                                   coord_mapping_vtable vtable)
 {
   ASSERT(context != NULL);
   ASSERT(vtable.map_point != NULL);
   ASSERT(vtable.jacobian != NULL);
-  coord_mapping_t* m = polymec_refcounted_malloc(sizeof(coord_mapping_t), coord_mapping_free);
+  coord_mapping_t* m = polymec_refcounted_malloc(sizeof(coord_mapping_t),
+                                                 coord_mapping_free);
   m->name = string_dup(name);
   m->context = context;
   m->vtable = vtable;
@@ -49,12 +52,14 @@ void* coord_mapping_context(coord_mapping_t* mapping)
   return mapping->context;
 }
 
-void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x, point_t* y)
+void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x,
+                             point_t* y)
 {
   mapping->vtable.map_point(mapping->context, x, y);
 }
 
-void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v, vector_t* v1)
+void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x,
+                              vector_t* v, vector_t* v1)
 {
   if (mapping->vtable.map_vector != NULL)
     mapping->vtable.map_vector(mapping->context, x, v, v1);
@@ -149,7 +154,8 @@ coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping)
   return mapping->inverse;
 }
 
-void coord_mapping_set_inverse(coord_mapping_t* mapping, coord_mapping_t* inverse)
+void coord_mapping_set_inverse(coord_mapping_t* mapping,
+                               coord_mapping_t* inverse)
 {
   ASSERT(inverse != NULL);
   mapping->inverse = inverse;
@@ -169,7 +175,8 @@ real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x)
   }
 }
 
-void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, tensor2_t* G)
+void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x,
+                                  tensor2_t* G)
 {
   if (mapping->vtable.metric != NULL)
     mapping->vtable.metric(mapping->context, x, G);
@@ -214,7 +221,7 @@ static void comp_jacobian(void* context, point_t* x, real_t J[3][3])
         &three, (real_t*)J2, &three, &zero, (real_t*)J, &three);
 }
 
-coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1, 
+coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1,
                                              coord_mapping_t* map2)
 {
   comp_cm_t* comp = polymec_malloc(sizeof(comp_cm_t));
