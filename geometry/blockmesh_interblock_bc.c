@@ -61,8 +61,8 @@ typedef struct
   unimesh_boundary_t boundary2;
   int proc2;
 
-  // Canonically ordered dimensions of boundary faces.
-  int n1, n2;
+  // Canonically ordered boundary endpoints for all centerings.
+  int lo1[8], hi1[8], lo2[8], hi2[8];
 } cxn_t;
 
 // Mapping of boundary indices -> connections
@@ -144,12 +144,29 @@ static void ibc_started_boundary_updates(void* context,
 // which components are scalars, vectors, tensors, etc. Results are placed in
 // mapped_boundary_values.
 static void map_boundary_values(cxn_t* cxn,
+                                bool inverse_mapping,
                                 field_metadata_t* md,
                                 unimesh_centering_t centering,
                                 void* boundary_values,
                                 void* mapped_boundary_values)
 {
-  size_t boundary_size = cxn->n1 * cxn->n2 * field_metadata_num_components(md);
+  int cent = (int)centering;
+  int lo1 = cxn->lo1[cent], hi1 = cxn->hi1[cent];
+  int n1 = hi1 - lo1 + 1;
+  int lo2 = cxn->lo2[cent], hi2 = cxn->hi2[cent];
+  int n2 = hi2 - lo2 + 1;
+  int nc = field_metadata_num_components(md);
+  size_t boundary_size = n1 * n2 * nc;
+
+  // Are we doing an inverse mapping?
+  coord_mapping_t* map;
+  if (inverse_mapping)
+    map = coord_mapping_inverse(cxn->coords1);
+  else
+  {
+    map = cxn->coords1;
+    retain_ref(map);
+  }
 
   // If we've only got scalar data, nothing needs mapping.
   if (!field_metadata_has_vectors(md) && !field_metadata_has_tensor2s(md) &&
@@ -159,7 +176,67 @@ static void map_boundary_values(cxn_t* cxn,
   {
     // Otherwise we've got some vector and/or tensor components.
     // Map all the things.
+    DECLARE_3D_ARRAY(real_t, bv, boundary_values, n1, n2, nc);
+    DECLARE_3D_ARRAY(real_t, mbv, mapped_boundary_values, n1, n2, nc);
+    for (int i = lo1; i < hi1; ++i)
+    {
+      for (int j = lo2; j < hi2; ++j)
+      {
+        // Map scalars.
+        int pos = 0, c;
+        while (field_metadata_next_scalar(md, &pos, &c))
+          mbv[i][j][c] = bv[i][j][c];
+
+        // Map vectors.
+        point_t x; // FIXME: Where do we get this??
+        pos = 0;
+        while (field_metadata_next_vector(md, &pos, &c))
+        {
+          vector_t v = {bv[i][j][c], bv[i][j][c+1], bv[i][j][c+2]}, v1;
+          coord_mapping_map_vector(map, &x, &v, &v1);
+          mbv[i][j][c]   = v1.x;
+          mbv[i][j][c+1] = v1.y;
+          mbv[i][j][c+2] = v1.z;
+        }
+
+        // Map tensors.
+        pos = 0;
+        while (field_metadata_next_tensor2(md, &pos, &c))
+        {
+          tensor2_t t = {bv[i][j][c],   bv[i][j][c+1], bv[i][j][c+2],
+                         bv[i][j][c+3], bv[i][j][c+4], bv[i][j][c+5],
+                         bv[i][j][c+6], bv[i][j][c+7], bv[i][j][c+8]}, t1;
+          coord_mapping_map_tensor2(map, &x, &t, &t1);
+          mbv[i][j][c]   = t1.xx;
+          mbv[i][j][c+1] = t1.xy;
+          mbv[i][j][c+2] = t1.xz;
+          mbv[i][j][c+3] = t1.yx;
+          mbv[i][j][c+4] = t1.yy;
+          mbv[i][j][c+5] = t1.yz;
+          mbv[i][j][c+6] = t1.zx;
+          mbv[i][j][c+7] = t1.zy;
+          mbv[i][j][c+8] = t1.zz;
+        }
+
+        // Map symmetric tensors.
+        pos = 0;
+        while (field_metadata_next_symtensor2(md, &pos, &c))
+        {
+          symtensor2_t t = {bv[i][j][c],   bv[i][j][c+1], bv[i][j][c+2],
+                                           bv[i][j][c+3], bv[i][j][c+4],
+                                                          bv[i][j][c+5]}, t1;
+          coord_mapping_map_symtensor2(map, &x, &t, &t1);
+          mbv[i][j][c]   = t1.xx;
+          mbv[i][j][c+1] = t1.xy;
+          mbv[i][j][c+2] = t1.xz;
+          mbv[i][j][c+3] = t1.yy;
+          mbv[i][j][c+4] = t1.yz;
+          mbv[i][j][c+5] = t1.zz;
+        }
+      }
+    }
   }
+  release_ref(map);
 }
 
 // This helper performs the given number of counterclockwise rotations
@@ -204,9 +281,7 @@ static void ibc_started_boundary_update(void* context,
   // Apply the inverse coordinate mapping (this is the first operation
   // in the diffeomorphism).
   char invm_bvalues[boundary_size];
-  coord_mapping_t* inv_map = coord_mapping_inverse(cxn->coords1);
-  map_boundary_values(cxn, md, patch->centering, bvalues, invm_bvalues);
-  release_ref(inv_map);
+  map_boundary_values(cxn, true, md, patch->centering, bvalues, invm_bvalues);
 
   // Now rotate the boundary values.
   char rot_bvalues[boundary_size];
@@ -297,7 +372,7 @@ static void ibc_about_to_finish_boundary_update(void* context,
   // Now apply the coordinate mapping to these values (this is the last part
   // of the diffeomorphism).
   char m_bvalues[boundary_size];
-  map_boundary_values(cxn, md, patch->centering, bvalues, m_bvalues);
+  map_boundary_values(cxn, false, md, patch->centering, bvalues, m_bvalues);
 
   // Copy the boundary values back into the patch.
   unimesh_patch_copy_bvalues_from_buffer(patch, boundary, m_bvalues);
@@ -706,18 +781,30 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
   {
     case UNIMESH_X1_BOUNDARY:
     case UNIMESH_X2_BOUNDARY:
-      cxn->n1 = ny;
-      cxn->n2 = nz;
+      cxn->lo1[0] = 1;
+      cxn->hi1[0] = ny;
+      // FIXME
+      cxn->lo2[0] = 1;
+      cxn->hi2[0] = nz;
+      // FIXME
       break;
     case UNIMESH_Y1_BOUNDARY:
     case UNIMESH_Y2_BOUNDARY:
-      cxn->n1 = nx;
-      cxn->n2 = nz;
+      cxn->lo1[0] = 1;
+      cxn->hi1[0] = nx;
+      // FIXME
+      cxn->lo2[0] = 1;
+      cxn->hi2[0] = nz;
+      // FIXME
       break;
     case UNIMESH_Z1_BOUNDARY:
     case UNIMESH_Z2_BOUNDARY:
-      cxn->n1 = nx;
-      cxn->n2 = ny;
+      cxn->lo1[0] = 1;
+      cxn->hi1[0] = nx;
+      // FIXME
+      cxn->lo2[0] = 1;
+      cxn->hi2[0] = ny;
+      // FIXME
   }
 
   return cxn;

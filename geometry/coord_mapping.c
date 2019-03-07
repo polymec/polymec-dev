@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "core/linear_algebra.h"
 #include "geometry/coord_mapping.h"
 
-struct coord_mapping_t 
+struct coord_mapping_t
 {
   char* name;
   void* context;
@@ -67,6 +67,34 @@ void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v,
   }
 }
 
+void coord_mapping_map_tensor2(coord_mapping_t* mapping, point_t* x,
+                               tensor2_t* t, tensor2_t* t1)
+{
+  if (mapping->vtable.map_tensor2 != NULL)
+    mapping->vtable.map_tensor2(mapping->context, x, t, t1);
+  else
+  {
+    // t1 = J * v.
+    tensor2_t J;
+    mapping->vtable.jacobian(mapping->context, x, &J);
+//    tensor2_dot_tensor2(&J, t, 1, t1); // FIXME
+  }
+}
+
+void coord_mapping_map_symtensor2(coord_mapping_t* mapping, point_t* x,
+                                  symtensor2_t* t, symtensor2_t* t1)
+{
+  if (mapping->vtable.map_symtensor2 != NULL)
+    mapping->vtable.map_symtensor2(mapping->context, x, t, t1);
+  else
+  {
+    // t1 = J * v.
+    tensor2_t J;
+    mapping->vtable.jacobian(mapping->context, x, &J);
+//    symtensor2_dot_symtensor2(&J, t, 1, t1); // FIXME
+  }
+}
+
 void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor2_t* J)
 {
   mapping->vtable.jacobian(mapping->context, x, J);
@@ -107,7 +135,7 @@ void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, tensor2_
     char trans = 'T', no_trans = 'N';
     int three = 3;
     real_t one = 1.0, zero = 0.0;
-    rgemm(&trans, &no_trans, &three, &three, &three, &one, (real_t*)&J, 
+    rgemm(&trans, &no_trans, &three, &three, &three, &one, (real_t*)&J,
           &three, (real_t*)&J, &three, &zero, (real_t*)G, &three);
   }
 }
@@ -136,7 +164,7 @@ static void comp_jacobian(void* context, point_t* x, tensor2_t* J)
   char no_trans = 'N';
   int three = 3;
   real_t one = 1.0, zero = 0.0;
-  rgemm(&no_trans, &no_trans, &three, &three, &three, &one, (real_t*)&J1, 
+  rgemm(&no_trans, &no_trans, &three, &three, &three, &one, (real_t*)&J1,
         &three, (real_t*)&J2, &three, &zero, (real_t*)J, &three);
 }
 
