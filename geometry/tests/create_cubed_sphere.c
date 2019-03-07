@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "geometry/blockmesh.h"
 
 //------------------------------------------------------------------------
-// Coordinate mappings: 
+// Coordinate mappings:
 //   1. equiangular -> lat/lon (eq_to_ll)
 //   2. lat/lon -> equiangular (
 // These mappings are each other's inverse.
@@ -27,7 +27,7 @@ static void equatorial_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
   y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
 }
 
-static void equatorial_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
+static void equatorial_eq_to_ll_J(void* context, point_t* x, real_t J[3][3])
 {
   equiangular_t* eq = context;
 
@@ -35,13 +35,13 @@ static void equatorial_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
   real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
 
   // Compute the change-of-basis matrix.
-  J->xx = 1.0; 
-  J->xy = J->xz = 0.0;
-  J->yx = -X*Y*sqrt(1.0+X*X)/delta2;
-  J->yy = (1.0+Y*Y)*sqrt(1.0+X*X)/delta2;
-  J->yz = 0.0;
-  J->zx = J->zy = 0.0;
-  J->zz = 1.0/(eq->R2 - eq->R1);
+  J[0][0] = 1.0;
+  J[0][1] = J[0][2] = 0.0;
+  J[1][0] = -X*Y*sqrt(1.0+X*X)/delta2;
+  J[1][1] = (1.0+Y*Y)*sqrt(1.0+X*X)/delta2;
+  J[1][2] = 0.0;
+  J[2][0] = J[2][1] = 0.0;
+  J[2][2] = 1.0/(eq->R2 - eq->R1);
 }
 
 static void polar_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
@@ -57,7 +57,7 @@ static void polar_eq_to_ll_map_point(void* context, point_t* x, point_t* y)
   y->z = eq->R1 + (eq->R2 - eq->R1) * x->z;
 }
 
-static void polar_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
+static void polar_eq_to_ll_J(void* context, point_t* x, real_t J[3][3])
 {
   equiangular_t* eq = context;
 
@@ -68,13 +68,13 @@ static void polar_eq_to_ll_J(void* context, point_t* x, tensor2_t* J)
   real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
 
   // Compute the change-of-basis matrix.
-  J->xx = -s*Y*(1.0+X*X) / (X*X + Y*Y);
-  J->xy = -s*X*(1.0+Y*Y) / (X*X + Y*Y);
-  J->xz = 0.0;
-  J->yx = -s*X*(1.0+X*X) / (delta2*sqrt(X*X + Y*Y));
-  J->yy = -s*Y*(1.0+Y*Y) / (delta2*sqrt(X*X + Y*Y));
-  J->yz = J->zx = J->zy = 0.0;
-  J->zz = 1.0/(eq->R2 - eq->R1);
+  J[0][0] = -s*Y*(1.0+X*X) / (X*X + Y*Y);
+  J[0][1] = -s*X*(1.0+Y*Y) / (X*X + Y*Y);
+  J[0][2] = 0.0;
+  J[1][0] = -s*X*(1.0+X*X) / (delta2*sqrt(X*X + Y*Y));
+  J[1][1] = -s*Y*(1.0+Y*Y) / (delta2*sqrt(X*X + Y*Y));
+  J[1][2] = J[2][0] = J[2][1] = 0.0;
+  J[2][2] = 1.0/(eq->R2 - eq->R1);
 }
 
 static void equatorial_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
@@ -85,7 +85,7 @@ static void equatorial_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
   y->z = (x->z - eq->R1) / (eq->R2 - eq->R1);
 }
 
-static void equatorial_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
+static void equatorial_ll_to_eq_J(void* context, point_t* x, real_t J[3][3])
 {
   equiangular_t* eq = context;
 
@@ -93,13 +93,13 @@ static void equatorial_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
   real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
 
   // Compute the change-of-basis matrix.
-  J->xx = 1.0; 
-  J->xy = J->xz = 0.0;
-  J->yx = X*Y/(1.0 + Y*Y);
-  J->yy = delta2 / ((1.0 + Y*Y) * sqrt(1.0 + X*X));
-  J->yz = 0.0;
-  J->zx = J->zy = 0.0;
-  J->zz = eq->R2 - eq->R1;
+  J[0][0] = 1.0;
+  J[0][1] = J[0][2] = 0.0;
+  J[1][0] = X*Y/(1.0 + Y*Y);
+  J[1][1] = delta2 / ((1.0 + Y*Y) * sqrt(1.0 + X*X));
+  J[1][2] = 0.0;
+  J[2][0] = J[2][1] = 0.0;
+  J[2][2] = eq->R2 - eq->R1;
 }
 
 static void polar_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
@@ -115,7 +115,7 @@ static void polar_ll_to_eq_map_point(void* context, point_t* x, point_t* y)
   y->z = (x->z - eq->R1) / (eq->R2 - eq->R1);
 }
 
-static void polar_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
+static void polar_ll_to_eq_J(void* context, point_t* x, real_t J[3][3])
 {
   equiangular_t* eq = context;
 
@@ -126,14 +126,14 @@ static void polar_ll_to_eq_J(void* context, point_t* x, tensor2_t* J)
   real_t X = tan(x->x), Y = tan(x->y), delta2 = 1.0 + X*X + Y*Y;
 
   // Compute the change-of-basis matrix.
-  J->xx = -s*Y / (1.0 + X*X);
-  J->xy = -s*delta2*X / ((1.0+X*X)*sqrt(X*X + Y*Y));
-  J->xz = 0.0;
-  J->yx = s*X / (1.0 + Y*Y);
-  J->yy = -s*delta2*Y / ((1.0+Y*Y)*sqrt(X*X + Y*Y));
-  J->yz = 0.0;
-  J->zx = J->zy = 0.0;
-  J->zz = eq->R2 - eq->R1;
+  J[0][0] = -s*Y / (1.0 + X*X);
+  J[0][1] = -s*delta2*X / ((1.0+X*X)*sqrt(X*X + Y*Y));
+  J[0][2] = 0.0;
+  J[1][0] = s*X / (1.0 + Y*Y);
+  J[1][1] = -s*delta2*Y / ((1.0+Y*Y)*sqrt(X*X + Y*Y));
+  J[1][2] = 0.0;
+  J[2][0] = J[2][1] = 0.0;
+  J[2][2] = eq->R2 - eq->R1;
 }
 
 static coord_mapping_t* ll_to_eq(coord_mapping_t* eq_to_ll)
@@ -220,9 +220,9 @@ static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
 //------------------------------------------------------------------------
 
 // This function creates a cubed-sphere blockmesh for testing purposes.
-// This mesh stitches together 6 blocks to form a spherical shell with 
-// inner radius R1 and outer radius R2. 
-// * Each block has block_nxy patches in the azimuthal and colatitudinal 
+// This mesh stitches together 6 blocks to form a spherical shell with
+// inner radius R1 and outer radius R2.
+// * Each block has block_nxy patches in the azimuthal and colatitudinal
 //   directions, and block_nz patches in the radial direction.
 // * Each patch has patch_nxy cells in the azimuthal and colatitudinal
 //   directions, and patch_nz cells in the radial direction.

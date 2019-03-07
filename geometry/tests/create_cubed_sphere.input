@@ -33,36 +33,36 @@ function equatorial_J(x)
                      0, 0, R2 - R1)
 end
 coords = {
-  coord_mapping.new{name = 'equatorial block 1', 
-                    map_point = function(x) 
-                      return point.new(x.x, 
+  coord_mapping.new{name = 'equatorial block 1',
+                    map_point = function(x)
+                      return point.new(x.x,
                                        atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'equatorial block 2', 
-                    map_point = function(x) 
-                      return point.new(x.x + 0.5*pi, 
+  coord_mapping.new{name = 'equatorial block 2',
+                    map_point = function(x)
+                      return point.new(x.x + 0.5*pi,
                                        atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'equatorial block 3', 
-                    map_point = function(x) 
-                      return point.new(x.x + pi, 
+  coord_mapping.new{name = 'equatorial block 3',
+                    map_point = function(x)
+                      return point.new(x.x + pi,
                                        atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'equatorial block 4', 
-                    map_point = function(x) 
+  coord_mapping.new{name = 'equatorial block 4',
+                    map_point = function(x)
                       return point.new(x.x + 1.5*pi,
                                        atan(x.y)*cos(x.x),
                                        R1 + (R2-R1)*x.z)
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'north block', 
-                    map_point = function(x) 
+  coord_mapping.new{name = 'north block',
+                    map_point = function(x)
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
                       return point.new(-atan2(x.x, x.y),
@@ -77,8 +77,8 @@ coords = {
                                          -X/(1+X*X)/(delta2*sqrt(X*X+Y*Y)), -Y*(1+Y*Y)/(delta2*sqrt(X*X+Y*Y)), 0,
                                          0, 0, 1.0/(R2 - R1))
                     end},
-  coord_mapping.new{name = 'south block', 
-                    map_point = function(x) 
+  coord_mapping.new{name = 'south block',
+                    map_point = function(x)
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
                       return point.new(-atan2(x.x, x.y),
@@ -105,36 +105,36 @@ function inv_equatorial_J(x)
                      0, 0, 1/(R2 - R1))
 end
 inv_coords = {
-  coord_mapping.new{name = 'equatorial block 1 inverse', 
-                    map_point = function(x) 
-                      return point.new(x.x, 
+  coord_mapping.new{name = 'equatorial block 1 inverse',
+                    map_point = function(x)
+                      return point.new(x.x,
                                        atan2(tan(x.y), cos(x.x)),
                                        (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'equatorial block 2 inverse', 
-                    map_point = function(x) 
-                      return point.new(x.x - 0.5*pi, 
+  coord_mapping.new{name = 'equatorial block 2 inverse',
+                    map_point = function(x)
+                      return point.new(x.x - 0.5*pi,
                                        atan2(tan(x.y), cos(x.x)),
                                        (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'equatorial block 3 inverse', 
-                    map_point = function(x) 
-                      return point.new(x.x - pi, 
+  coord_mapping.new{name = 'equatorial block 3 inverse',
+                    map_point = function(x)
+                      return point.new(x.x - pi,
                                        atan2(tan(x.y), cos(x.x)),
                                        (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'equatorial block 4 inverse', 
-                    map_point = function(x) 
-                      return point.new(x.x - 1.5*pi, 
+  coord_mapping.new{name = 'equatorial block 4 inverse',
+                    map_point = function(x)
+                      return point.new(x.x - 1.5*pi,
                                        atan2(tan(x.y), cos(x.x)),
                                        (x.z - R1) / (R2 - R1))
                     end,
                     jacobian = equatorial_J},
-  coord_mapping.new{name = 'north block inverse', 
-                    map_point = function(x) 
+  coord_mapping.new{name = 'north block inverse',
+                    map_point = function(x)
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
                       return point.new(-atan2(sin(x.x), tan_y),
@@ -149,8 +149,8 @@ inv_coords = {
                                          -X/(1+Y*Y), -delta2*Y / ((1+Y*Y)*sqrt(X*X+Y*Y)), 0,
                                          0, 0, 1/(R2 - R1))
                     end},
-  coord_mapping.new{name = 'south block inverse', 
-                    map_point = function(x) 
+  coord_mapping.new{name = 'south block inverse',
+                    map_point = function(x)
                       tan_x = tan(x.x)
                       tan_y = tan(x.y)
                       return point.new(atan2(sin(x.x), tan_y),
@@ -176,38 +176,38 @@ D = bbox.new{x1 = -math.pi/4, x2 = math.pi/4,
              y1 = -math.pi/4, y2 = math.pi/4,
              z1 = 0, z2 = 1}
 for i = 1,6 do
-  mesh:add_block{domain = D, coords = coords[i], 
+  mesh:add_block{domain = D, coords = coords[i],
                  num_x_patches = npx, num_y_patches = npy, num_z_patches = npz}
 end
 
 -- Connect the equatorial blocks.
-mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 7, 3}, 
+mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 7, 3},
                     block2_index = 2, block2_nodes = {1, 5, 8, 4}}
-mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 7, 3}, 
+mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 7, 3},
                     block2_index = 3, block2_nodes = {1, 5, 8, 4}}
-mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 7, 3}, 
+mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 7, 3},
                     block2_index = 4, block2_nodes = {1, 5, 8, 4}}
-mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 7, 3}, 
+mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 7, 3},
                     block2_index = 1, block2_nodes = {1, 5, 8, 4}}
 
 -- Connect the north pole.
-mesh:connect_blocks{block1_index = 1, block1_nodes = {3, 7, 8, 4}, 
+mesh:connect_blocks{block1_index = 1, block1_nodes = {3, 7, 8, 4},
                     block2_index = 5, block2_nodes = {2, 6, 5, 1}}
-mesh:connect_blocks{block1_index = 2, block1_nodes = {3, 7, 8, 4}, 
+mesh:connect_blocks{block1_index = 2, block1_nodes = {3, 7, 8, 4},
                     block2_index = 5, block2_nodes = {3, 7, 6, 2}}
-mesh:connect_blocks{block1_index = 3, block1_nodes = {3, 7, 8, 4}, 
+mesh:connect_blocks{block1_index = 3, block1_nodes = {3, 7, 8, 4},
                     block2_index = 5, block2_nodes = {4, 8, 7, 3}}
-mesh:connect_blocks{block1_index = 4, block1_nodes = {3, 7, 8, 4}, 
+mesh:connect_blocks{block1_index = 4, block1_nodes = {3, 7, 8, 4},
                     block2_index = 5, block2_nodes = {1, 5, 8, 4}}
 
 -- Connect the south pole.
-mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 5, 1}, 
+mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 5, 1},
                     block2_index = 6, block2_nodes = {3, 7, 8, 4}}
-mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 5, 1}, 
+mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 5, 1},
                     block2_index = 6, block2_nodes = {2, 6, 7, 3}}
-mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 5, 1}, 
+mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 5, 1},
                     block2_index = 6, block2_nodes = {1, 5, 6, 2}}
-mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 5, 1}, 
+mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 5, 1},
                     block2_index = 6, block2_nodes = {4, 8, 5, 1}}
 
 -- Finalize the mesh.

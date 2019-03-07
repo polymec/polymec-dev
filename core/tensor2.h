@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,8 +15,8 @@
 ///@{
 
 /// \class tensor2
-/// A rank-2 general (non-symmetric) tensor in 3D space. You can cast this to 
-/// and from an array of 9 real_t. It is stored in column-major order so that 
+/// A rank-2 general (non-symmetric) tensor in 3D space. You can cast this to
+/// and from an array of 9 real_t. It is stored in column-major order so that
 /// you can cast it to and from a 3x3 matrix.
 typedef struct
 {
@@ -25,8 +25,8 @@ typedef struct
          xz, yz, zz;
 } tensor2_t;
 
-/// Allocates a new tensor2 on the heap with the given components. Not 
-/// necessary if you are allocating a tensor2 on the stack. 
+/// Allocates a new tensor2 on the heap with the given components. Not
+/// necessary if you are allocating a tensor2 on the stack.
 /// \memberof tensor2
 /// \refcounted
 tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
@@ -42,8 +42,8 @@ static inline void tensor2_copy(tensor2_t* src, tensor2_t* dest)
 
 /// Sets the components of the given tensor.
 /// \memberof tensor2
-static inline void tensor2_set(tensor2_t* t, 
-                               real_t xx, real_t xy, real_t xz, 
+static inline void tensor2_set(tensor2_t* t,
+                               real_t xx, real_t xy, real_t xz,
                                real_t yx, real_t yy, real_t yz,
                                real_t zx, real_t zy, real_t zz)
 {
@@ -52,7 +52,7 @@ static inline void tensor2_set(tensor2_t* t,
   t->zx = zx; t->zy = zy; t->zz = zz;
 }
 
-/// Sets the the given tensor to the 3x3 identity tensor, scaled by the 
+/// Sets the the given tensor to the 3x3 identity tensor, scaled by the
 /// given factor.
 /// \memberof tensor2
 static inline void tensor2_set_identity(tensor2_t* t, real_t factor)
@@ -75,8 +75,8 @@ static inline void tensor2_scale(tensor2_t* t, real_t factor)
 /// \memberof tensor2
 static inline real_t tensor2_det(tensor2_t* t)
 {
-  return t->xx * (t->yy*t->zz - t->zy*t->yz) - 
-         t->xy * (t->yx*t->zz - t->zx*t->yz) + 
+  return t->xx * (t->yy*t->zz - t->zy*t->yz) -
+         t->xy * (t->yx*t->zz - t->zx*t->yz) +
          t->xz * (t->yx*t->zy - t->zx*t->yy);
 }
 
@@ -138,7 +138,7 @@ static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
 void tensor2_fprintf(tensor2_t* t, FILE* stream);
 
 /// \class symtensor2
-/// A rank-2 symmetric tensor in 3D space. You can cast this to and from an 
+/// A rank-2 symmetric tensor in 3D space. You can cast this to and from an
 /// array of 6 real_t. Not castable to any Fortran matrix type.
 typedef struct
 {
@@ -147,8 +147,8 @@ typedef struct
                  zz;
 } symtensor2_t;
 
-/// Allocates a new symmetric tensor2 on the heap with the given components. Not 
-/// necessary if you are allocating a symmetric tensor2 on the stack. 
+/// Allocates a new symmetric tensor2 on the heap with the given components. Not
+/// necessary if you are allocating a symmetric tensor2 on the stack.
 /// \memberof symtensor2
 /// \refcounted
 symtensor2_t* symtensor2_new(real_t xx, real_t xy, real_t xz,
@@ -164,8 +164,8 @@ static inline void symtensor2_copy(symtensor2_t* src, symtensor2_t* dest)
 
 /// Sets the components of the given symmetric tensor.
 /// \memberof symtensor2
-static inline void symtensor2_set(symtensor2_t* t, 
-                                  real_t xx, real_t xy, real_t xz, 
+static inline void symtensor2_set(symtensor2_t* t,
+                                  real_t xx, real_t xy, real_t xz,
                                              real_t yy, real_t yz,
                                                         real_t zz)
 {
@@ -174,7 +174,7 @@ static inline void symtensor2_set(symtensor2_t* t,
                           t->zz = zz;
 }
 
-/// Sets the given symmetric tensor to a 3x3 identity tensor scaled by 
+/// Sets the given symmetric tensor to a 3x3 identity tensor scaled by
 /// the given factor.
 /// \memberof symtensor2
 static inline void symtensor2_set_identity(symtensor2_t* t, real_t factor)
@@ -197,8 +197,8 @@ static inline void symtensor2_scale(symtensor2_t* t, real_t factor)
 /// \memberof symtensor2
 static inline real_t symtensor2_det(symtensor2_t* t)
 {
-  return t->xx * (t->yy*t->zz - t->yz*t->yz) - 
-         t->xy * (t->xy*t->zz - t->xz*t->yz) + 
+  return t->xx * (t->yy*t->zz - t->yz*t->yz) -
+         t->xy * (t->xy*t->zz - t->xz*t->yz) +
          t->xz * (t->xy*t->yz - t->xz*t->yy);
 }
 
@@ -243,17 +243,17 @@ static inline void symtensor2_invert(symtensor2_t* t, symtensor2_t* t_inverse)
   t_inverse->zz = t->xx*t->yy - t->xy*t->xy;
 }
 
-/// Computes the 3 eigenvalues of the symmetric tensor, storing them in 
+/// Computes the 3 eigenvalues of the symmetric tensor, storing them in
 /// the given array in ascending order.
 /// \memberof symtensor2
 void symtensor2_get_eigenvalues(symtensor2_t* t, real_t eigenvalues[3]);
 
-/// Computes the 3 eigenvalues and eigenvectors of the symmetric tensor, 
-/// storing the former as scalars in the given array and the later as 
+/// Computes the 3 eigenvalues and eigenvectors of the symmetric tensor,
+/// storing the former as scalars in the given array and the later as
 /// vectors in the array eigenvectors.
 /// \memberof symtensor2
-void symtensor2_get_eigenvectors(symtensor2_t* t, 
-                                 real_t eigenvalues[3], 
+void symtensor2_get_eigenvectors(symtensor2_t* t,
+                                 real_t eigenvalues[3],
                                  vector_t eigenvectors[3]);
 
 /// Writes a text representation of the symmetric tensor to the given stream.

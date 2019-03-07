@@ -66,7 +66,7 @@ static void cm_map_vector(void* context, point_t* x, vector_t* v, vector_t* w)
   *w = *(lua_to_vector(lo->L, -1));
 }
 
-static void cm_compute_jacobian(void* context, point_t* x, tensor2_t* J)
+static void cm_compute_jacobian(void* context, point_t* x, real_t J[3][3])
 {
   // Fetch our Lua table from the registry.
   lua_obj_t* lo = context;
@@ -81,7 +81,7 @@ static void cm_compute_jacobian(void* context, point_t* x, tensor2_t* J)
 
   if (!lua_is_tensor2(lo->L, -1))
     luaL_error(lo->L, "jacobian method did not return a tensor2.");
-  *J = *(lua_to_tensor2(lo->L, -1));
+  memcpy(J, lua_to_tensor2(lo->L, -1), sizeof(real_t) * 9);
 }
 
 static void cm_dtor(void* context)
@@ -211,11 +211,13 @@ static int cm_jacobian(lua_State* L)
     luaL_error(L, "Argument must be a point.");
 
   point_t* x = lua_to_point(L, 2);
-  tensor2_t* J = tensor2_new(0.0, 0.0, 0.0,
-                             0.0, 0.0, 0.0,
-                             0.0, 0.0, 0.0);
+  real_t J[3][3] = {{0.0, 0.0, 0.0},
+                    {0.0, 0.0, 0.0},
+                    {0.0, 0.0, 0.0}};
   coord_mapping_compute_jacobian(X, x, J);
-  lua_push_tensor2(L, J);
+  tensor2_t J1;
+  memcpy(&J1, J, sizeof(real_t) * 9);
+  lua_push_tensor2(L, &J1);
   return 1;
 }
 

@@ -46,8 +46,8 @@ typedef void (*coord_mapping_map_tensor2_func)(void*, point_t*, tensor2_t*, tens
 typedef void (*coord_mapping_map_symtensor2_func)(void*, point_t*, symtensor2_t*, symtensor2_t*);
 
 /// A function pointer type for evaluating the components of the Jacobian
-/// matrix at a point, storing them in column-major order in the given array.
-typedef void (*coord_mapping_jacobian_func)(void*, point_t*, tensor2_t*);
+/// matrix at a point, storing them in the given array.
+typedef void (*coord_mapping_jacobian_func)(void*, point_t*, real_t[3][3]);
 
 /// A function pointer type for computing the determinant of J directly.
 /// If this is not supplied, the determinant of J will be computed from J itself.
@@ -92,17 +92,32 @@ void* coord_mapping_context(coord_mapping_t* mapping);
 void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x, point_t* y);
 
 /// Maps the vector v to the vector v1 at the point x.
+/// \param [in] x The point at which the transformation occurs.
+/// \param [in] v The components of a _cartesian_ or _contravariant_ vector to
+///               be transformed.
+/// \param [out] v1 Stores the components of the transformed _cartesian_ or
+///                 _contravariant_ vector.
 /// \memberof coord_mapping
 void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x,
                               vector_t* v, vector_t* v1);
 
 /// Maps the rank 2 tensor t to the tensor t1 at the point x.
+/// \param [in] x The point at which the transformation occurs.
+/// \param [in] t The components of a _cartesian_ or _contravariant_ tensor to
+///               be transformed.
+/// \param [out] t1 Stores the components of the transformed _cartesian_ or
+///                 _contravariant_ tensor.
 /// \memberof coord_mapping
 void coord_mapping_map_tensor2(coord_mapping_t* mapping, point_t* x,
                                tensor2_t* t, tensor2_t* t1);
 
 /// Maps the rank 2 symmetric tensor t to the symmetric tensor t1 at the
 /// point x.
+/// \param [in] x The point at which the transformation occurs.
+/// \param [in] t The components of a _cartesian_ or _contravariant_ tensor to
+///               be transformed.
+/// \param [out] t1 Stores the components of the transformed _cartesian_ or
+///                 _contravariant_ tensor.
 /// \memberof coord_mapping
 void coord_mapping_map_symtensor2(coord_mapping_t* mapping, point_t* x,
                                   symtensor2_t* t, symtensor2_t* t1);
@@ -111,21 +126,25 @@ void coord_mapping_map_symtensor2(coord_mapping_t* mapping, point_t* x,
 /// storing them as a rank 2 tensor (in column-major order) in J. The Jacobian
 /// matrix represents the coordinate transformation matrix for this coordinate
 /// mapping.
+/// \param [in] x The point at which the transformation occurs.
+/// \param [out] J An array that stores the components of the Jacobian matrix.
 /// \memberof coord_mapping
-void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x,
-                                    tensor2_t* J);
+void coord_mapping_compute_jacobian(coord_mapping_t* mapping,
+                                    point_t* x,
+                                    real_t J[3][3]);
 
-/// Returns the inverse of the given coord_mapping function, or NULL if the mapping
-/// has no inverse.
+/// Returns the inverse of the given coord_mapping function, or NULL if the
+/// mapping has no inverse.
 /// \memberof coord_mapping
 coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping);
 
 /// Sets the inverse of the given coord_mapping function.
-/// \param [in] inverse The inverse mapping for this coordinate mapping. Must be
-///                     non-NULL. The coord_mapping object steals the reference
-///                     to the inverse.
+/// \param [in] inverse The inverse mapping for this coordinate mapping. Must
+///                     be non-NULL. The coord_mapping object steals the
+///                     reference to the inverse.
 /// \memberof coord_mapping
-void coord_mapping_set_inverse(coord_mapping_t* mapping, coord_mapping_t* inverse);
+void coord_mapping_set_inverse(coord_mapping_t* mapping,
+                               coord_mapping_t* inverse);
 
 /// Returns the Jacobian determinant at the point x.
 /// \memberof coord_mapping
@@ -137,7 +156,8 @@ real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x);
 void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x,
                                   tensor2_t* G);
 
-/// Creates a coord_mapping by composing two coord mappings (map <-- map1 o map2).
+/// Creates a coord_mapping by composing two coord mappings
+/// (map <-- map1 o map2).
 /// \memberof coord_mapping
 coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1,
                                              coord_mapping_t* map2);

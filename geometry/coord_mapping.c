@@ -61,9 +61,11 @@ void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v,
   else
   {
     // v1 = J * v.
-    tensor2_t J;
-    mapping->vtable.jacobian(mapping->context, x, &J);
-    tensor2_dot_vector(&J, v, v1);
+    real_t J[3][3];
+    mapping->vtable.jacobian(mapping->context, x, J);
+    v1->x = J[0][0]*v->x + J[0][1]*v->y + J[0][2]*v->z;
+    v1->y = J[1][0]*v->x + J[1][1]*v->y + J[1][2]*v->z;
+    v1->z = J[2][0]*v->x + J[2][1]*v->y + J[2][2]*v->z;
   }
 }
 
@@ -74,10 +76,37 @@ void coord_mapping_map_tensor2(coord_mapping_t* mapping, point_t* x,
     mapping->vtable.map_tensor2(mapping->context, x, t, t1);
   else
   {
-    // t1 = J * v.
-    tensor2_t J;
-    mapping->vtable.jacobian(mapping->context, x, &J);
-//    tensor2_dot_tensor2(&J, t, 1, t1); // FIXME
+    real_t J[3][3];
+    mapping->vtable.jacobian(mapping->context, x, J);
+    t1->xx = J[0][0]*(J[0][0]*t->xx + J[0][1]*t->xy + J[0][2]*t->xz) +
+             J[0][1]*(J[0][0]*t->yx + J[0][1]*t->yy + J[0][2]*t->yz) +
+             J[0][2]*(J[0][0]*t->yx + J[0][1]*t->yy + J[0][2]*t->yz);
+    t1->xy = J[0][0]*(J[1][0]*t->xx + J[1][1]*t->xy + J[1][2]*t->xz) +
+             J[0][1]*(J[1][0]*t->yx + J[1][1]*t->yy + J[1][2]*t->yz) +
+             J[0][2]*(J[1][0]*t->yx + J[1][1]*t->yy + J[1][2]*t->yz);
+    t1->xz = J[0][0]*(J[2][0]*t->xx + J[2][1]*t->xy + J[2][2]*t->xz) +
+             J[0][1]*(J[2][0]*t->yx + J[2][1]*t->yy + J[2][2]*t->yz) +
+             J[0][2]*(J[2][0]*t->yx + J[2][1]*t->yy + J[2][2]*t->yz);
+
+    t1->yx = J[1][0]*(J[0][0]*t->xx + J[0][1]*t->xy + J[0][2]*t->xz) +
+             J[1][1]*(J[0][0]*t->yx + J[0][1]*t->yy + J[0][2]*t->yz) +
+             J[1][2]*(J[0][0]*t->yx + J[0][1]*t->yy + J[0][2]*t->yz);
+    t1->yy = J[1][0]*(J[1][0]*t->xx + J[1][1]*t->xy + J[1][2]*t->xz) +
+             J[1][1]*(J[1][0]*t->yx + J[1][1]*t->yy + J[1][2]*t->yz) +
+             J[1][2]*(J[1][0]*t->yx + J[1][1]*t->yy + J[1][2]*t->yz);
+    t1->yz = J[1][0]*(J[2][0]*t->xx + J[2][1]*t->xy + J[2][2]*t->xz) +
+             J[1][1]*(J[2][0]*t->yx + J[2][1]*t->yy + J[2][2]*t->yz) +
+             J[1][2]*(J[2][0]*t->yx + J[2][1]*t->yy + J[2][2]*t->yz);
+
+    t1->zx = J[2][0]*(J[0][0]*t->xx + J[0][1]*t->xy + J[0][2]*t->xz) +
+             J[2][1]*(J[0][0]*t->yx + J[0][1]*t->yy + J[0][2]*t->yz) +
+             J[2][2]*(J[0][0]*t->yx + J[0][1]*t->yy + J[0][2]*t->yz);
+    t1->zy = J[2][0]*(J[1][0]*t->xx + J[1][1]*t->xy + J[1][2]*t->xz) +
+             J[2][1]*(J[1][0]*t->yx + J[1][1]*t->yy + J[1][2]*t->yz) +
+             J[2][2]*(J[1][0]*t->yx + J[1][1]*t->yy + J[1][2]*t->yz);
+    t1->zz = J[2][0]*(J[2][0]*t->xx + J[2][1]*t->xy + J[2][2]*t->xz) +
+             J[2][1]*(J[2][0]*t->yx + J[2][1]*t->yy + J[2][2]*t->yz) +
+             J[2][2]*(J[2][0]*t->yx + J[2][1]*t->yy + J[2][2]*t->yz);
   }
 }
 
@@ -88,14 +117,29 @@ void coord_mapping_map_symtensor2(coord_mapping_t* mapping, point_t* x,
     mapping->vtable.map_symtensor2(mapping->context, x, t, t1);
   else
   {
-    // t1 = J * v.
-    tensor2_t J;
-    mapping->vtable.jacobian(mapping->context, x, &J);
-//    symtensor2_dot_symtensor2(&J, t, 1, t1); // FIXME
+    real_t J[3][3];
+    mapping->vtable.jacobian(mapping->context, x, J);
+    t1->xx = J[0][0]*(J[0][0]*t->xx + J[0][1]*t->xy + J[0][2]*t->xz) +
+             J[0][1]*(J[0][0]*t->xy + J[0][1]*t->yy + J[0][2]*t->yz) +
+             J[0][2]*(J[0][0]*t->xy + J[0][1]*t->yy + J[0][2]*t->yz);
+    t1->xy = J[0][0]*(J[1][0]*t->xx + J[1][1]*t->xy + J[1][2]*t->xz) +
+             J[0][1]*(J[1][0]*t->xy + J[1][1]*t->yy + J[1][2]*t->yz) +
+             J[0][2]*(J[1][0]*t->xy + J[1][1]*t->yy + J[1][2]*t->yz);
+    t1->xz = J[0][0]*(J[2][0]*t->xx + J[2][1]*t->xy + J[2][2]*t->xz) +
+             J[0][1]*(J[2][0]*t->xy + J[2][1]*t->yy + J[2][2]*t->yz) +
+             J[0][2]*(J[2][0]*t->xy + J[2][1]*t->yy + J[2][2]*t->yz);
+    t1->yy = J[1][0]*(J[1][0]*t->xx + J[1][1]*t->xy + J[1][2]*t->xz) +
+             J[1][1]*(J[1][0]*t->xy + J[1][1]*t->yy + J[1][2]*t->yz) +
+             J[1][2]*(J[1][0]*t->xy + J[1][1]*t->yy + J[1][2]*t->yz);
+    t1->zz = J[2][0]*(J[2][0]*t->xx + J[2][1]*t->xy + J[2][2]*t->xz) +
+             J[2][1]*(J[2][0]*t->xy + J[2][1]*t->yy + J[2][2]*t->yz) +
+             J[2][2]*(J[2][0]*t->xy + J[2][1]*t->yy + J[2][2]*t->yz);
   }
 }
 
-void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor2_t* J)
+void coord_mapping_compute_jacobian(coord_mapping_t* mapping,
+                                    point_t* x,
+                                    real_t J[3][3])
 {
   mapping->vtable.jacobian(mapping->context, x, J);
 }
@@ -117,9 +161,11 @@ real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x)
     return mapping->vtable.det_J(mapping->context, x);
   else
   {
-    tensor2_t J;
-    mapping->vtable.jacobian(mapping->context, x, &J);
-    return tensor2_det(&J);
+    real_t J[3][3];
+    mapping->vtable.jacobian(mapping->context, x, J);
+    return J[0][0]*(J[1][1]*J[2][2] - J[1][2]*J[2][1]) -
+           J[0][1]*(J[1][0]*J[2][2] - J[1][2]*J[2][0]) +
+           J[0][2]*(J[1][0]*J[2][1] - J[1][1]*J[0][2]);
   }
 }
 
@@ -130,13 +176,13 @@ void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, tensor2_
   else
   {
     // The metric G is just J^T * J.
-    tensor2_t J;
-    mapping->vtable.jacobian(mapping->context, x, &J);
+    real_t J[3][3];
+    mapping->vtable.jacobian(mapping->context, x, J);
     char trans = 'T', no_trans = 'N';
     int three = 3;
     real_t one = 1.0, zero = 0.0;
-    rgemm(&trans, &no_trans, &three, &three, &three, &one, (real_t*)&J,
-          &three, (real_t*)&J, &three, &zero, (real_t*)G, &three);
+    rgemm(&trans, &no_trans, &three, &three, &three, &one, (real_t*)J,
+          &three, (real_t*)J, &three, &zero, (real_t*)G, &three);
   }
 }
 
@@ -154,21 +200,22 @@ static void comp_map_point(void* context, point_t* x, point_t* y)
   coord_mapping_map_point(comp->map2, &x1, y);
 }
 
-static void comp_jacobian(void* context, point_t* x, tensor2_t* J)
+static void comp_jacobian(void* context, point_t* x, real_t J[3][3])
 {
   // J = J1 * J2.
   comp_cm_t* comp = context;
-  tensor2_t J1, J2;
-  coord_mapping_compute_jacobian(comp->map1, x, &J1);
-  coord_mapping_compute_jacobian(comp->map1, x, &J2);
+  real_t J1[3][3], J2[3][3];
+  coord_mapping_compute_jacobian(comp->map1, x, J1);
+  coord_mapping_compute_jacobian(comp->map1, x, J2);
   char no_trans = 'N';
   int three = 3;
   real_t one = 1.0, zero = 0.0;
-  rgemm(&no_trans, &no_trans, &three, &three, &three, &one, (real_t*)&J1,
-        &three, (real_t*)&J2, &three, &zero, (real_t*)J, &three);
+  rgemm(&no_trans, &no_trans, &three, &three, &three, &one, (real_t*)J1,
+        &three, (real_t*)J2, &three, &zero, (real_t*)J, &three);
 }
 
-coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1, coord_mapping_t* map2)
+coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1, 
+                                             coord_mapping_t* map2)
 {
   comp_cm_t* comp = polymec_malloc(sizeof(comp_cm_t));
   comp->map1 = map1;
