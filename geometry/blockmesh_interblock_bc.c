@@ -44,7 +44,7 @@ typedef struct
 {
   // Metadata for the near block.
   unimesh_t* block1;
-  bbox_t* domain1;
+  bbox_t domain1;
   coord_mapping_t* coords1;
   int i1, j1, k1;
   unimesh_boundary_t boundary1;
@@ -55,7 +55,7 @@ typedef struct
 
   // Metadata for the far block.
   unimesh_t* block2;
-  bbox_t* domain2;
+  bbox_t domain2;
   coord_mapping_t* coords2;
   int i2, j2, k2;
   unimesh_boundary_t boundary2;
@@ -145,11 +145,48 @@ static void find_boundary_point(cxn_t* cxn,
                                 int i, int j,
                                 point_t* x)
 {
+  real_t x1 = cxn->domain1.x1, x2 = cxn->domain1.x2;
+  real_t y1 = cxn->domain1.y1, y2 = cxn->domain1.y2;
+  real_t z1 = cxn->domain1.z1, z2 = cxn->domain1.z2;
+  real_t dx = cxn->domain1.x2 - cxn->domain1.x1;
+  real_t dy = cxn->domain1.y2 - cxn->domain1.y1;
+  real_t dz = cxn->domain1.y2 - cxn->domain1.y1;
+  switch (cxn->boundary1)
+  {
+    case UNIMESH_X1_BOUNDARY:
+      x->x = x1;
+      x->y = y1 + i*dy;
+      x->z = z1 + j*dz;
+      break;
+    case UNIMESH_X2_BOUNDARY:
+      x->x = x2;
+      x->y = y1 + i*dy;
+      x->z = z1 + j*dz;
+      break;
+    case UNIMESH_Y1_BOUNDARY:
+      x->x = x1 + i*dx;
+      x->y = y1;
+      x->z = z1 + j*dz;
+      break;
+    case UNIMESH_Y2_BOUNDARY:
+      x->x = x1 + i*dx;
+      x->y = y2;
+      x->z = z1 + j*dz;
+      break;
+    case UNIMESH_Z1_BOUNDARY:
+      x->x = x1 + i*dx;
+      x->y = y1 + j*dy;
+      x->z = z1;
+      break;
+    case UNIMESH_Z2_BOUNDARY:
+      x->x = x1 + i*dx;
+      x->y = y1 + j*dy;
+      x->z = z2;
+  }
   if (inverse_mapping)
   {
-  }
-  else
-  {
+    point_t y = *x;
+    coord_mapping_map_point(cxn->coords1, &y, x);
   }
 }
 
@@ -170,7 +207,7 @@ static void map_boundary_values(cxn_t* cxn,
   int lo2 = cxn->lo2[cent], hi2 = cxn->hi2[cent];
   int n2 = hi2 - lo2 + 1;
   int nc = field_metadata_num_components(md);
-  size_t boundary_size = n1 * n2 * nc;
+  size_t boundary_size = (size_t)(n1 * n2 * nc);
 
   // Are we doing an inverse mapping?
   coord_mapping_t* map;
@@ -192,9 +229,9 @@ static void map_boundary_values(cxn_t* cxn,
     // Map all the things.
     DECLARE_3D_ARRAY(real_t, bv, boundary_values, n1, n2, nc);
     DECLARE_3D_ARRAY(real_t, mbv, mapped_boundary_values, n1, n2, nc);
-    for (int i = lo1; i < hi1; ++i)
+    for (int i = lo1; i <= hi1; ++i)
     {
-      for (int j = lo2; j < hi2; ++j)
+      for (int j = lo2; j <= hi2; ++j)
       {
         // Map scalars.
         int pos = 0, c;
@@ -259,10 +296,46 @@ static void map_boundary_values(cxn_t* cxn,
 // This helper performs the given number of counterclockwise rotations
 // on the given boundary values, placing the results in rotated_boundary_values.
 static void rotate_boundary_values(cxn_t* cxn,
+                                   field_metadata_t* md,
                                    unimesh_centering_t centering,
                                    void* boundary_values,
                                    void* rotated_boundary_values)
 {
+  int cent = (int)centering;
+  int lo1 = cxn->lo1[cent], hi1 = cxn->hi1[cent];
+  int n1 = hi1 - lo1 + 1;
+  int lo2 = cxn->lo2[cent], hi2 = cxn->hi2[cent];
+  int n2 = hi2 - lo2 + 1;
+  int nc = field_metadata_num_components(md);
+  int rotation = cxn->rotation;
+  if (rotation == 0) // no rotation
+    memcpy(rotated_boundary_values, boundary_values, sizeof(real_t)*n1*n2*nc);
+  else
+  {
+    DECLARE_3D_ARRAY(real_t, bv, boundary_values, n1, n2, nc);
+    DECLARE_3D_ARRAY(real_t, rbv, rotated_boundary_values, n1, n2, nc);
+    if (rotation == 1) // quarter turn
+    {
+      for (int i = lo1; i <= hi1; ++i)
+        for (int j = lo2; j <= hi2; ++j)
+          for (int c = 0; c < nc; ++c)
+            rbv[j][hi1-i][c] = bv[i][j][c];
+    }
+    else if (rotation == 2) // half turn
+    {
+      for (int i = lo1; i <= hi1; ++i)
+        for (int j = lo2; j <= hi2; ++j)
+          for (int c = 0; c < nc; ++c)
+            rbv[hi1-i][hi2-j][c] = bv[i][j][c];
+    }
+    else // three-quarters turn
+    {
+      for (int i = lo1; i <= hi1; ++i)
+        for (int j = lo2; j <= hi2; ++j)
+          for (int c = 0; c < nc; ++c)
+            rbv[hi2-j][i][c] = bv[i][j][c];
+    }
+  }
 }
 
 // This helper copies boundary values out of a patch and into a buffer.
@@ -302,7 +375,7 @@ static void ibc_started_boundary_update(void* context,
 
   // Now rotate the boundary values.
   char rot_bvalues[boundary_size];
-  rotate_boundary_values(cxn, patch->centering, invm_bvalues, rot_bvalues);
+  rotate_boundary_values(cxn, md, patch->centering, invm_bvalues, rot_bvalues);
 
   // Finally copy the boundary values to our blob buffer.
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
@@ -769,7 +842,7 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
 
   // Metadata for the near end.
   cxn->block1 = block1;
-  cxn->domain1 = block1_domain;
+  cxn->domain1 = *block1_domain;
   cxn->coords1 = block1_coords;
   cxn->boundary1 = block1_boundary;
   cxn->i1 = i1;
@@ -783,7 +856,7 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
 
   // Metadata for the far end.
   cxn->block2 = block2;
-  cxn->domain2 = block2_domain;
+  cxn->domain2 = *block2_domain;
   cxn->coords2 = block2_coords;
   cxn->boundary2 = block2_boundary;
   cxn->i2 = i2;
@@ -798,30 +871,132 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
   {
     case UNIMESH_X1_BOUNDARY:
     case UNIMESH_X2_BOUNDARY:
+      // cells
       cxn->lo1[0] = 1;
       cxn->hi1[0] = ny;
-      // FIXME
       cxn->lo2[0] = 1;
       cxn->hi2[0] = nz;
-      // FIXME
+      // x faces
+      cxn->lo1[1] = 0;
+      cxn->hi1[1] = ny-1;
+      cxn->lo2[1] = 0;
+      cxn->hi2[1] = nz-1;
+      // y faces
+      cxn->lo1[2] = 0;
+      cxn->hi1[2] = ny;
+      cxn->lo2[2] = 0;
+      cxn->hi2[2] = nz-1;
+      // z faces
+      cxn->lo1[3] = 0;
+      cxn->hi1[3] = ny-1;
+      cxn->lo2[3] = 0;
+      cxn->hi2[3] = nz;
+      // x edges
+      cxn->lo1[4] = 0;
+      cxn->hi1[4] = ny;
+      cxn->lo2[4] = 0;
+      cxn->hi2[4] = nz;
+      // y edges
+      cxn->lo1[5] = 0;
+      cxn->hi1[5] = ny-1;
+      cxn->lo2[5] = 0;
+      cxn->hi2[5] = nz;
+      // z edges
+      cxn->lo1[6] = 0;
+      cxn->hi1[6] = ny;
+      cxn->lo2[6] = 0;
+      cxn->hi2[6] = nz-1;
+      // nodes
+      cxn->lo1[7] = 0;
+      cxn->hi1[7] = ny;
+      cxn->lo2[7] = 0;
+      cxn->hi2[7] = nz;
       break;
     case UNIMESH_Y1_BOUNDARY:
     case UNIMESH_Y2_BOUNDARY:
+      // cells
       cxn->lo1[0] = 1;
       cxn->hi1[0] = nx;
-      // FIXME
       cxn->lo2[0] = 1;
       cxn->hi2[0] = nz;
-      // FIXME
+      // x faces
+      cxn->lo1[1] = 0;
+      cxn->hi1[1] = nx;
+      cxn->lo2[1] = 0;
+      cxn->hi2[1] = nz-1;
+      // y faces
+      cxn->lo1[2] = 0;
+      cxn->hi1[2] = nx-1;
+      cxn->lo2[2] = 0;
+      cxn->hi2[2] = nz-1;
+      // z faces
+      cxn->lo1[3] = 0;
+      cxn->hi1[3] = nx-1;
+      cxn->lo2[3] = 0;
+      cxn->hi2[3] = nz;
+      // x edges
+      cxn->lo1[4] = 0;
+      cxn->hi1[4] = nx-1;
+      cxn->lo2[4] = 0;
+      cxn->hi2[4] = nz;
+      // y edges
+      cxn->lo1[5] = 0;
+      cxn->hi1[5] = ny;
+      cxn->lo2[5] = 0;
+      cxn->hi2[5] = nz;
+      // z edges
+      cxn->lo1[6] = 0;
+      cxn->hi1[6] = ny;
+      cxn->lo2[6] = 0;
+      cxn->hi2[6] = nz-1;
+      // nodes
+      cxn->lo1[7] = 0;
+      cxn->hi1[7] = ny;
+      cxn->lo2[7] = 0;
+      cxn->hi2[7] = nz;
       break;
     case UNIMESH_Z1_BOUNDARY:
     case UNIMESH_Z2_BOUNDARY:
+      // cells
       cxn->lo1[0] = 1;
       cxn->hi1[0] = nx;
-      // FIXME
       cxn->lo2[0] = 1;
       cxn->hi2[0] = ny;
-      // FIXME
+      // x faces
+      cxn->lo1[1] = 0;
+      cxn->hi1[1] = nx;
+      cxn->lo2[1] = 0;
+      cxn->hi2[1] = ny-1;
+      // y faces
+      cxn->lo1[2] = 0;
+      cxn->hi1[2] = nx-1;
+      cxn->lo2[2] = 0;
+      cxn->hi2[2] = ny;
+      // z faces
+      cxn->lo1[3] = 0;
+      cxn->hi1[3] = nx-1;
+      cxn->lo2[3] = 0;
+      cxn->hi2[3] = ny-1;
+      // x edges
+      cxn->lo1[4] = 0;
+      cxn->hi1[4] = nx-1;
+      cxn->lo2[4] = 0;
+      cxn->hi2[4] = ny;
+      // y edges
+      cxn->lo1[5] = 0;
+      cxn->hi1[5] = nx;
+      cxn->lo2[5] = 0;
+      cxn->hi2[5] = ny-1;
+      // z edges
+      cxn->lo1[6] = 0;
+      cxn->hi1[6] = nx;
+      cxn->lo2[6] = 0;
+      cxn->hi2[6] = ny;
+      // nodes
+      cxn->lo1[7] = 0;
+      cxn->hi1[7] = nx;
+      cxn->lo2[7] = 0;
+      cxn->hi2[7] = ny;
   }
 
   return cxn;
