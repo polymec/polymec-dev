@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,18 +25,22 @@ static blockmesh_t* test_mesh(MPI_Comm comm)
 
 static void test_cell_field(void** state, blockmesh_t* mesh)
 {
+  blockmesh_free(mesh);
 }
 
 static void test_face_fields(void** state, blockmesh_t* mesh)
 {
+  blockmesh_free(mesh);
 }
 
 static void test_edge_fields(void** state, blockmesh_t* mesh)
 {
+  blockmesh_free(mesh);
 }
 
 static void test_node_field(void** state, blockmesh_t* mesh)
 {
+  blockmesh_free(mesh);
 }
 
 static void test_serial_cell_field(void** state)
@@ -87,10 +91,10 @@ static void test_parallel_node_field(void** state)
   test_node_field(state, mesh);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_serial_cell_field),
     cmocka_unit_test(test_serial_face_fields),
