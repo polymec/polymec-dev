@@ -285,7 +285,9 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
   size_t size_factor = buffer->size_factor;
 
   // Post receives for the messages.
+#if POLYMEC_HAVE_MPI
   int r = 0;
+#endif
   for (size_t p = 0; p < ex->recv_procs->size; ++p)
   {
     int proc = ex->recv_procs->data[p];
@@ -295,6 +297,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
     char* data = &(((char*)buffer->storage)[size_factor * ex->recv_proc_offsets->data[p]]);
     if (proc != ex->rank)
     {
+#if POLYMEC_HAVE_MPI
       int err = MPI_Irecv(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
                           &(buffer->requests[r]));
       if (err != MPI_SUCCESS)
@@ -308,6 +311,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
         polymec_error(err_msg);
       }
       ++r;
+#endif
     }
     else // local copy
     {
@@ -323,6 +327,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
     }
   }
 
+#if POLYMEC_HAVE_MPI
   // Schedule the messages for sending.
   for (size_t p = 0; p < ex->send_procs->size; ++p)
   {
@@ -348,6 +353,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
       ++r;
     }
   }
+#endif
 
   STOP_FUNCTION_TIMER();
   return token;
