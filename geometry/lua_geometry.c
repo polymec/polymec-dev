@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -136,7 +136,7 @@ static int cm_new(lua_State* L)
   lua_obj_t* lo = polymec_malloc(sizeof(lua_obj_t));
   lo->L = L;
 
-  // Store the table representing our object in the registry, with 
+  // Store the table representing our object in the registry, with
   // context as a key.
   lua_pushvalue(L, obj_index);
   lua_rawsetp(L, LUA_REGISTRYINDEX, lo);
@@ -215,9 +215,10 @@ static int cm_jacobian(lua_State* L)
                     {0.0, 0.0, 0.0},
                     {0.0, 0.0, 0.0}};
   coord_mapping_compute_jacobian(X, x, J);
-  tensor2_t J1;
-  memcpy(&J1, J, sizeof(real_t) * 9);
-  lua_push_tensor2(L, &J1);
+  tensor2_t* J1 = tensor2_new(J[0][0], J[0][1], J[0][2],
+                              J[1][0], J[1][1], J[1][2],
+                              J[2][0], J[2][1], J[2][2]);
+  lua_push_tensor2(L, J1);
   return 1;
 }
 
@@ -363,7 +364,7 @@ static int sd_new(lua_State* L)
   lua_obj_t* lo = polymec_malloc(sizeof(lua_obj_t));
   lo->L = L;
 
-  // Store the table representing our object in the registry, with 
+  // Store the table representing our object in the registry, with
   // context as a key.
   lua_pushvalue(L, obj_index);
   lua_rawsetp(L, LUA_REGISTRYINDEX, lo);
@@ -441,7 +442,7 @@ static int sd_sphere(lua_State* L)
     orient = INWARD_NORMAL;
   else if (strcasecmp(orientation, "outward") == 0)
     orient = OUTWARD_NORMAL;
-  else 
+  else
     return luaL_error(L, "invalid orientation: %s (must be 'inward' or 'outward').", orientation);
 
   sd_func_t* f = sphere_sd_func_new(x, r, orient);
@@ -476,7 +477,7 @@ static int sd_cylinder(lua_State* L)
     orient = INWARD_NORMAL;
   else if (strcasecmp(orientation, "outward") == 0)
     orient = OUTWARD_NORMAL;
-  else 
+  else
     return luaL_error(L, "invalid orientation: %s (must be 'inward' or 'outward').", orientation);
 
   sd_func_t* f = cylinder_sd_func_new(x, r, orient);
@@ -538,7 +539,7 @@ static int sd_difference(lua_State* L)
   if (!lua_is_sd_func(L, 2))
     return luaL_error(L, "Argument 2 must be an sd_func.");
 
-  sd_func_t* f = difference_sd_func_new(lua_to_sd_func(L, 1), 
+  sd_func_t* f = difference_sd_func_new(lua_to_sd_func(L, 1),
                                         lua_to_sd_func(L, 2));
   lua_push_sd_func(L, f);
   return 1;
@@ -715,7 +716,7 @@ static int sdt_new(lua_State* L)
   lua_obj_t* lo = polymec_malloc(sizeof(lua_obj_t));
   lo->L = L;
 
-  // Store the table representing our object in the registry, with 
+  // Store the table representing our object in the registry, with
   // context as a key.
   lua_pushvalue(L, obj_index);
   lua_rawsetp(L, LUA_REGISTRYINDEX, lo);
@@ -1169,8 +1170,8 @@ static int pp_quad(lua_State* L)
     luaL_error(L, "periodic_in_y must be true or false.");
   periodic_in_y = lua_toboolean(L, -1);
 
-  planar_polymesh_t* mesh = create_quad_planar_polymesh(nx, ny, bbox, 
-                                                        periodic_in_x, 
+  planar_polymesh_t* mesh = create_quad_planar_polymesh(nx, ny, bbox,
+                                                        periodic_in_x,
                                                         periodic_in_y);
   lua_push_planar_polymesh(L, mesh);
   return 1;
@@ -1681,7 +1682,7 @@ static lua_class_field um_fields[] = {
 static int um_tostring(lua_State* L)
 {
   unimesh_t* m = lua_to_unimesh(L, 1);
-  lua_pushfstring(L, "unimesh (%d local patches)", 
+  lua_pushfstring(L, "unimesh (%d local patches)",
                   unimesh_num_patches(m));
   return 1;
 }
@@ -1779,9 +1780,9 @@ static int bm_block(lua_State* L)
   if (!lua_isinteger(L, 2))
     return luaL_error(L, "Argument must be a block index.");
   int index = (int)(lua_tointeger(L, 2));
-  if (index < 0) 
+  if (index < 0)
     return luaL_error(L, "Block index must be non-negative.");
-  if ((size_t)index >= blockmesh_num_blocks(m)) 
+  if ((size_t)index >= blockmesh_num_blocks(m))
     return luaL_error(L, "Invalid block index: %d", index);
   lua_push_unimesh(L, blockmesh_block(m, index));
   return 1;
@@ -1793,9 +1794,9 @@ static int bm_add_block(lua_State* L)
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
   int num_args = lua_gettop(L);
-  if (((num_args != 2) && (num_args == 5)) || 
-      ((num_args == 2) && !lua_istable(L, 2)) || 
-      ((num_args == 5) && (!lua_is_bbox(L, 2) || 
+  if (((num_args != 2) && (num_args == 5)) ||
+      ((num_args == 2) && !lua_istable(L, 2)) ||
+      ((num_args == 5) && (!lua_is_bbox(L, 2) ||
                            !lua_is_coord_mapping(L, 3) ||
                            !lua_isinteger(L, 4) || !lua_isinteger(L, 5) ||
                            !lua_isinteger(L, 6))))
@@ -1884,11 +1885,11 @@ static int bm_connect_blocks(lua_State* L)
   blockmesh_t* m = lua_to_blockmesh(L, 1);
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
-  
+
   int num_args = lua_gettop(L);
-  if (((num_args != 4) && (num_args != 2)) || 
-      ((num_args == 2) && !lua_istable(L, 2)) || 
-      ((num_args == 4) && (!lua_isinteger(L, 2) || !lua_istable(L, 3) || 
+  if (((num_args != 4) && (num_args != 2)) ||
+      ((num_args == 2) && !lua_istable(L, 2)) ||
+      ((num_args == 4) && (!lua_isinteger(L, 2) || !lua_istable(L, 3) ||
                            !lua_isinteger(L, 4) || !lua_istable(L, 5))))
   {
     luaL_error(L, "mesh:connect_blocks must be called with the following arguments, "
@@ -1903,7 +1904,7 @@ static int bm_connect_blocks(lua_State* L)
     lua_getfield(L, 2, "block1_index");
     if (!lua_isinteger(L, -1))
       return luaL_error(L, "block1_index must be a valid block index.");
-    index1 = (int)lua_tointeger(L, -1); 
+    index1 = (int)lua_tointeger(L, -1);
     lua_pop(L, 1);
   }
   else
@@ -1941,7 +1942,7 @@ static int bm_connect_blocks(lua_State* L)
     lua_getfield(L, 2, "block2_index");
     if (!lua_isinteger(L, -1))
       return luaL_error(L, "block2_index must be a valid block index.");
-    index2 = (int)lua_tointeger(L, -1); 
+    index2 = (int)lua_tointeger(L, -1);
     if ((index2 < 1) || ((size_t)index2 > blockmesh_num_blocks(m)))
       return luaL_error(L, "Invalid index for second block: %d.", index2);
     lua_pop(L, 1);
@@ -2127,7 +2128,7 @@ static int colmesh_quad(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  planar_polymesh_t* columns = create_quad_planar_polymesh(nx, ny, bbox, 
+  planar_polymesh_t* columns = create_quad_planar_polymesh(nx, ny, bbox,
                                                            periodic_in_x, periodic_in_y);
   colmesh_t* mesh = colmesh_new(comm, columns, bbox->z1, bbox->z2, nz, periodic_in_z);
   planar_polymesh_free(columns);
@@ -2307,8 +2308,8 @@ static int colmesh_tostring(lua_State* L)
     snprintf(periodic_str, 11, " (periodic)");
   else
     periodic_str[0] = '\0';
-  lua_pushfstring(L, "colmesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g%s)", 
-                  (int)colmesh_num_chunks(m), (int)num_xy_chunks, (int)num_z_chunks, 
+  lua_pushfstring(L, "colmesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g%s)",
+                  (int)colmesh_num_chunks(m), (int)num_xy_chunks, (int)num_z_chunks,
                   (int)nz_per_chunk, (double)z1, z2, periodic_str);
   return 1;
 }
@@ -2445,9 +2446,9 @@ static int polymesh_rectilinear(lua_State* L)
     rank = (int)lua_tointeger(L, -1);
 
   polymesh_t* mesh = NULL;
-  if (rank == -1) 
+  if (rank == -1)
   {
-    mesh = create_rectilinear_polymesh(comm, 
+    mesh = create_rectilinear_polymesh(comm,
                                        xs->data, (int)xs->size,
                                        ys->data, (int)ys->size,
                                        zs->data, (int)zs->size);
@@ -2550,7 +2551,7 @@ static lua_class_field polymesh_fields[] = {
 static int polymesh_tostring(lua_State* L)
 {
   polymesh_t* m = lua_to_polymesh(L, 1);
-  lua_pushfstring(L, "polymesh (%d cells, %d faces, %d nodes)", 
+  lua_pushfstring(L, "polymesh (%d cells, %d faces, %d nodes)",
                   m->num_cells, m->num_faces, m->num_nodes);
   return 1;
 }
@@ -2565,7 +2566,7 @@ static lua_module_function points_funcs[] = {
 };
 
 //------------------------------------------------------------------------
-//                                API 
+//                                API
 //------------------------------------------------------------------------
 
 int lua_register_geometry_modules(lua_State* L)

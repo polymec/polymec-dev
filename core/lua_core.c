@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,7 +18,7 @@ static int z_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 2) || 
+  if ((num_args != 2) ||
       !lua_isnumber(L, 1) || !lua_isnumber(L, 2))
   {
     return luaL_error(L, "Arguments must be real, imag components.");
@@ -164,7 +164,7 @@ static int p_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 3) || 
+  if ((num_args != 3) ||
       !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3))
   {
     return luaL_error(L, "Arguments must be x, y, z coordinates.");
@@ -304,7 +304,7 @@ static int p2_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 2) || 
+  if ((num_args != 2) ||
       !lua_isnumber(L, 1) || !lua_isnumber(L, 2))
   {
     return luaL_error(L, "Arguments must be x, y coordinates.");
@@ -394,7 +394,7 @@ static int v_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 3) || 
+  if ((num_args != 3) ||
       !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3))
   {
     return luaL_error(L, "Arguments must be x, y, z components.");
@@ -627,7 +627,7 @@ static int t2_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 9) || 
+  if ((num_args != 9) ||
       !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) ||
       !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !lua_isnumber(L, 6) ||
       !lua_isnumber(L, 7) || !lua_isnumber(L, 8) || !lua_isnumber(L, 9))
@@ -887,7 +887,7 @@ static int t2_len(lua_State* L)
 static int t2_tostring(lua_State* L)
 {
   tensor2_t* t = lua_to_tensor2(L, 1);
-  lua_pushfstring(L, "tensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+  lua_pushfstring(L, "tensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))",
                   t->xx, t->xy, t->xz, t->yx, t->yy, t->yz, t->zx, t->zy, t->zz);
   return 1;
 }
@@ -907,7 +907,7 @@ static int st2_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 6) || 
+  if ((num_args != 6) ||
       !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) ||
       !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !lua_isnumber(L, 6))
   {
@@ -1163,7 +1163,7 @@ static int st2_len(lua_State* L)
 static int st2_tostring(lua_State* L)
 {
   symtensor2_t* t = lua_to_symtensor2(L, 1);
-  lua_pushfstring(L, "symtensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+  lua_pushfstring(L, "symtensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))",
                   t->xx, t->xy, t->xz, t->xy, t->yy, t->yz, t->xz, t->yz, t->zz);
   return 1;
 }
@@ -1291,7 +1291,7 @@ static int bb_new(lua_State* L)
               break;
       default: break;
     }
-    lua_pop(L, 1); 
+    lua_pop(L, 1);
   }
 
   // Push the bounding box onto the stack.
@@ -1425,7 +1425,7 @@ static int bb_contains(lua_State* L)
 static int bb_tostring(lua_State* L)
 {
   bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushfstring(L, "bbox (x1 = %f, x2 = %f, y1 = %f, y2 = %f, z1 = %f, z2 = %f)", 
+  lua_pushfstring(L, "bbox (x1 = %f, x2 = %f, y1 = %f, y2 = %f, z1 = %f, z2 = %f)",
                   b->x1, b->x2, b->y1, b->y2, b->z1, b->z2);
   return 1;
 }
@@ -1535,7 +1535,7 @@ static int sp_tostring(lua_State* L)
     strcpy(homo_str, "homogeneous, ");
   else
     homo_str[0] = '\0';
-  lua_pushfstring(L, "sp_func '%s' (%s%d components)", 
+  lua_pushfstring(L, "sp_func '%s' (%s%d components)",
                   sp_func_name(f), homo_str, sp_func_num_comp(f));
   return 1;
 }
@@ -1681,7 +1681,7 @@ static int st_tostring(lua_State* L)
     strcpy(const_str, "constant, ");
   else
     const_str[0] = '\0';
-  lua_pushfstring(L, "sp_func '%s' (%s%s%d components)", 
+  lua_pushfstring(L, "sp_func '%s' (%s%s%d components)",
                   st_func_name(f), homo_str, const_str, st_func_num_comp(f));
   return 1;
 }
@@ -1998,12 +1998,12 @@ static int lua_dir(lua_State* L)
     lua_pop(L, 1);
     lua_pushvalue(L, -1);
 
-    // Now add this key to our new table. This pops the key copy 
+    // Now add this key to our new table. This pops the key copy
     // off the stack.
-    lua_rawseti(L, new_table_index, index); 
+    lua_rawseti(L, new_table_index, index);
   }
 
-  // If this is a table *AND* it has a metatable, add the keys from the 
+  // If this is a table *AND* it has a metatable, add the keys from the
   // metatable, too.
   if ((table_index == 1) && (lua_getmetatable(L, 1) != 0))
   {
@@ -2017,9 +2017,9 @@ static int lua_dir(lua_State* L)
       lua_pop(L, 1);
       lua_pushvalue(L, -1);
 
-      // Now add this key to our new table. This pops the key copy 
+      // Now add this key to our new table. This pops the key copy
       // off the stack.
-      lua_rawseti(L, new_table_index, index); 
+      lua_rawseti(L, new_table_index, index);
     }
     lua_pop(L, 1); // pop the metatable
   }
@@ -2031,12 +2031,12 @@ static int lua_dir(lua_State* L)
   lua_call(L, 1, 0);
 
   // Clean up the stack. The "table" module is at the top of the stack,
-  // and our new table is underneath it, so we rotate once in the direction 
+  // and our new table is underneath it, so we rotate once in the direction
   // of the top of the stack to bring our result to the top. This essentially
   // swaps the two indices.
   lua_rotate(L, lua_gettop(L)-1, 1);
-  
-  // Now just get rid of all the garbage in between our result and the 
+
+  // Now just get rid of all the garbage in between our result and the
   // original arguments.
   while (lua_gettop(L) > (num_args + 1))
     lua_remove(L, -2);
@@ -2172,7 +2172,7 @@ static void lua_register_util_funcs(lua_State* L)
 }
 
 //------------------------------------------------------------------------
-//                                API 
+//                                API
 //------------------------------------------------------------------------
 extern int lua_register_array(lua_State* L); // defined in lua_array.c
 extern int lua_register_ndarray(lua_State* L); // defined in lua_ndarray.c
@@ -2205,10 +2205,8 @@ static int lua_register_constants(lua_State* L)
 
   // Register unit tensors.
   lua_getglobal(L, "tensor2");
-  tensor2_t I = {.xx = 1.0, .xy = 0.0, .xz = 0.0,
-                 .yx = 0.0, .yy = 1.0, .yz = 0.0,
-                 .zx = 0.0, .zy = 0.0, .zz = 1.0};
-  lua_push_tensor2(L, &I);
+  tensor2_t* I = tensor2_new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+  lua_push_tensor2(L, I);
   lua_setfield(L, -2, "unit");
   lua_pop(L, 1);
 
@@ -2235,7 +2233,7 @@ static int mpi_get_comm_self(lua_State* L)
   return 1;
 }
 
-static lua_module_field mpi_fields[] = 
+static lua_module_field mpi_fields[] =
 {
   {"COMM_WORLD", mpi_get_comm_world, NULL},
   {"COMM_SELF", mpi_get_comm_self, NULL},
@@ -2252,8 +2250,8 @@ static int lua_register_mpi(lua_State* L)
                       mpi_fields, mpi_funcs);
 
   // Register the communicator class.
-  lua_register_class(L, "mpi.comm", "An MPI communicator.", 
-                     mpi_comm_funcs, mpi_comm_fields, mpi_comm_methods, 
+  lua_register_class(L, "mpi.comm", "An MPI communicator.",
+                     mpi_comm_funcs, mpi_comm_fields, mpi_comm_methods,
                      polymec_free);
 
   return 0;
@@ -2292,7 +2290,7 @@ static int l_set_level(lua_State* L)
     level = LOG_DETAIL;
   else if (strcmp(level_str, "debug") == 0)
     level = LOG_DEBUG;
-  else 
+  else
     return luaL_error(L, "log level must be 'none', 'urgent', 'info', 'detail', or 'debug'.");
   set_log_level(level);
   return 0;
@@ -2318,7 +2316,7 @@ static int l_set_mode(lua_State* L)
     mode = LOG_TO_SINGLE_RANK;
   else if (strcmp(mode_str, "all_ranks") == 0)
     mode = LOG_TO_ALL_RANKS;
-  else 
+  else
     return luaL_error(L, "log mode must be 'single_rank' or 'all_ranks'.");
   set_log_mode(mode);
   return 0;
@@ -2383,7 +2381,7 @@ static int l_set_stream(lua_State* L)
   return 0;
 }
 
-static lua_module_field logging_fields[] = 
+static lua_module_field logging_fields[] =
 {
   {"level", l_get_level, l_set_level},
   {"mode", l_get_mode, l_set_mode},
@@ -2432,7 +2430,7 @@ static int timers_set_file(lua_State* L)
   return 0;
 }
 
-static lua_module_field timers_fields[] = 
+static lua_module_field timers_fields[] =
 {
   {"enabled", timers_get_enabled, NULL},
   {"file", timers_get_file, timers_set_file},
@@ -2458,13 +2456,13 @@ static int dl_get_paths(lua_State* L)
   }
   return 1;
 }
- 
-static lua_module_field dl_fields[] = 
+
+static lua_module_field dl_fields[] =
 {
   {"paths", dl_get_paths, NULL},
   {NULL, NULL, NULL}
 };
- 
+
 static int dl_add_path(lua_State* L)
 {
   if (!lua_isstring(L, 1))
@@ -2475,12 +2473,12 @@ static int dl_add_path(lua_State* L)
   polymec_add_dl_path(path);
   return 0;
 }
- 
+
 static lua_module_function dl_funcs[] = {
   {"add_path", dl_add_path, "dl.add_path(path) -> Adds the given path to the list of paths searched for dynamically loadable libraries."},
   {NULL, NULL, NULL}
 };
- 
+
 static int lua_register_dl(lua_State* L)
 {
   lua_register_module(L, "dl", "Settings for dynamic load libraries.",
@@ -2772,7 +2770,7 @@ st_func_t* lua_as_st_func(lua_State* L, int index, int num_comp)
     lua_pushlightuserdata(L, st);
     lua_pushvalue(L, index);
     lua_rawset(L, LUA_REGISTRYINDEX);
-    return st_func_new("Lua st_func", st, vtable, 
+    return st_func_new("Lua st_func", st, vtable,
                        ST_FUNC_HETEROGENEOUS, ST_FUNC_NONCONSTANT,
                        num_comp);
   }

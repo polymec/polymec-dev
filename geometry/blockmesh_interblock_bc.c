@@ -87,7 +87,12 @@ static void cxn_free(cxn_t* cxn);
 struct blockmesh_interblock_bc_t
 {
   blockmesh_t* mesh;
+
+  // List of connections between patches on block boundaries.
   cxn_map_t* cxns;
+
+  // Neighbors of each block.
+  int_array_t* block_neighbors;
 
   // Blob exchangers for all centerings
   blob_exchanger_t* ex[8];
@@ -479,11 +484,13 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
   memset(bc->ex, 0, sizeof(blob_exchanger_t*)*8);
   memset(bc->ex_buffers, 0, sizeof(ptr_array_t*)*8);
   bc->cxns = cxn_map_new();
+  bc->block_neighbors = int_array_new();
   return bc;
 }
 
 void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
 {
+  int_array_free(bc->block_neighbors);
   cxn_map_free(bc->cxns);
   for (int c = 0; c < 8; ++c)
   {
@@ -611,6 +618,11 @@ extern void unimesh_set_patch_bc(unimesh_t* mesh,
                                  unimesh_patch_bc_t* patch_bc);
 void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
 {
+  // Initialize our block neighbors array.
+  int_array_resize(bc->block_neighbors, 6*blockmesh_num_blocks(bc->mesh));
+  for (size_t i = 0; i < bc->block_neighbors->size; ++i)
+    bc->block_neighbors->data[i] = -1;
+
   // Create the exchanger for our connections for each of our centerings,
   // plus a list of buffers.
   for (int c = 0; c < 8; ++c)
@@ -646,25 +658,34 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
   cxn_t* cxn;
   while (cxn_map_next(bc->cxns, &pos, &index, &cxn))
   {
-    int block_index = index/6;
+    int block1_index = blockmesh_block_index(bc->mesh, cxn->block1);
+
     unimesh_patch_bc_t* patch_bc;
-    if (patch_bcs[block_index] == NULL)
+    if (patch_bcs[block1_index] == NULL)
     {
       // Create the patch BC for this block.
       char bc_name[129];
-      snprintf(bc_name, 128, "Inter-block patch BC (block %d)", block_index);
+      snprintf(bc_name, 128, "Inter-block patch BC (block %d)", block1_index);
       patch_bc = unimesh_patch_bc_new_easy(bc_name, bc, vtable, cxn->block1);
-      patch_bcs[block_index] = patch_bc;
+      patch_bcs[block1_index] = patch_bc;
 
       // Register an observer on the block.
       unimesh_observer_t* obs = unimesh_observer_new(bc, obs_vtable);
       unimesh_add_observer(cxn->block1, obs);
     }
     else
-      patch_bc = patch_bcs[block_index];
+      patch_bc = patch_bcs[block1_index];
 
     unimesh_set_patch_bc(cxn->block1, cxn->i1, cxn->j1, cxn->k1,
                          cxn->boundary1, patch_bc);
+
+    // Jot down our block neighbor on this boundary.
+    int b1 = (int)cxn->boundary1;
+    if (bc->block_neighbors->data[6*block1_index+b1] == -1)
+    {
+      int block2_index = blockmesh_block_index(bc->mesh, cxn->block2);
+      bc->block_neighbors->data[6*block1_index+b1] = block2_index;
+    }
   }
 
 #if POLYMEC_HAVE_MPI
@@ -791,34 +812,9 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
                                                  int block_index,
                                                  int block_neighbor_indices[6])
 {
-  blockmesh_t* mesh = bc->mesh;
-
   ASSERT(block_index >= 0);
-  ASSERT(block_index < blockmesh_num_blocks(mesh));
-
-  // Loop over all the boundaries for the given block and see who's connected
-  // to whom.
-  for (int b = 0; b < 6; ++b)
-  {
-    int index = 6*block_index + b;
-    cxn_t** cxn_p = cxn_map_get(bc->cxns, index);
-    if (cxn_p != NULL)
-    {
-      cxn_t* cxn = *cxn_p;
-      unimesh_t* nblock = cxn->block2;
-      int num_blocks = blockmesh_num_blocks(mesh);
-      for (int bb = 0; bb < num_blocks; ++bb)
-      {
-        if (blockmesh_block(mesh, bb) == nblock)
-        {
-          block_neighbor_indices[b] = bb;
-          break;
-        }
-      }
-    }
-    else
-      block_neighbor_indices[b] = -1;
-  }
+  ASSERT(block_index < blockmesh_num_blocks(bc->mesh));
+  memcpy(block_neighbor_indices, bc->block_neighbors, 6*sizeof(int));
 }
 
 //------------------------------------------------------------------------
