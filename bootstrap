@@ -12,7 +12,7 @@ fi
 # Create the build directory if it doesn't exist.
 if [ ! -d $1 ]; then
   mkdir -p $1
-fi 
+fi
 
 # Copy our template config script into place.
 echo "SOURCE_DIR=$PWD" > $1/config.sh
@@ -20,7 +20,7 @@ cat <<EOT >> $1/config.sh
 # ^^^^^^ location of polymec source code.
 
 # config.sh -- A CMake configuration script.
-# Edit this file to change the parameters in your build. Uncomment exactly one 
+# Edit this file to change the parameters in your build. Uncomment exactly one
 # value for each parameter.
 
 #-----------------------------------------------------------------------------
@@ -33,10 +33,10 @@ PREFIX=\$HOME/opt
 #-----------------------------------------------------------------------------
 
 # Build with MPI for parallel simulations.
-#MPI=ON 
+#MPI=ON
 
 #-----------------------------------------------------------------------------
-#                                  OPENMP                 
+#                                  OPENMP
 #-----------------------------------------------------------------------------
 
 # Enable OpenMP threading.
@@ -199,6 +199,10 @@ if [ ! "\$MACHINE" = "" ]; then
   OPTIONS="\$OPTIONS -DPOLYMEC_MACHINE=\$MACHINE"
 fi
 
+# Clear the build cache.
+rm -f CMakeCache.txt
+
+# Configure the build.
 cmake \
  -DCMAKE_INSTALL_PREFIX:PATH=\$PREFIX \
  -DCMAKE_BUILD_TYPE=\$BUILD_TYPE \
