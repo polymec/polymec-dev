@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,7 +18,7 @@ extern blockmesh_t* create_cubed_sphere(MPI_Comm comm,
                                         int patch_nxy, int patch_nz,
                                         real_t R1, real_t R2);
 
-static void test_serial_ctor(void** state) 
+static void test_serial_ctor(void** state)
 {
   blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_SELF,
                                           2, 2, 10, 10, 0.9, 1.0);
@@ -34,7 +34,7 @@ static void test_serial_ctor(void** state)
   blockmesh_free(mesh);
 }
 
-static void test_parallel_ctor(void** state) 
+static void test_parallel_ctor(void** state)
 {
   blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
                                           2, 2, 10, 10, 0.9, 1.0);
@@ -50,7 +50,7 @@ static void test_parallel_ctor(void** state)
   blockmesh_free(mesh);
 }
 
-static void test_next_block(void** state) 
+static void test_next_block(void** state)
 {
   blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
                                           2, 2, 10, 10, 0.9, 1.0);
@@ -66,14 +66,14 @@ static void test_next_block(void** state)
   blockmesh_free(mesh);
 }
 
-static void test_repartition(void** state) 
+static void test_repartition(void** state)
 {
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_serial_ctor),
     cmocka_unit_test(test_parallel_ctor),

@@ -415,7 +415,7 @@ static void assign_patches(blockmesh_t* mesh)
 #if POLYMEC_HAVE_MPI
   if (mesh->nproc > 1)
   {
-    // Divide the total number of patches up amongs our processes.
+    // Divide the total number of patches up amongst our processes.
     num_local_patches = num_patches / mesh->nproc;
     start_patch = mesh->rank * num_local_patches;
   }
@@ -457,6 +457,7 @@ done_selecting_patches:
     int k = patch_list->data[4*p+3];
     unimesh_insert_patch(block, i, j, k);
   }
+  int_array_free(patch_list);
 }
 
 void blockmesh_finalize(blockmesh_t* mesh)
