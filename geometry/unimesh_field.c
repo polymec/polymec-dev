@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -24,7 +24,7 @@ static void patch_bc_dtor(unimesh_patch_bc_t* patch_bc)
 
 DEFINE_UNORDERED_MAP(patch_bc_map, int*, unimesh_patch_bc_t*, int_pair_hash, int_pair_equals)
 
-struct unimesh_field_t 
+struct unimesh_field_t
 {
   unimesh_t* mesh;
   unimesh_centering_t centering;
@@ -53,12 +53,12 @@ static inline int patch_index(unimesh_field_t* field, int i, int j, int k)
   return field->npy*field->npz*i + field->npz*j + k;
 }
 
-unimesh_field_t* unimesh_field_new(unimesh_t* mesh, 
+unimesh_field_t* unimesh_field_new(unimesh_t* mesh,
                                    unimesh_centering_t centering,
                                    int num_components)
 {
   START_FUNCTION_TIMER();
-  unimesh_field_t* field = 
+  unimesh_field_t* field =
     unimesh_field_with_buffer(mesh, centering, num_components, NULL);
   void* buffer = polymec_malloc(field->bytes);
   unimesh_field_set_buffer(field, buffer, true);
@@ -85,9 +85,9 @@ static void compute_offsets(unimesh_field_t* field)
   }
 }
 
-unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh, 
+unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
                                            unimesh_centering_t centering,
-                                           int num_components, 
+                                           int num_components,
                                            void* buffer)
 {
   START_FUNCTION_TIMER();
@@ -114,7 +114,7 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   while (unimesh_next_patch(mesh, &pos, &i, &j, &k, NULL))
   {
     int index = patch_index(field, i, j, k);
-    int_ptr_unordered_map_insert_with_v_dtor(field->patches, index, 
+    int_ptr_unordered_map_insert_with_v_dtor(field->patches, index,
       unimesh_patch_with_buffer(centering, px, py, pz, num_components, NULL),
       DTOR(unimesh_patch_free));
   }
@@ -197,8 +197,8 @@ unimesh_patch_t* unimesh_field_patch(unimesh_field_t* field, int i, int j, int k
     return NULL;
 }
 
-bool unimesh_field_next_patch(unimesh_field_t* field, int* pos, 
-                              int* i, int* j, int* k, 
+bool unimesh_field_next_patch(unimesh_field_t* field, int* pos,
+                              int* i, int* j, int* k,
                               unimesh_patch_t** patch,
                               bbox_t* bbox)
 {
@@ -213,8 +213,8 @@ void* unimesh_field_buffer(unimesh_field_t* field)
   return field->buffer;
 }
 
-void unimesh_field_set_buffer(unimesh_field_t* field, 
-                              void* buffer, 
+void unimesh_field_set_buffer(unimesh_field_t* field,
+                              void* buffer,
                               bool assume_control)
 {
   START_FUNCTION_TIMER();
@@ -251,7 +251,7 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
   key[0] = index;
   key[1] = b;
   retain_ref(patch_bc);
-  patch_bc_map_insert_with_kv_dtors(field->patch_bcs, key, patch_bc, 
+  patch_bc_map_insert_with_kv_dtors(field->patch_bcs, key, patch_bc,
                                     key_dtor, patch_bc_dtor);
   STOP_FUNCTION_TIMER();
 }
@@ -295,16 +295,16 @@ void unimesh_field_update_patch_boundaries(unimesh_field_t* field,
 extern int unimesh_patch_boundary_buffer_token(unimesh_t* mesh,
                                                unimesh_centering_t centering,
                                                int num_components);
-extern void unimesh_start_updating_patch_boundary(unimesh_t* mesh, 
+extern void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
                                                   int token,
                                                   int i, int j, int k,
-                                                  real_t t, 
+                                                  real_t t,
                                                   unimesh_boundary_t boundary,
                                                   field_metadata_t* md,
                                                   unimesh_patch_t* patch);
-extern void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, 
+extern void unimesh_start_updating_patch_boundaries(unimesh_t* mesh,
                                                     int token);
-extern void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, 
+extern void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh,
                                                      int token);
 
 void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
@@ -313,7 +313,7 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
   START_FUNCTION_TIMER();
   ASSERT(field->token == -1);
 
-  // Get a token from the mesh that represents this particular set of 
+  // Get a token from the mesh that represents this particular set of
   // patch boundary updates.
   int token = unimesh_patch_boundary_buffer_token(field->mesh,
                                                   field->centering,
@@ -339,15 +339,15 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
       {
         // Found a BC for the field. Begin the update.
         unimesh_patch_bc_t* bc = *bc_p;
-        unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, 
+        unimesh_patch_bc_start_update(bc, i, j, k, t, boundary,
                                       field->md, patch);
       }
       else
       {
-        // This field has no BC for this patch/boundary. Fall back on the 
+        // This field has no BC for this patch/boundary. Fall back on the
         // mesh boundary condition.
-        unimesh_start_updating_patch_boundary(field->mesh, token, 
-                                              i, j, k, t, boundary, 
+        unimesh_start_updating_patch_boundary(field->mesh, token,
+                                              i, j, k, t, boundary,
                                               field->md, patch);
       }
     }
@@ -381,7 +381,7 @@ void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field)
       {
         // Found a BC for the field. Finish the update.
         unimesh_patch_bc_t* bc = *bc_p;
-        unimesh_patch_bc_finish_update(bc, i, j, k, field->update_t, 
+        unimesh_patch_bc_finish_update(bc, i, j, k, field->update_t,
                                        boundary, field->md, patch);
       }
     }
