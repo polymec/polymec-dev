@@ -361,8 +361,8 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
       ++r;
     }
   }
-#endif
   ASSERT(r == buffer->num_requests);
+#endif
 
   STOP_FUNCTION_TIMER();
   return token;
