@@ -404,12 +404,20 @@ static void find_connected_patch(blockmesh_t* mesh,
   int npx1, npy1, npz1;
   unimesh_t* block1 = mesh->blocks->data[block1_index];
   unimesh_get_extents(block1, &npx1, &npy1, &npz1);
-  ASSERT(((block1_boundary == UNIMESH_X1_BOUNDARY) && (i1 == 0)) ||
-         ((block1_boundary == UNIMESH_X2_BOUNDARY) && (i1 == (npx1-1))) ||
-         ((block1_boundary == UNIMESH_Y1_BOUNDARY) && (j1 == 0)) ||
-         ((block1_boundary == UNIMESH_Y2_BOUNDARY) && (j1 == (npy1-1))) ||
-         ((block1_boundary == UNIMESH_Z1_BOUNDARY) && (k1 == 0)) ||
-         ((block1_boundary == UNIMESH_Z2_BOUNDARY) && (k1 == (npz1-1))));
+
+  // If this patch isn't on the block boundary, set the indices to -1.
+  if (!(((block1_boundary == UNIMESH_X1_BOUNDARY) && (i1 == 0)) ||
+       ((block1_boundary == UNIMESH_X2_BOUNDARY) && (i1 == (npx1-1))) ||
+       ((block1_boundary == UNIMESH_Y1_BOUNDARY) && (j1 == 0)) ||
+       ((block1_boundary == UNIMESH_Y2_BOUNDARY) && (j1 == (npy1-1))) ||
+       ((block1_boundary == UNIMESH_Z1_BOUNDARY) && (k1 == 0)) ||
+       ((block1_boundary == UNIMESH_Z2_BOUNDARY) && (k1 == (npz1-1)))))
+  {
+    *i2 = -1;
+    *j2 = -1;
+    *k2 = -1;
+    return;
+  }
 
   // Start with what we know.
   int npx2, npy2, npz2;
