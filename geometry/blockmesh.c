@@ -44,6 +44,10 @@ struct blockmesh_t
   // Inter-block boundary condition.
   blockmesh_interblock_bc_t* interblock_bc;
 
+  // This flag is set when you start connecting blocks, and signifies that
+  // no new blocks may be added.
+  bool started_connecting_blocks;
+
   // This flag is set by blockmesh_finalize() after a mesh has been assembled.
   bool finalized;
 };
@@ -68,6 +72,7 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   mesh->bboxes = bbox_array_new();
   mesh->coords = ptr_array_new();
   mesh->interblock_bc = blockmesh_interblock_bc_new(mesh);
+  mesh->started_connecting_blocks = false;
   mesh->finalized = false;
 
   return mesh;
@@ -87,6 +92,10 @@ int blockmesh_add_block(blockmesh_t* mesh,
   ASSERT(num_x_patches > 0);
   ASSERT(num_y_patches > 0);
   ASSERT(num_z_patches > 0);
+
+  // If we've already started connecting blocks, we can't add this one.
+  if (mesh->started_connecting_blocks)
+    return -1;
 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   unimesh_t* block = create_empty_unimesh(mesh->comm, &bbox,
@@ -321,83 +330,6 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
   return true;
 }
 
-static void find_connected_patch(blockmesh_t* mesh,
-                                 int block1_index,
-                                 unimesh_boundary_t block1_boundary,
-                                 int i1, int j1, int k1,
-                                 int rotation,
-                                 int block2_index,
-                                 unimesh_boundary_t block2_boundary,
-                                 int* i2, int* j2, int* k2)
-{
-}
-
-void blockmesh_connect_blocks(blockmesh_t* mesh,
-                              int block1_index, int block1_nodes[4],
-                              int block2_index, int block2_nodes[4])
-{
-  ASSERT(blockmesh_can_connect_blocks(mesh, block1_index, block1_nodes,
-                                            block2_index, block2_nodes, NULL));
-
-  // Figure out the block boundaries that connect to one another, and
-  // the (topological) rotation going from the first to the second.
-  int b1 = block_boundary_for_nodes(block1_nodes);
-  ASSERT(b1 != -1);
-
-  int b2 = block_boundary_for_nodes(block2_nodes);
-  ASSERT(b2 != -1);
-
-  int rotation = determine_rotation(b1, block1_nodes,
-                                    b2, block2_nodes);
-  if (rotation == -1)
-  {
-    // Try again with block2_nodes reversed.
-    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2],
-                               block2_nodes[1], block2_nodes[0]};
-    rotation = determine_rotation(b1, block1_nodes,
-                                  b2, rev_block2_nodes);
-  }
-  ASSERT(rotation != -1);
-
-  // Traverse all the locally-stored patches in block1 and connect them to
-  // corresponding patches in block2. This is a bit grisly, since we have to
-  // account for rotations and different sets of boundary pairs.
-  unimesh_t* block1 = blockmesh_block(mesh, block1_index);
-  unimesh_boundary_t block1_boundary = (unimesh_boundary_t)b1;
-
-  unimesh_t* block2 = blockmesh_block(mesh, block2_index);
-  unimesh_boundary_t block2_boundary = (unimesh_boundary_t)b2;
-
-  int pos = 0;
-  int i1, j1, k1;
-  while (unimesh_next_patch(block1, &pos, &i1, &j1, &k1, NULL))
-  {
-    // Figure out the coordinates of the corresponding patch in block2.
-    int i2, j2, k2;
-    find_connected_patch(mesh, block1_index, block1_boundary, i1, j1, k1,
-                         rotation,
-                         block2_index, block2_boundary, &i2, &j2, &k2);
-    if ((i2 != -1) && (j2 != -1) && (k2 != -1))
-    {
-      // Connect block1's local patch to block2's patch.
-      blockmesh_interblock_bc_connect(mesh->interblock_bc,
-                                      block1_index, block1_boundary, i1, j1, k1,
-                                      rotation,
-                                      block2_index, block2_boundary, i2, j2, k2);
-
-      // If block2's patch is locally stored, connect it to block1's.
-      if (unimesh_has_patch(block2, i2, j2, k2))
-      {
-        int opp_rotation = (rotation + 2) % 4;
-        blockmesh_interblock_bc_connect(mesh->interblock_bc,
-                                        block2_index, block2_boundary, i2, j2, k2,
-                                        opp_rotation,
-                                        block1_index, block1_boundary, i1, j1, k1);
-      }
-    }
-  }
-}
-
 static void assign_patches(blockmesh_t* mesh)
 {
   // Count up all the patches in the global mesh.
@@ -460,13 +392,492 @@ done_selecting_patches:
   int_array_free(patch_list);
 }
 
+static void find_connected_patch(blockmesh_t* mesh,
+                                 int block1_index,
+                                 unimesh_boundary_t block1_boundary,
+                                 int i1, int j1, int k1,
+                                 int rotation,
+                                 int block2_index,
+                                 unimesh_boundary_t block2_boundary,
+                                 int* i2, int* j2, int* k2)
+{
+  int npx1, npy1, npz1;
+  unimesh_t* block1 = mesh->blocks->data[block1_index];
+  unimesh_get_extents(block1, &npx1, &npy1, &npz1);
+  ASSERT(((block1_boundary == UNIMESH_X1_BOUNDARY) && (i1 == 0)) ||
+         ((block1_boundary == UNIMESH_X2_BOUNDARY) && (i1 == (npx1-1))) ||
+         ((block1_boundary == UNIMESH_Y1_BOUNDARY) && (j1 == 0)) ||
+         ((block1_boundary == UNIMESH_Y2_BOUNDARY) && (j1 == (npy1-1))) ||
+         ((block1_boundary == UNIMESH_Z1_BOUNDARY) && (k1 == 0)) ||
+         ((block1_boundary == UNIMESH_Z2_BOUNDARY) && (k1 == (npz1-1))));
+
+  // Start with what we know.
+  int npx2, npy2, npz2;
+  unimesh_t* block2 = mesh->blocks->data[block1_index];
+  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
+  if (block2_boundary == UNIMESH_X1_BOUNDARY)
+    *i2 = 0;
+  else if (block2_boundary == UNIMESH_X2_BOUNDARY)
+    *i2 = npx2 - 1;
+  else if (block2_boundary == UNIMESH_Y1_BOUNDARY)
+    *j2 = 0;
+  else if (block2_boundary == UNIMESH_Y2_BOUNDARY)
+    *j2 = npy2 - 1;
+  else if (block2_boundary == UNIMESH_Z1_BOUNDARY)
+    *k2 = 0;
+  else
+    *k2 = npz2 - 1;
+
+  // Now figure out the transverse patch coordinates.
+  if (block1_boundary == UNIMESH_X1_BOUNDARY)
+  {
+    switch(block2_boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *j2 = npy2-j1; *k2 = k1; break;
+          case 1: break;
+          case 2: *j2 = j1; *k2 = npz2-k1; break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *j2 = j1; *k2 = k1; break;
+          case 1: break;
+          case 2: *j2 = npy2-j1; *k2 = npz2-k1; break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+    }
+  }
+  else if (block1_boundary == UNIMESH_X2_BOUNDARY)
+  {
+    switch(block2_boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *j2 = j1; *k2 = k1; break;
+          case 1: break;
+          case 2: *j2 = npy2-j1; *k2 = npz2-k1; break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *j2 = npy2-j1; *k2 = k1; break;
+          case 1: break;
+          case 2: *j2 = j1; *k2 = npz2-k1; break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+    }
+  }
+  else if (block1_boundary == UNIMESH_Y1_BOUNDARY)
+  {
+    switch(block2_boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *i2 = i1; *k2 = k1; break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+    }
+  }
+  else if (block1_boundary == UNIMESH_Y2_BOUNDARY)
+  {
+    switch(block2_boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *i2 = i1; *k2 = k1; break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+    }
+  }
+  else if (block1_boundary == UNIMESH_Z1_BOUNDARY)
+  {
+    switch(block2_boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *i2 = i1; *j2 = j1; break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+    }
+  }
+  else // if (block1_boundary == UNIMESH_Z2_BOUNDARY)
+  {
+    switch(block2_boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: *i2 = i1; *j2 = j1; break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        switch(rotation)
+        {
+          case 0: break;
+          case 1: break;
+          case 2: break;
+          case 3: break;
+        }
+        break;
+    }
+  }
+}
+
+void blockmesh_connect_blocks(blockmesh_t* mesh,
+                              int block1_index, int block1_nodes[4],
+                              int block2_index, int block2_nodes[4])
+{
+  ASSERT(blockmesh_can_connect_blocks(mesh, block1_index, block1_nodes,
+                                            block2_index, block2_nodes, NULL));
+  // Figure out the block boundaries that connect to one another, and
+  // the (topological) rotation going from the first to the second.
+  int b1 = block_boundary_for_nodes(block1_nodes);
+  ASSERT(b1 != -1);
+
+  int b2 = block_boundary_for_nodes(block2_nodes);
+  ASSERT(b2 != -1);
+
+  int rotation = determine_rotation(b1, block1_nodes,
+                                    b2, block2_nodes);
+  if (rotation == -1)
+  {
+    // Try again with block2_nodes reversed.
+    int rev_block2_nodes[4] = {block2_nodes[3], block2_nodes[2],
+                               block2_nodes[1], block2_nodes[0]};
+    rotation = determine_rotation(b1, block1_nodes,
+                                  b2, rev_block2_nodes);
+  }
+  ASSERT(rotation != -1);
+
+  // If this is our first connection, assign all the patches within the
+  // existing blocks in the mesh. This prevents new blocks from being added
+  // afterwards
+  if (!mesh->started_connecting_blocks)
+  {
+    assign_patches(mesh);
+    mesh->started_connecting_blocks = true;
+  }
+
+  // Traverse all the locally-stored patches in block1 and connect them to
+  // corresponding patches in block2. This is a bit grisly, since we have to
+  // account for rotations and different sets of boundary pairs.
+  unimesh_t* block1 = blockmesh_block(mesh, block1_index);
+  unimesh_boundary_t block1_boundary = (unimesh_boundary_t)b1;
+
+  unimesh_t* block2 = blockmesh_block(mesh, block2_index);
+  unimesh_boundary_t block2_boundary = (unimesh_boundary_t)b2;
+
+  int pos = 0;
+  int i1, j1, k1;
+  while (unimesh_next_patch(block1, &pos, &i1, &j1, &k1, NULL))
+  {
+    // Figure out the coordinates of the corresponding patch in block2.
+    int i2, j2, k2;
+    find_connected_patch(mesh, block1_index, block1_boundary, i1, j1, k1,
+                         rotation,
+                         block2_index, block2_boundary, &i2, &j2, &k2);
+    if ((i2 != -1) && (j2 != -1) && (k2 != -1))
+    {
+      // Connect block1's local patch to block2's patch.
+      blockmesh_interblock_bc_connect(mesh->interblock_bc,
+                                      block1_index, block1_boundary, i1, j1, k1,
+                                      rotation,
+                                      block2_index, block2_boundary, i2, j2, k2);
+
+      // If block2's patch is locally stored, connect it to block1's.
+      if (unimesh_has_patch(block2, i2, j2, k2))
+      {
+        int opp_rotation = (rotation + 2) % 4;
+        blockmesh_interblock_bc_connect(mesh->interblock_bc,
+                                        block2_index, block2_boundary, i2, j2, k2,
+                                        opp_rotation,
+                                        block1_index, block1_boundary, i1, j1, k1);
+      }
+    }
+  }
+}
+
 void blockmesh_finalize(blockmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
   ASSERT(!mesh->finalized);
 
-  // Assign patches to processes.
-  assign_patches(mesh);
+  // If, for some reason, we haven't connected any blocks, then no patches are
+  // assigned yet. It's beyond me why you'd want a multi-block mesh without
+  // connecting them, but hey--you're the scientist.
+  if (!mesh->started_connecting_blocks)
+  {
+    mesh->started_connecting_blocks = true;
+    assign_patches(mesh);
+  }
 
   // Finalize the inter-block boundaries.
   blockmesh_interblock_bc_finalize(mesh->interblock_bc);

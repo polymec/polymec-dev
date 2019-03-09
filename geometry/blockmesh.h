@@ -62,6 +62,8 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 /// Adds a new empty block to the blockmesh with the given numbers of patches
 /// in the "x", "y", and "z" directions. The block is empty in the sense that
 /// it contains no patches.
+/// \note **Once you start connecting blocks, patches are assigned to existing 
+///         blocks within the mesh, you can no longer add new blocks.**
 /// \param [in] block_domain A bounding box containing the "logical" domain of
 ///                          the block's coordinate mapping
 ///                          (e.g. [-1, +1] x [-1, +1] x [-1, +1]).
@@ -82,7 +84,8 @@ blockmesh_t* blockmesh_new(MPI_Comm comm, int patch_nx, int patch_ny, int patch_
 ///                           the new block.
 /// \param [in] num_z_patches The number of patches in the "z" direction within
 ///                           the new block.
-/// \returns the index of the new block within the blockmesh.
+/// \returns the index of the new block within the blockmesh, or -1 if the 
+///          block could not be added.
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh,
                         bbox_t* block_domain,
@@ -121,6 +124,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
 /// way that all block dimensions are compatible. The two indices can refer to
 /// the same block, in which case the block connects to itself.
 /// \note This function assumes that the blocks can be successfully connected.
+/// \note **Once you start connecting blocks, patches are assigned to existing 
+///         blocks within the mesh, you can no longer add new blocks.**
 /// \param [in] block1_index The index of the first of the two blocks to be
 ///                          connected within the mesh.
 /// \param [in] block1_nodes An array containing the 4 nodes in the first block

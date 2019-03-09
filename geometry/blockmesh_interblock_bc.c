@@ -684,6 +684,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     if (bc->block_neighbors->data[6*block1_index+b1] == -1)
     {
       int block2_index = blockmesh_block_index(bc->mesh, cxn->block2);
+printf("bc[%d] = %d\n", 6*block1_index+b1, block2_index);
       bc->block_neighbors->data[6*block1_index+b1] = block2_index;
     }
   }
@@ -814,7 +815,8 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
 {
   ASSERT(block_index >= 0);
   ASSERT(block_index < blockmesh_num_blocks(bc->mesh));
-  memcpy(block_neighbor_indices, bc->block_neighbors, 6*sizeof(int));
+  memcpy(block_neighbor_indices, &bc->block_neighbors[6*block_index],
+         6*sizeof(int));
 }
 
 //------------------------------------------------------------------------

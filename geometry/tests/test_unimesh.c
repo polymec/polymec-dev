@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,7 +18,7 @@ static const int nx = 4;
 static const int ny = 4;
 static const int nz = 4;
 
-static void test_ctors(void** state) 
+static void test_ctors(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
                  .y1 = 0.0, .y2 = 1.0,
@@ -85,7 +85,7 @@ static void test_ctors(void** state)
 
 // Guarantees that unimesh_next_patch traverses patches in lexicographic order,
 // especially in parallel environments.
-static void test_next_patch(void** state) 
+static void test_next_patch(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
                  .y1 = 0.0, .y2 = 1.0,
@@ -122,7 +122,7 @@ static void test_next_patch(void** state)
   unimesh_free(mesh);
 }
 
-static void test_repartition(void** state) 
+static void test_repartition(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
                  .y1 = 0.0, .y2 = 1.0,
@@ -139,10 +139,10 @@ static void test_repartition(void** state)
   unimesh_free(mesh);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_ctors),
     cmocka_unit_test(test_next_patch),

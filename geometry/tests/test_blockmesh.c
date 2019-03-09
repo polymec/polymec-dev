@@ -68,6 +68,9 @@ static void test_next_block(void** state)
 
 static void test_repartition(void** state)
 {
+  blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
+                                          2, 2, 10, 10, 0.9, 1.0);
+  repartition_blockmesh(&mesh, NULL, 0.05, NULL, 0);
 }
 
 int main(int argc, char* argv[])

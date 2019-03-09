@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,7 +13,7 @@
 DEFINE_ARRAY(field_array, unimesh_field_t*)
 DEFINE_ARRAY(patch_bc_array, unimesh_patch_bc_t*)
 
-struct blockmesh_field_t 
+struct blockmesh_field_t
 {
   blockmesh_t* mesh;
   field_array_t* fields;
@@ -24,7 +24,7 @@ struct blockmesh_field_t
   field_metadata_t* md;
 };
 
-blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh, 
+blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
                                        unimesh_centering_t centering,
                                        int num_components)
 {
@@ -96,7 +96,7 @@ blockmesh_t* blockmesh_field_mesh(blockmesh_field_t* field)
   return field->mesh;
 }
 
-unimesh_field_t* blockmesh_field_for_block(blockmesh_field_t* field, 
+unimesh_field_t* blockmesh_field_for_block(blockmesh_field_t* field,
                                            int index)
 {
   ASSERT(index >= 0);
