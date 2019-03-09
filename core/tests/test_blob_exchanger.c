@@ -64,6 +64,36 @@ static void test_blob_exchanger_construct(void** state)
   blob_exchanger_t* ex = ring_exchanger(state);
   assert_true(blob_exchanger_comm(ex) == MPI_COMM_WORLD);
 
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+
+  int left = (rank > 0) ? rank - 1 : nproc - 1;
+  int right = (rank < (nproc-1)) ? rank + 1 : 0;
+  int small_blob = 0, big_blob = 1;
+
+  // Fetch the blob metadata within.
+  int pos = 0, proc, blob_index;
+  size_t blob_size;
+  while (blob_exchanger_next_send_blob(ex, &pos, &proc,
+                                       &blob_index, &blob_size))
+  {
+    assert_true((proc == left) || (proc == right));
+    assert_true((blob_index == small_blob) || (blob_index == big_blob));
+    assert_true((blob_size == sizeof(small_widget_t)) ||
+                (blob_size == sizeof(big_widget_t)));
+  }
+  pos = 0;
+  while (blob_exchanger_next_receive_blob(ex, &pos, &proc,
+                                          &blob_index, &blob_size))
+  {
+    assert_true((proc == left) || (proc == right));
+    assert_true((blob_index == small_blob) || (blob_index == big_blob));
+    assert_true((blob_size == sizeof(small_widget_t)) ||
+                (blob_size == sizeof(big_widget_t)));
+  }
+
   // Create a blob buffer that can be used with this exchanger.
   blob_buffer_t* buffer = blob_exchanger_create_buffer(ex, 1);
 
@@ -117,7 +147,6 @@ static void test_blob_exchanger_exchange(void** state)
   release_ref(ex);
 }
 
-/*
 // This sets up a bad exchanger to use for deadlock detection.
 static blob_exchanger_t* bad_exchanger(void** state)
 {
@@ -179,9 +208,9 @@ static void test_blob_exchanger_verify_and_dl_detection(void** state)
   int small_blob = 0, big_blob = 1;
   blob_buffer_t* buffer = blob_exchanger_create_buffer(ex, 1);
   small_widget_t smallw;
-  blob_exchanger_copy_in(ex, small_blob, 1, &smallw, buffer);
+  blob_exchanger_copy_in(ex, small_blob, &smallw, buffer);
   big_widget_t bigw;
-  blob_exchanger_copy_in(ex, big_blob, 1, &bigw, buffer);
+  blob_exchanger_copy_in(ex, big_blob, &bigw, buffer);
   blob_exchanger_exchange(ex, 0, buffer);
 
   // Put everything away.
@@ -196,15 +225,14 @@ static void test_blob_exchanger_verify_and_dl_detection(void** state)
 
   // Make sure the exchange works.
   buffer = blob_exchanger_create_buffer(ex, 1);
-  blob_exchanger_copy_in(ex, small_blob, 1, &smallw, buffer);
-  blob_exchanger_copy_in(ex, big_blob, 1, &bigw, buffer);
+  blob_exchanger_copy_in(ex, small_blob, &smallw, buffer);
+  blob_exchanger_copy_in(ex, big_blob, &bigw, buffer);
   blob_exchanger_exchange(ex, 0, buffer);
 
   // Clean up.
   blob_buffer_free(buffer);
   release_ref(ex);
 }
-*/
 
 int main(int argc, char* argv[])
 {
@@ -213,7 +241,7 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_blob_exchanger_construct),
     cmocka_unit_test(test_blob_exchanger_exchange),
-//    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
+    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

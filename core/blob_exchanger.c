@@ -223,6 +223,9 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
   ex->recv_blob_offsets = int_int_unordered_map_new();
   ex->pending_msgs = ptr_array_new();
   ex->does_local_copy = false;
+  ex->dl_thresh = -1.0;
+  ex->dl_output_rank = -1;
+  ex->dl_output_stream = NULL;
 
   // Compute offsets for the send/receive blobs.
   compute_offsets(ex);
