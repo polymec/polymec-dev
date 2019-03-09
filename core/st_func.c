@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/st_func.h"
 
-struct st_func_t 
+struct st_func_t
 {
   char* name;
   void* context;
@@ -44,7 +44,7 @@ st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
   return f;
 }
 
-st_func_t* st_func_from_func(const char* name, st_eval_func func, 
+st_func_t* st_func_from_func(const char* name, st_eval_func func,
                              st_func_homogeneity_t homogeneity,
                              st_func_constancy_t constancy,
                              int num_comp)
@@ -141,13 +141,13 @@ typedef struct
 static void st_frozen_eval(void* ctx, point_t* x, real_t* result)
 {
   st_frozen_ctx* c = (st_frozen_ctx*)ctx;
-  st_func_eval(c->f, x, c->t, result); 
+  st_func_eval(c->f, x, c->t, result);
 }
 
 static void st_frozen_eval_n(void* ctx, point_t* xs, size_t n, real_t* results)
 {
   st_frozen_ctx* c = (st_frozen_ctx*)ctx;
-  st_func_eval_n(c->f, xs, n, c->t, results); 
+  st_func_eval_n(c->f, xs, n, c->t, results);
 }
 
 static void st_frozen_dtor(void* ctx)
@@ -158,7 +158,7 @@ static void st_frozen_dtor(void* ctx)
 
 sp_func_t* st_func_freeze(st_func_t* func, real_t t)
 {
-  sp_func_vtable vtable = {.eval = st_frozen_eval, 
+  sp_func_vtable vtable = {.eval = st_frozen_eval,
                            .eval_n = st_frozen_eval_n,
                            .dtor = st_frozen_dtor };
   char name[1024];
@@ -166,7 +166,9 @@ sp_func_t* st_func_freeze(st_func_t* func, real_t t)
   st_frozen_ctx* c = polymec_malloc(sizeof(st_frozen_ctx));
   c->f = func;
   c->t = t;
-  sp_func_homogeneity_t homog = (st_func_is_homogeneous(func)) ? SP_FUNC_HOMOGENEOUS : SP_FUNC_HETEROGENEOUS;
+  sp_func_homogeneity_t homog = (st_func_is_homogeneous(func)) ?
+                                  SP_FUNC_HOMOGENEOUS :
+                                  SP_FUNC_HETEROGENEOUS;
   return sp_func_new(name, (void*)c, vtable, homog, st_func_num_comp(func));
 }
 
@@ -174,7 +176,7 @@ sp_func_t* st_func_freeze(st_func_t* func, real_t t)
 
 static int multicomp_st_func_magic_number = 23523462;
 
-typedef struct 
+typedef struct
 {
   int magic_number;
   st_func_t** functions;
@@ -210,7 +212,7 @@ static void multicomp_dtor(void* context)
   polymec_free(mc);
 }
 
-st_func_t* multicomp_st_func_from_funcs(const char* name, 
+st_func_t* multicomp_st_func_from_funcs(const char* name,
                                         st_func_t** functions,
                                         int num_comp)
 {
@@ -233,14 +235,14 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
     if (!st_func_is_constant(functions[i]))
       constancy = ST_FUNC_NONCONSTANT;
   }
-  st_func_vtable vtable = {.eval = multicomp_eval, 
+  st_func_vtable vtable = {.eval = multicomp_eval,
                            .eval_n = multicomp_eval_n,
                            .dtor = multicomp_dtor};
-  return st_func_new(name, (void*)mc, vtable, 
+  return st_func_new(name, (void*)mc, vtable,
                      homogeneity, constancy, num_comp);
 }
 
-typedef struct 
+typedef struct
 {
   st_func_t* func;
   int num_comp, comp;
@@ -265,7 +267,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
 {
   ASSERT(component >= 0);
   ASSERT(component < st_func_num_comp(multicomp_func));
-  
+
   // is this a proper multicomp_st_func_t?
   multicomp_st_func_t* mc = (multicomp_st_func_t*)multicomp_func;
   if (mc->magic_number == multicomp_st_func_magic_number)
@@ -286,7 +288,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
     ec->func = multicomp_func;
     ec->num_comp = st_func_num_comp(multicomp_func);
     ec->comp = component;
-    return st_func_new(name, (void*)ec, vtable, 
+    return st_func_new(name, (void*)ec, vtable,
                        homogeneity, constancy, 1);
   }
 }
@@ -326,7 +328,7 @@ static void constant_dtor(void* ctx)
 
 st_func_t* constant_st_func_new(real_t components[], int num_components)
 {
-  st_func_vtable vtable = {.eval = constant_eval, 
+  st_func_vtable vtable = {.eval = constant_eval,
                            .eval_n = constant_eval_n,
                            .dtor = constant_dtor};
   char name[1024];
