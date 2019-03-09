@@ -284,6 +284,10 @@ static void test_cell_field(void** state, blockmesh_t* mesh)
   sp_func_t* sbr = sbr_new(1.0, 0.0);
   blockmesh_field_t* f = blockmesh_field_new(mesh, UNIMESH_CELL, 2);
   initialize_field(sbr, f);
+
+  repartition_blockmesh(&mesh, NULL, 0.05, &f, 1);
+  blockmesh_field_update_boundaries(f, 0.0);
+
   blockmesh_field_free(f);
   blockmesh_free(mesh);
   release_ref(sbr);
@@ -298,6 +302,13 @@ static void test_face_fields(void** state, blockmesh_t* mesh)
   initialize_field(sbr, fx);
   initialize_field(sbr, fy);
   initialize_field(sbr, fz);
+
+  blockmesh_field_t* fields[3] = {fx, fy, fz};
+  repartition_blockmesh(&mesh, NULL, 0.05, fields, 3);
+  blockmesh_field_update_boundaries(fx, 0.0);
+  blockmesh_field_update_boundaries(fy, 0.0);
+  blockmesh_field_update_boundaries(fz, 0.0);
+
   blockmesh_field_free(fx);
   blockmesh_field_free(fy);
   blockmesh_field_free(fz);
@@ -314,6 +325,13 @@ static void test_edge_fields(void** state, blockmesh_t* mesh)
   initialize_field(sbr, fx);
   initialize_field(sbr, fy);
   initialize_field(sbr, fz);
+
+  blockmesh_field_t* fields[3] = {fx, fy, fz};
+  repartition_blockmesh(&mesh, NULL, 0.05, fields, 3);
+  blockmesh_field_update_boundaries(fx, 0.0);
+  blockmesh_field_update_boundaries(fy, 0.0);
+  blockmesh_field_update_boundaries(fz, 0.0);
+
   blockmesh_field_free(fx);
   blockmesh_field_free(fy);
   blockmesh_field_free(fz);
@@ -325,6 +343,10 @@ static void test_node_field(void** state, blockmesh_t* mesh)
   sp_func_t* sbr = sbr_new(1.0, 0.0);
   blockmesh_field_t* f = blockmesh_field_new(mesh, UNIMESH_NODE, 2);
   initialize_field(sbr, f);
+
+  repartition_blockmesh(&mesh, NULL, 0.05, &f, 1);
+  blockmesh_field_update_boundaries(f, 0.0);
+
   blockmesh_field_free(f);
   blockmesh_free(mesh);
 }
