@@ -87,30 +87,30 @@ static void test_blob_exchanger_exchange(void** state)
   small_widget_t smallw;
   strcpy(smallw.name, "lil widget!");
   smallw.age = 10;
-  blob_exchanger_copy_in(ex, small_blob, 1, &smallw, buffer);
+  assert_true(blob_exchanger_copy_in(ex, small_blob, &smallw, buffer));
   big_widget_t bigw;
   strcpy(bigw.name, "BIG widget!");
   bigw.age = 100;
   for (int i = 0; i < 100; ++i)
     bigw.spectrum[i] = 1.0 * i;
-  blob_exchanger_copy_in(ex, big_blob, 1, &bigw, buffer);
+  assert_true(blob_exchanger_copy_in(ex, big_blob, &bigw, buffer));
 
   // Do the exchange.
   blob_exchanger_exchange(ex, 0, buffer);
 
   // Now get our received data.
   small_widget_t smallw1;
-  blob_exchanger_copy_out(ex, buffer, small_blob, 1, &smallw1);
+  assert_true(blob_exchanger_copy_out(ex, buffer, small_blob, &smallw1));
   big_widget_t bigw1;
-  blob_exchanger_copy_out(ex, buffer, big_blob, 1, &bigw1);
+  assert_true(blob_exchanger_copy_out(ex, buffer, big_blob, &bigw1));
 
   // Did we get what we expected?
-  assert_int_equal(0, strcmp(smallw.name, "lil widget!"));
-  assert_int_equal(10, smallw.age);
-  assert_int_equal(0, strcmp(bigw.name, "BIG widget!"));
-  assert_int_equal(100, bigw.age);
+  assert_int_equal(0, strcmp(smallw1.name, smallw.name));
+  assert_int_equal(smallw.age, smallw1.age);
+  assert_int_equal(0, strcmp(bigw.name, bigw.name));
+  assert_int_equal(bigw.age, bigw1.age);
   for (int i = 0; i < 100; ++i)
-    assert_true(reals_equal(1.0*i, bigw.spectrum[i]));
+    assert_true(reals_equal(bigw.spectrum[i], bigw1.spectrum[i]));
 
   // Clean up.
   blob_buffer_free(buffer);

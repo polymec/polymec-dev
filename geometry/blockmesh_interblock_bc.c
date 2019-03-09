@@ -384,7 +384,7 @@ static void ibc_started_boundary_update(void* context,
 
   // Finally copy the boundary values to our blob buffer.
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
-  blob_exchanger_copy_in(ibc->ex[c], b_index, patch->nc, rot_bvalues, buffer);
+  blob_exchanger_copy_in(ibc->ex[c], b_index, rot_bvalues, buffer);
 }
 
 // This observer method is called when a field finishes starting a set of
@@ -462,7 +462,7 @@ static void ibc_about_to_finish_boundary_update(void* context,
   size_t boundary_size = blob_exchanger_blob_size(ibc->ex[c], b_index);
   char bvalues[boundary_size];
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
-  blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, patch->nc, bvalues);
+  blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, bvalues);
 
   // Now apply the coordinate mapping to these values (this is the last part
   // of the diffeomorphism).

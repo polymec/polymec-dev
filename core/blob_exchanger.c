@@ -279,8 +279,14 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
   START_FUNCTION_TIMER();
 
   // Append this buffer to the end of our list of pending transactions.
-  int token = (int)ex->pending_msgs->size;
-  ptr_array_append(ex->pending_msgs, buffer);
+  int token = 0;
+  while ((token < ex->pending_msgs->size) &&
+         (ex->pending_msgs->data[token] != NULL))
+    ++token;
+  if (token == (int)ex->pending_msgs->size)
+    ptr_array_append(ex->pending_msgs, buffer);
+  else
+    ex->pending_msgs->data[token] = buffer;
 
   size_t size_factor = buffer->size_factor;
 
@@ -291,13 +297,14 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
   for (size_t p = 0; p < ex->recv_procs->size; ++p)
   {
     int proc = ex->recv_procs->data[p];
-    size_t size = size_factor *
-                  (ex->recv_proc_offsets->data[p+1] -
-                   ex->recv_proc_offsets->data[p]);
-    char* data = &(((char*)buffer->storage)[size_factor * ex->recv_proc_offsets->data[p]]);
+    size_t r_offset = size_factor * ex->recv_proc_offsets->data[p];
+    char* data = &(((char*)buffer->storage)[r_offset]);
     if (proc != ex->rank)
     {
 #if POLYMEC_HAVE_MPI
+      size_t size = size_factor *
+                    (ex->recv_proc_offsets->data[p+1] -
+                     ex->recv_proc_offsets->data[p]);
       int err = MPI_Irecv(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
                           &(buffer->requests[r]));
       if (err != MPI_SUCCESS)
@@ -321,8 +328,8 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
       size_t send_size = size_factor *
                          (ex->send_proc_offsets->data[p1+1] -
                           ex->send_proc_offsets->data[p1]);
-      ASSERT(send_size == size);
-      char* send_data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p1]]);
+      size_t s_offset = size_factor * ex->send_proc_offsets->data[p1];
+      char* send_data = &(((char*)buffer->storage)[s_offset]);
       memmove(data, send_data, send_size);
     }
   }
@@ -335,7 +342,8 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
     size_t size = size_factor *
                   (ex->send_proc_offsets->data[p+1] -
                    ex->send_proc_offsets->data[p]);
-    char* data = &(((char*)buffer->storage)[size_factor * ex->send_proc_offsets->data[p]]);
+    size_t s_offset = size_factor * ex->send_proc_offsets->data[p];
+    char* data = &(((char*)buffer->storage)[s_offset]);
     if (proc != ex->rank)
     {
       int err = MPI_Isend(data, (int)size, MPI_BYTE, proc, tag, ex->comm,
@@ -354,6 +362,7 @@ int blob_exchanger_start_exchange(blob_exchanger_t* ex,
     }
   }
 #endif
+  ASSERT(r == buffer->num_requests);
 
   STOP_FUNCTION_TIMER();
   return token;
@@ -591,7 +600,7 @@ bool blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
 {
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
-  if (token < (int)ex->pending_msgs->size)
+  if (token >= (int)ex->pending_msgs->size)
     return false;
 
   // Retrieve the message for the given token.
@@ -652,12 +661,11 @@ bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
 
 bool blob_exchanger_copy_in(blob_exchanger_t* ex,
                             int blob_index,
-                            int size_factor,
                             void* blob,
                             blob_buffer_t* buffer)
 {
   ASSERT(buffer->ex == ex);
-  ASSERT(size_factor == buffer->size_factor);
+  size_t size_factor = buffer->size_factor;
   int* offset_p = int_int_unordered_map_get(ex->send_blob_offsets, blob_index);
   if (offset_p != NULL)
   {
@@ -673,11 +681,10 @@ bool blob_exchanger_copy_in(blob_exchanger_t* ex,
 bool blob_exchanger_copy_out(blob_exchanger_t* ex,
                              blob_buffer_t* buffer,
                              int blob_index,
-                             int size_factor,
                              void* blob)
 {
   ASSERT(buffer->ex == ex);
-  ASSERT(size_factor == buffer->size_factor);
+  size_t size_factor = buffer->size_factor;
   int* offset_p = int_int_unordered_map_get(ex->recv_blob_offsets, blob_index);
   if (offset_p != NULL)
   {

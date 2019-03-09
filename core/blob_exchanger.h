@@ -171,10 +171,6 @@ bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
 /// Copies data for the blob with the given index into the blob buffer
 /// to be sent to other processes.
 /// \param [in] blob_index The index of the blob for which data is copied in.
-/// \param [in] size_factor A factor by which the desired blob is bigger than
-///                         the "base" blob size (the size known to the blob
-///                         exchanger). Make sure you use the same size factor
-///                         here as you used to create your blob buffer.
 /// \param [in] blob An array of data representing the blob. The blob exchanger
 ///                  knows the size of the blob from its index and copies the
 ///                  appropriate number of bytes in.
@@ -184,7 +180,6 @@ bool blob_exchanger_next_receive_blob(blob_exchanger_t* ex,
 /// \memberof blob_exchanger
 bool blob_exchanger_copy_in(blob_exchanger_t* ex,
                             int blob_index,
-                            int size_factor,
                             void* blob,
                             blob_buffer_t* buffer);
 
@@ -192,10 +187,6 @@ bool blob_exchanger_copy_in(blob_exchanger_t* ex,
 /// Call this after an exchange to fetch blobs received from other processes.
 /// \param [in] buffer The blob buffer holding the blob data.
 /// \param [in] blob_index The index of the blob for which data is copied out.
-/// \param [in] size_factor A factor by which the desired blob is bigger than
-///                         the "base" blob size (the size known to the blob
-///                         exchanger). Make sure you use the same size factor
-///                         here as you used to create your blob buffer.
 /// \param [out] blob An array of data representing the blob. The blob exchanger
 ///                   knows the size of the blob from its index and copies the
 ///                   appropriate number of bytes out.
@@ -205,7 +196,6 @@ bool blob_exchanger_copy_in(blob_exchanger_t* ex,
 bool blob_exchanger_copy_out(blob_exchanger_t* ex,
                              blob_buffer_t* buffer,
                              int blob_index,
-                             int size_factor,
                              void* blob);
 
 /// Verifies the consistency of the blob exchanger.
