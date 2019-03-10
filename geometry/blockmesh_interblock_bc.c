@@ -703,7 +703,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     pos = 0;
     while (cxn_map_next(bc->cxns, &pos, &index, &cxn))
     {
-      int block1_index = index/6;
+      int block1_index = blockmesh_block_index(bc->mesh, cxn->block1);
       int_array_append(cxn_patches, block1_index);
       int_array_append(cxn_patches, cxn->i1);
       int_array_append(cxn_patches, cxn->j1);
@@ -757,21 +757,11 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     {
       // Use the far patch to construct a key for
       // our owner_for_proc map.
+      int block2_index = blockmesh_block_index(bc->mesh, cxn->block2);
+      key[0] = block2_index;
       key[1] = cxn->i2;
       key[2] = cxn->j2;
       key[3] = cxn->k2;
-
-      // Find the far mesh for this connection in our list of
-      // meshes.
-      int bb = 0;
-      unimesh_t* block2 = blockmesh_block(bc->mesh, bb);
-      while ((bb < num_blocks) && (block2 != cxn->block2))
-      {
-        ++bb;
-        block2 = blockmesh_block(bc->mesh, bb);
-      }
-      ASSERT(bb < num_blocks);
-      key[0] = (int)bb;
 
       // Fetch the owning process for the far patch.
       int* proc_p = int_tuple_int_unordered_map_get(owner_for_patch, key);
