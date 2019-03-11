@@ -1794,45 +1794,16 @@ static int bm_add_block(lua_State* L)
   if (m == NULL)
     luaL_error(L, "Method must be invoked with a blockmesh.");
   int num_args = lua_gettop(L);
-  if (((num_args != 2) && (num_args == 5)) ||
+  if (((num_args != 2) && (num_args == 4)) ||
       ((num_args == 2) && !lua_istable(L, 2)) ||
-      ((num_args == 5) && (!lua_is_bbox(L, 2) ||
-                           !lua_is_coord_mapping(L, 3) ||
-                           !lua_isinteger(L, 4) || !lua_isinteger(L, 5) ||
-                           !lua_isinteger(L, 6))))
+      ((num_args == 4) && (!lua_isinteger(L, 2) || !lua_isinteger(L, 3) ||
+                           !lua_isinteger(L, 4))))
   {
     luaL_error(L, "mesh:add_block must be called with the following arguments, "
                   "or with a table with the following fields: "
-                  "domain, coords, num_x_patches, num_y_patches, and num_z_patches");
+                  "num_x_patches, num_y_patches, and num_z_patches");
   }
   bool table_args = (num_args == 2);
-
-  bbox_t block_domain;
-  if (table_args)
-  {
-    lua_getfield(L, 2, "domain");
-    if (!lua_is_bbox(L, -1))
-      return luaL_error(L, "domain must be a bbox.");
-    block_domain = *lua_to_bbox(L, -1);
-    lua_pop(L, 1);
-  }
-  else
-    block_domain = *lua_to_bbox(L, 2);
-
-  coord_mapping_t* block_coords;
-  if (table_args)
-  {
-    lua_getfield(L, 2, "coords");
-    if (!lua_is_coord_mapping(L, -1))
-      return luaL_error(L, "coords must be a coordinate mapping for the block.");
-    block_coords = lua_to_coord_mapping(L, -1);
-    if (coord_mapping_inverse(block_coords) == NULL)
-      return luaL_error(L, "The block's coordinate mapping must be invertible.");
-    lua_pop(L, 1);
-  }
-  else
-    block_coords = lua_to_coord_mapping(L, 3);
-  retain_ref(block_coords);
 
   int npx;
   if (table_args)
@@ -1844,7 +1815,7 @@ static int bm_add_block(lua_State* L)
     lua_pop(L, 1);
   }
   else
-    npx = (int)lua_tointeger(L, 4);
+    npx = (int)lua_tointeger(L, 2);
   if (npx <= 0)
     return luaL_error(L, "num_x_patches must be positive.");
 
@@ -1858,7 +1829,7 @@ static int bm_add_block(lua_State* L)
     lua_pop(L, 1);
   }
   else
-    npy = (int)lua_tointeger(L, 5);
+    npy = (int)lua_tointeger(L, 3);
   if (npy <= 0)
     return luaL_error(L, "num_y_patches must be positive.");
 
@@ -1872,11 +1843,11 @@ static int bm_add_block(lua_State* L)
     lua_pop(L, 1);
   }
   else
-    npz = (int)lua_tointeger(L, 6);
+    npz = (int)lua_tointeger(L, 4);
   if (npz <= 0)
     return luaL_error(L, "num_z_patches must be positive.");
 
-  blockmesh_add_block(m, &block_domain, block_coords, npx, npy, npz);
+  blockmesh_add_block(m, npx, npy, npz);
   return 0;
 }
 
@@ -2014,17 +1985,25 @@ static int bm_tostring(lua_State* L)
 }
 
 static lua_class_method bm_methods[] = {
-  {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
-  {"add_block", bm_add_block, "mesh:add_block(D, C, NPX, NPY, NPZ) OR "
-                              "mesh:add_block{domain = D, coords = C, num_x_patches = NPX, num_y_patches = NPY, num_z_patches = NPZ} "
-                              "- Adds a new empty block to this mesh with the given domain D (bbox), coordinates C (coord_mapping), "
-                              "and numbers of patches in x, y, and z."},
-  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks(B1, B1_NODES, B2, B2_NODES) OR "
-                                        "mesh:connect_blocks{block1_index = B1, block1_nodes = B1_NODES, "
-                                        "block2_index = B2, block2_nodes = B2_NODES} "
-                                        "-> Connects two blocks with indices B1 and B2 in the mesh, specifying the "
-                                        "   nodes to identify on the boundary with B1_NODES and B2_NODES."},
-  {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
+  {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh "
+                      "with the given index."},
+  {"add_block", bm_add_block, "mesh:add_block(NPX, NPY, NPZ) OR "
+                              "mesh:add_block{num_x_patches = NPX, "
+                              "num_y_patches = NPY, num_z_patches = NPZ} "
+                              "- Adds a new empty block to this mesh with the "
+                              "given numbers of patches in x, y, and z."},
+  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks(B1, B1_NODES, "
+                                        "B2, B2_NODES) OR "
+                                        "mesh:connect_blocks{block1_index = "
+                                        "B1, block1_nodes = B1_NODES, "
+                                        "block2_index = B2, "
+                                        "block2_nodes = B2_NODES} -> Connects "
+                                        "two blocks with indices B1 and B2 in "
+                                        "the mesh, specifying the nodes to "
+                                        "identify on the boundary with "
+                                        "B1_NODES and B2_NODES."},
+  {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after "
+                            "assembly."},
   {"__tostring", bm_tostring, NULL},
   {NULL, NULL, NULL}
 };
@@ -2032,7 +2011,10 @@ static lua_class_method bm_methods[] = {
 static int colmesh_new_(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with comm, columns, z1, z2, nz, periodic_in_z fields.");
+  {
+    luaL_error(L, "Argument must be a table with comm, columns, z1, z2, nz, "
+                  "periodic_in_z fields.");
+  }
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))

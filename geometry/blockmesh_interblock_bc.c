@@ -44,8 +44,6 @@ typedef struct
 {
   // Metadata for the near block.
   unimesh_t* block1;
-  bbox_t domain1;
-  coord_mapping_t* coords1;
   int i1, j1, k1;
   unimesh_boundary_t boundary1;
   int proc1;
@@ -55,8 +53,6 @@ typedef struct
 
   // Metadata for the far block.
   unimesh_t* block2;
-  bbox_t domain2;
-  coord_mapping_t* coords2;
   int i2, j2, k2;
   unimesh_boundary_t boundary2;
   int proc2;
@@ -70,13 +66,9 @@ DEFINE_UNORDERED_MAP(cxn_map, int, cxn_t*, int_hash, int_equals)
 
 // Constructor and destructor.
 static cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
-                      unimesh_t* block1, bbox_t* block1_domain,
-                      coord_mapping_t* block1_coords,
-                      unimesh_boundary_t block1_boundary, int i1, int j1, int k1,
-                      int rotation,
-                      unimesh_t* block2, bbox_t* block2_domain,
-                      coord_mapping_t* block2_coords,
-                      unimesh_boundary_t block2_boundary,
+                      unimesh_t* block1, unimesh_boundary_t block1_boundary,
+                      int i1, int j1, int k1, int rotation,
+                      unimesh_t* block2, unimesh_boundary_t block2_boundary,
                       int i2, int j2, int k2);
 static void cxn_free(cxn_t* cxn);
 
@@ -142,160 +134,6 @@ static void ibc_started_boundary_updates(void* context,
   }
   else
     buffer = *buffer_p;
-}
-
-static void find_boundary_point(cxn_t* cxn,
-                                bool inverse_mapping,
-                                unimesh_centering_t centering,
-                                int i, int j,
-                                point_t* x)
-{
-  real_t x1 = cxn->domain1.x1, x2 = cxn->domain1.x2;
-  real_t y1 = cxn->domain1.y1, y2 = cxn->domain1.y2;
-  real_t z1 = cxn->domain1.z1, z2 = cxn->domain1.z2;
-  real_t dx = cxn->domain1.x2 - cxn->domain1.x1;
-  real_t dy = cxn->domain1.y2 - cxn->domain1.y1;
-  real_t dz = cxn->domain1.y2 - cxn->domain1.y1;
-  switch (cxn->boundary1)
-  {
-    case UNIMESH_X1_BOUNDARY:
-      x->x = x1;
-      x->y = y1 + i*dy;
-      x->z = z1 + j*dz;
-      break;
-    case UNIMESH_X2_BOUNDARY:
-      x->x = x2;
-      x->y = y1 + i*dy;
-      x->z = z1 + j*dz;
-      break;
-    case UNIMESH_Y1_BOUNDARY:
-      x->x = x1 + i*dx;
-      x->y = y1;
-      x->z = z1 + j*dz;
-      break;
-    case UNIMESH_Y2_BOUNDARY:
-      x->x = x1 + i*dx;
-      x->y = y2;
-      x->z = z1 + j*dz;
-      break;
-    case UNIMESH_Z1_BOUNDARY:
-      x->x = x1 + i*dx;
-      x->y = y1 + j*dy;
-      x->z = z1;
-      break;
-    case UNIMESH_Z2_BOUNDARY:
-      x->x = x1 + i*dx;
-      x->y = y1 + j*dy;
-      x->z = z2;
-  }
-  if (inverse_mapping)
-  {
-    point_t y = *x;
-    coord_mapping_map_point(cxn->coords1, &y, x);
-  }
-}
-
-// This helper applies the coordinate mapping for the given connection (cxn)
-// to the given boundary values, using the given field metadata to figure out
-// which components are scalars, vectors, tensors, etc. Results are placed in
-// mapped_boundary_values.
-static void map_boundary_values(cxn_t* cxn,
-                                bool inverse_mapping,
-                                field_metadata_t* md,
-                                unimesh_centering_t centering,
-                                void* boundary_values,
-                                void* mapped_boundary_values)
-{
-  int cent = (int)centering;
-  int lo1 = cxn->lo1[cent], hi1 = cxn->hi1[cent];
-  int n1 = hi1 - lo1 + 1;
-  int lo2 = cxn->lo2[cent], hi2 = cxn->hi2[cent];
-  int n2 = hi2 - lo2 + 1;
-  int nc = field_metadata_num_components(md);
-  size_t boundary_size = (size_t)(n1 * n2 * nc);
-
-  // Are we doing an inverse mapping?
-  coord_mapping_t* map;
-  if (inverse_mapping)
-    map = coord_mapping_inverse(cxn->coords1);
-  else
-  {
-    map = cxn->coords1;
-    retain_ref(map);
-  }
-
-  // If we've only got scalar data, nothing needs mapping.
-  if (!field_metadata_has_vectors(md) && !field_metadata_has_tensor2s(md) &&
-      !field_metadata_has_symtensor2s(md))
-    memcpy(mapped_boundary_values, boundary_values, boundary_size);
-  else
-  {
-    // Otherwise we've got some vector and/or tensor components.
-    // Map all the things.
-    DECLARE_3D_ARRAY(real_t, bv, boundary_values, n1, n2, nc);
-    DECLARE_3D_ARRAY(real_t, mbv, mapped_boundary_values, n1, n2, nc);
-    for (int i = lo1; i <= hi1; ++i)
-    {
-      for (int j = lo2; j <= hi2; ++j)
-      {
-        // Map scalars.
-        int pos = 0, c;
-        while (field_metadata_next_scalar(md, &pos, &c))
-          mbv[i][j][c] = bv[i][j][c];
-
-        // Find the point in the (i, j)th position on the boundary.
-        point_t x;
-        find_boundary_point(cxn, inverse_mapping, centering, i, j, &x);
-
-        // Map vectors.
-        pos = 0;
-        while (field_metadata_next_vector(md, &pos, &c))
-        {
-          vector_t v = {bv[i][j][c], bv[i][j][c+1], bv[i][j][c+2]}, v1;
-          coord_mapping_map_vector(map, &x, &v, &v1);
-          mbv[i][j][c]   = v1.x;
-          mbv[i][j][c+1] = v1.y;
-          mbv[i][j][c+2] = v1.z;
-        }
-
-        // Map tensors.
-        pos = 0;
-        while (field_metadata_next_tensor2(md, &pos, &c))
-        {
-          tensor2_t t = {bv[i][j][c],   bv[i][j][c+1], bv[i][j][c+2],
-                         bv[i][j][c+3], bv[i][j][c+4], bv[i][j][c+5],
-                         bv[i][j][c+6], bv[i][j][c+7], bv[i][j][c+8]}, t1;
-          coord_mapping_map_tensor2(map, &x, &t, &t1);
-          mbv[i][j][c]   = t1.xx;
-          mbv[i][j][c+1] = t1.xy;
-          mbv[i][j][c+2] = t1.xz;
-          mbv[i][j][c+3] = t1.yx;
-          mbv[i][j][c+4] = t1.yy;
-          mbv[i][j][c+5] = t1.yz;
-          mbv[i][j][c+6] = t1.zx;
-          mbv[i][j][c+7] = t1.zy;
-          mbv[i][j][c+8] = t1.zz;
-        }
-
-        // Map symmetric tensors.
-        pos = 0;
-        while (field_metadata_next_symtensor2(md, &pos, &c))
-        {
-          symtensor2_t t = {bv[i][j][c], bv[i][j][c+1], bv[i][j][c+2],
-                                         bv[i][j][c+3], bv[i][j][c+4],
-                                                        bv[i][j][c+5]}, t1;
-          coord_mapping_map_symtensor2(map, &x, &t, &t1);
-          mbv[i][j][c]   = t1.xx;
-          mbv[i][j][c+1] = t1.xy;
-          mbv[i][j][c+2] = t1.xz;
-          mbv[i][j][c+3] = t1.yy;
-          mbv[i][j][c+4] = t1.yz;
-          mbv[i][j][c+5] = t1.zz;
-        }
-      }
-    }
-  }
-  release_ref(map);
 }
 
 // This helper performs the given number of counterclockwise rotations
@@ -373,16 +211,11 @@ static void ibc_started_boundary_update(void* context,
   char bvalues[boundary_size];
   unimesh_patch_copy_bvalues_to_buffer(patch, boundary, bvalues);
 
-  // Apply the inverse coordinate mapping (this is the first operation
-  // in the diffeomorphism).
-  char invm_bvalues[boundary_size];
-  map_boundary_values(cxn, true, md, patch->centering, bvalues, invm_bvalues);
-
   // Now rotate the boundary values.
   char rot_bvalues[boundary_size];
-  rotate_boundary_values(cxn, md, patch->centering, invm_bvalues, rot_bvalues);
+  rotate_boundary_values(cxn, md, patch->centering, bvalues, rot_bvalues);
 
-  // Finally copy the boundary values to our blob buffer.
+  // Copy the rotated boundary values to our blob buffer.
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_in(ibc->ex[c], b_index, rot_bvalues, buffer);
 }
@@ -464,13 +297,8 @@ static void ibc_about_to_finish_boundary_update(void* context,
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, bvalues);
 
-  // Now apply the coordinate mapping to these values (this is the last part
-  // of the diffeomorphism).
-  char m_bvalues[boundary_size];
-  map_boundary_values(cxn, false, md, patch->centering, bvalues, m_bvalues);
-
   // Copy the boundary values back into the patch.
-  unimesh_patch_copy_bvalues_from_buffer(patch, boundary, m_bvalues);
+  unimesh_patch_copy_bvalues_from_buffer(patch, boundary, bvalues);
 }
 
 //------------------------------------------------------------------------
@@ -512,12 +340,7 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
                                      int i2, int j2, int k2)
 {
   unimesh_t* block1 = blockmesh_block(bc->mesh, block1_index);
-  bbox_t* block1_domain = blockmesh_block_domain(bc->mesh, block1_index);
-  coord_mapping_t* block1_coords = blockmesh_block_coords(bc->mesh, block1_index);
-
   unimesh_t* block2 = blockmesh_block(bc->mesh, block2_index);
-  bbox_t* block2_domain = blockmesh_block_domain(bc->mesh, block2_index);
-  coord_mapping_t* block2_coords = blockmesh_block_coords(bc->mesh, block2_index);
 
   // Does block1 store patch (i1, j1, k1) locally? If not, we do nothing.
   if (!unimesh_has_patch(block1, i1, j1, k1))
@@ -535,11 +358,8 @@ void blockmesh_interblock_bc_connect(blockmesh_interblock_bc_t* bc,
 
   // Create a new connection and map it.
   int b_index = boundary_index(bc->mesh, block1, i1, j1, k1, block1_boundary);
-  cxn_t* cxn = cxn_new(bc,
-                       block1, block1_domain, block1_coords, block1_boundary,
-                       i1, j1, k1, rotation,
-                       block2, block2_domain, block2_coords, block2_boundary,
-                       i2, j2, k2);
+  cxn_t* cxn = cxn_new(bc, block1, block1_boundary, i1, j1, k1, rotation,
+                           block2, block2_boundary, i2, j2, k2);
   cxn_map_insert_with_v_dtor(bc->cxns, b_index, cxn, cxn_free);
 }
 
@@ -813,13 +633,9 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
 //------------------------------------------------------------------------
 
 cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
-               unimesh_t* block1, bbox_t* block1_domain,
-               coord_mapping_t* block1_coords,
-               unimesh_boundary_t block1_boundary, int i1, int j1, int k1,
-               int rotation,
-               unimesh_t* block2, bbox_t* block2_domain,
-               coord_mapping_t* block2_coords,
-               unimesh_boundary_t block2_boundary,
+               unimesh_t* block1, unimesh_boundary_t block1_boundary,
+               int i1, int j1, int k1, int rotation,
+               unimesh_t* block2, unimesh_boundary_t block2_boundary,
                int i2, int j2, int k2)
 {
   ASSERT(rotation >= 0);
@@ -829,8 +645,6 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
 
   // Metadata for the near end.
   cxn->block1 = block1;
-  cxn->domain1 = *block1_domain;
-  cxn->coords1 = block1_coords;
   cxn->boundary1 = block1_boundary;
   cxn->i1 = i1;
   cxn->j1 = j1;
@@ -843,8 +657,6 @@ cxn_t* cxn_new(blockmesh_interblock_bc_t* bc,
 
   // Metadata for the far end.
   cxn->block2 = block2;
-  cxn->domain2 = *block2_domain;
-  cxn->coords2 = block2_coords;
   cxn->boundary2 = block2_boundary;
   cxn->i2 = i2;
   cxn->j2 = j2;

@@ -36,10 +36,8 @@ struct blockmesh_t
   // Patch dimensions.
   int patch_nx, patch_ny, patch_nz;
 
-  // Blocks and coordinate mappings.
+  // Blocks.
   unimesh_array_t* blocks;
-  bbox_array_t* bboxes;
-  ptr_array_t* coords;
 
   // Inter-block boundary condition.
   blockmesh_interblock_bc_t* interblock_bc;
@@ -69,8 +67,6 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
   mesh->patch_ny = patch_ny;
   mesh->patch_nz = patch_nz;
   mesh->blocks = unimesh_array_new();
-  mesh->bboxes = bbox_array_new();
-  mesh->coords = ptr_array_new();
   mesh->interblock_bc = blockmesh_interblock_bc_new(mesh);
   mesh->started_connecting_blocks = false;
   mesh->finalized = false;
@@ -79,16 +75,12 @@ blockmesh_t* blockmesh_new(MPI_Comm comm,
 }
 
 int blockmesh_add_block(blockmesh_t* mesh,
-                        bbox_t* block_domain,
-                        coord_mapping_t* block_coords,
                         int num_x_patches,
                         int num_y_patches,
                         int num_z_patches)
 {
   ASSERT(!mesh->finalized);
   ASSERT(block_domain != NULL);
-  ASSERT(block_coords != NULL);
-  ASSERT(coord_mapping_inverse(block_coords) != NULL);
   ASSERT(num_x_patches > 0);
   ASSERT(num_y_patches > 0);
   ASSERT(num_z_patches > 0);
@@ -104,8 +96,6 @@ int blockmesh_add_block(blockmesh_t* mesh,
                                           false, false, false);
   int index = (int)mesh->blocks->size;
   unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
-  bbox_array_append(mesh->bboxes, *block_domain);
-  ptr_array_append_with_dtor(mesh->coords, block_coords, release_ref);
   return index;
 }
 
@@ -909,8 +899,6 @@ bool blockmesh_is_finalized(blockmesh_t* mesh)
 void blockmesh_free(blockmesh_t* mesh)
 {
   blockmesh_interblock_bc_free(mesh->interblock_bc);
-  ptr_array_free(mesh->coords);
-  bbox_array_free(mesh->bboxes);
   unimesh_array_free(mesh->blocks);
   polymec_free(mesh);
 }
@@ -942,16 +930,6 @@ int blockmesh_block_index(blockmesh_t* mesh, unimesh_t* block)
   return -1;
 }
 
-bbox_t* blockmesh_block_domain(blockmesh_t* mesh, int index)
-{
-  return &(mesh->bboxes->data[index]);
-}
-
-coord_mapping_t* blockmesh_block_coords(blockmesh_t* mesh, int index)
-{
-  return mesh->coords->data[index];
-}
-
 void blockmesh_get_patch_size(blockmesh_t* mesh, int* nx, int* ny, int* nz)
 {
   *nx = mesh->patch_nx;
@@ -974,18 +952,12 @@ bool blockmesh_block_is_connected(blockmesh_t* mesh,
 
 bool blockmesh_next_block(blockmesh_t* mesh,
                           int* pos,
-                          unimesh_t** block,
-                          bbox_t* block_domain,
-                          coord_mapping_t** block_coords)
+                          unimesh_t** block)
 {
   ASSERT(mesh->finalized);
   if (*pos < (int)mesh->blocks->size)
   {
     *block = mesh->blocks->data[*pos];
-    if (block_domain != NULL)
-      *block_domain = mesh->bboxes->data[*pos];
-    if (block_coords != NULL)
-      *block_coords = (coord_mapping_t*)(mesh->coords->data[*pos]);
     ++(*pos);
     return true;
   }
@@ -1051,7 +1023,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
   // Now fill in the edges.
   pos = 0;
-  while (blockmesh_next_block(mesh, &pos, &block, NULL, NULL))
+  while (blockmesh_next_block(mesh, &pos, &block))
   {
     int b = pos - 1;
     int npx, npy, npz;
@@ -1194,8 +1166,7 @@ static void redistribute_blockmesh(blockmesh_t** mesh,
     int npx, npy, npz;
     unimesh_get_extents(block, &npx, &npy, &npz);
     block_offsets[b+1] = block_offsets[b] + npx*npy*npz;
-    blockmesh_add_block(new_mesh, &old_mesh->bboxes->data[b],
-                        old_mesh->coords->data[b], npx, npy, npz);
+    blockmesh_add_block(new_mesh, npx, npy, npz);
   }
 
   // Insert patches as prescribed by the partition vector.
@@ -1239,9 +1210,9 @@ static void redistribute_blockmesh_field(blockmesh_field_t** field,
 
   // Create a new field from the old one.
   blockmesh_field_t* old_field = *field;
-  blockmesh_field_t* new_field = blockmesh_field_new(new_mesh,
-                                                     blockmesh_field_centering(old_field),
-                                                     blockmesh_field_num_components(old_field));
+  blockmesh_field_t* new_field =
+    blockmesh_field_new(new_mesh, blockmesh_field_centering(old_field),
+                                  blockmesh_field_num_components(old_field));
 
   // Copy all local patches from one field to the other.
   int num_blocks = (int)new_mesh->blocks->size;
@@ -1361,8 +1332,10 @@ void repartition_blockmesh(blockmesh_t** mesh,
   // Map the graph to the different domains, producing a partition vector.
   // We need the partition vector on all processes, so we scatter it
   // from rank 0.
-  log_debug("repartition_blockmesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
-  int64_t* partition = partition_graph(graph, old_mesh->comm, weights, imbalance_tol, true);
+  log_debug("repartition_blockmesh: Repartitioning mesh on %d subdomains.",
+            old_mesh->nproc);
+  int64_t* partition = partition_graph(graph, old_mesh->comm, weights,
+                                       imbalance_tol, true);
 
   // Redistribute the mesh.
   log_debug("repartition_blockmesh: Redistributing mesh.");
@@ -1375,7 +1348,10 @@ void repartition_blockmesh(blockmesh_t** mesh,
 
   // Redistribute the fields.
   if (num_fields > 0)
-    log_debug("repartition_blockmesh: Redistributing %d fields.", (int)num_fields);
+  {
+    log_debug("repartition_blockmesh: Redistributing %d fields.",
+              (int)num_fields);
+  }
   for (size_t f = 0; f < num_fields; ++f)
   {
     blockmesh_field_t* old_field = fields[f];

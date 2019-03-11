@@ -125,17 +125,11 @@ bool blockmesh_field_is_updating_boundaries(blockmesh_field_t* field);
 /// \param [inout] pos Stores the index of the next block in the field's mesh.
 ///                    Set *pos to 0 to reset the traversal.
 /// \param [out] block_field Stores the next single-block field in the field.
-/// \param [out] block_domain If not NULL, stores the bounding box representing
-///                           the logical domain of the next block.
-/// \param [out] block_coords If not NULL, stores the coordinate mapping for
-///                           the representing the next block.
 /// \returns True if the mesh contains another block, false if not.
 /// \memberof blockmesh_field
 bool blockmesh_field_next_block(blockmesh_field_t* field,
                                 int* pos,
-                                unimesh_field_t** block_field,
-                                bbox_t* block_domain,
-                                coord_mapping_t** block_coords);
+                                unimesh_field_t** block_field);
 
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
