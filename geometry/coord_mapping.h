@@ -147,14 +147,35 @@ void coord_mapping_set_inverse(coord_mapping_t* mapping,
                                coord_mapping_t* inverse);
 
 /// Returns the Jacobian determinant at the point x.
+/// \param [in] x The point at which the Jacobian determinant is computed.
 /// \memberof coord_mapping
 real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x);
 
 /// Computes the components of the (3 x 3) metric tensor at the point x,
 /// storing them in column-major order in G.
+/// \param [in] x The point at which the metric tensor is computed.
+/// \param [out] G Stores the components of the metric tensor.
 /// \memberof coord_mapping
-void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x,
+void coord_mapping_compute_metric(coord_mapping_t* mapping,
+                                  point_t* x,
                                   tensor2_t* G);
+
+typedef struct field_metadata_t field_metadata_t;
+
+/// Maps the components in a field at a single point to their representation
+/// in the mapped coordinates.
+/// \param [in] metadata The metadata for the field, which describes its
+///                      transformation rules.
+/// \param [in] x The point at which the field data is mapped.
+/// \param [in] field_data An array containing the components of a field at
+///                        the point x.
+/// \param [out] mapped_field_data Stores the mapped components of the field.
+/// \memberof coord_mapping
+void coord_mapping_map_field_data(coord_mapping_t* mapping,
+                                  field_metadata_t* metadata,
+                                  point_t* x,
+                                  real_t* field_data,
+                                  real_t* mapped_field_data);
 
 /// Creates a coord_mapping by composing two coord mappings
 /// (map <-- map1 o map2).

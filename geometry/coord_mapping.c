@@ -7,6 +7,7 @@
 
 #include "core/linear_algebra.h"
 #include "geometry/coord_mapping.h"
+#include "geometry/field_metadata.h"
 
 struct coord_mapping_t
 {
@@ -219,6 +220,65 @@ static void comp_jacobian(void* context, point_t* x, real_t J[3][3])
   real_t one = 1.0, zero = 0.0;
   rgemm(&no_trans, &no_trans, &three, &three, &three, &one, (real_t*)J1,
         &three, (real_t*)J2, &three, &zero, (real_t*)J, &three);
+}
+
+void coord_mapping_map_field_data(coord_mapping_t* mapping,
+                                  field_metadata_t* metadata,
+                                  point_t* x,
+                                  real_t* field_data,
+                                  real_t* mapped_field_data)
+{
+  int pos, c;
+
+  // Map scalars.
+  if (mapped_field_data != field_data)
+  {
+    while (field_metadata_next_scalar(metadata, &pos, &c))
+      mapped_field_data[c] = field_data[c];
+  }
+
+  // Map vectors.
+  while (field_metadata_next_vector(metadata, &pos, &c))
+  {
+    vector_t v = {field_data[c], field_data[c+1], field_data[c+2]}, v1;
+    coord_mapping_map_vector(mapping, x, &v, &v1);
+    mapped_field_data[c]   = v1.x;
+    mapped_field_data[c+1] = v1.y;
+    mapped_field_data[c+2] = v1.z;
+  }
+
+  // Map tensors.
+  while (field_metadata_next_tensor2(metadata, &pos, &c))
+  {
+    tensor2_t t = {field_data[c],   field_data[c+1], field_data[c+2],
+                   field_data[c+3], field_data[c+4], field_data[c+5],
+                   field_data[c+6], field_data[c+7], field_data[c+8]}, t1;
+    coord_mapping_map_tensor2(mapping, x, &t, &t1);
+    mapped_field_data[c]   = t1.xx;
+    mapped_field_data[c+1] = t1.xy;
+    mapped_field_data[c+2] = t1.xz;
+    mapped_field_data[c+3] = t1.yx;
+    mapped_field_data[c+4] = t1.yy;
+    mapped_field_data[c+5] = t1.yz;
+    mapped_field_data[c+6] = t1.zx;
+    mapped_field_data[c+7] = t1.zy;
+    mapped_field_data[c+8] = t1.zz;
+  }
+
+  // Map symmetric tensors.
+  while (field_metadata_next_symtensor2(metadata, &pos, &c))
+  {
+    symtensor2_t t = {field_data[c],   field_data[c+1], field_data[c+2],
+                                       field_data[c+3], field_data[c+4],
+                                                        field_data[c+5]}, t1;
+    coord_mapping_map_symtensor2(mapping, x, &t, &t1);
+    mapped_field_data[c]   = t1.xx;
+    mapped_field_data[c+1] = t1.xy;
+    mapped_field_data[c+2] = t1.xz;
+    mapped_field_data[c+3] = t1.yy;
+    mapped_field_data[c+4] = t1.yz;
+    mapped_field_data[c+5] = t1.zz;
+  }
 }
 
 coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1,

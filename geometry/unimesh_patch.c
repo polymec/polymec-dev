@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,7 +25,7 @@ size_t unimesh_patch_data_size(unimesh_centering_t centering,
     case UNIMESH_XFACE: num_data = nc * (nx+1) * ny * nz; break;
     case UNIMESH_YFACE: num_data = nc * nx * (ny+1) * nz; break;
     case UNIMESH_ZFACE: num_data = nc * nx * ny * (nz+1); break;
-    case UNIMESH_CELL:  num_data = nc * (nx+2) * (ny+2) * (nz+2); 
+    case UNIMESH_CELL:  num_data = nc * (nx+2) * (ny+2) * (nz+2);
   }
   return sizeof(real_t) * num_data;
 }
@@ -38,7 +38,7 @@ unimesh_patch_t* unimesh_patch_new(unimesh_centering_t centering,
   ASSERT(nz > 0);
   ASSERT(nc > 0);
 
-  // We allocate one big slab of memory for storage and lean on C99's 
+  // We allocate one big slab of memory for storage and lean on C99's
   // VLA semantics.
   size_t data_size = unimesh_patch_data_size(centering, nx, ny, nz, nc);
   size_t storage_size = sizeof(unimesh_patch_t) + data_size;
@@ -54,7 +54,7 @@ unimesh_patch_t* unimesh_patch_new(unimesh_centering_t centering,
 }
 
 unimesh_patch_t* unimesh_patch_with_buffer(unimesh_centering_t centering,
-                                           int nx, int ny, int nz, int nc, 
+                                           int nx, int ny, int nz, int nc,
                                            void* buffer)
 {
   ASSERT(nx > 0);
@@ -92,6 +92,15 @@ void unimesh_patch_copy(unimesh_patch_t* patch,
   size_t size = unimesh_patch_data_size(patch->centering, patch->nx, patch->ny, patch->nz, patch->nc);
   ASSERT(size == unimesh_patch_data_size(dest->centering, dest->nx, dest->ny, dest->nz, dest->nc));
   memcpy(dest->data, patch->data, size);
+}
+
+bool unimesh_patch_next_boundary_datum(unimesh_patch_t* patch,
+                                       unimesh_boundary_t boundary,
+                                       int* pos, int* i, int* j, int* k,
+                                       real_t** datum)
+{
+  POLYMEC_NOT_IMPLEMENTED;
+  return false;
 }
 
 void unimesh_patch_get_box(unimesh_patch_t* patch,
