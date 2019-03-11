@@ -208,6 +208,19 @@ bool unimesh_field_next_patch(unimesh_field_t* field, int* pos,
   return result;
 }
 
+bool unimesh_field_next_boundary_patch(unimesh_field_t* field,
+                                       unimesh_boundary_t boundary,
+                                       int* pos, int* i, int* j, int* k,
+                                       unimesh_patch_t** patch,
+                                       bbox_t* bbox)
+{
+  bool result = unimesh_next_boundary_patch(field->mesh, boundary, pos,
+                                            i, j, k, bbox);
+  if (result)
+    *patch = unimesh_field_patch(field, *i, *j, *k);
+  return result;
+}
+
 void* unimesh_field_buffer(unimesh_field_t* field)
 {
   return field->buffer;

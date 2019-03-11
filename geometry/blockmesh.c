@@ -80,7 +80,6 @@ int blockmesh_add_block(blockmesh_t* mesh,
                         int num_z_patches)
 {
   ASSERT(!mesh->finalized);
-  ASSERT(block_domain != NULL);
   ASSERT(num_x_patches > 0);
   ASSERT(num_y_patches > 0);
   ASSERT(num_z_patches > 0);
@@ -952,11 +951,13 @@ bool blockmesh_block_is_connected(blockmesh_t* mesh,
 
 bool blockmesh_next_block(blockmesh_t* mesh,
                           int* pos,
+                          int* block_index,
                           unimesh_t** block)
 {
   ASSERT(mesh->finalized);
   if (*pos < (int)mesh->blocks->size)
   {
+    *block_index = *pos;
     *block = mesh->blocks->data[*pos];
     ++(*pos);
     return true;
@@ -976,9 +977,9 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
   int num_blocks = (int)mesh->blocks->size, num_patches = 0;
   int patch_offsets[num_blocks+1]; // patch offsets by block
   patch_offsets[0] = 0;
-  int pos = 0;
+  int pos = 0, b_index;
   unimesh_t* block;
-  while (blockmesh_next_block(mesh, &pos, &block, NULL, NULL))
+  while (blockmesh_next_block(mesh, &pos, &b_index, &block))
   {
     int npx, npy, npz;
     unimesh_get_extents(block, &npx, &npy, &npz);
@@ -989,7 +990,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
   // Allocate storage for graph edges (patch boundaries) in the graph.
   pos = 0;
-  while (blockmesh_next_block(mesh, &pos, &block, NULL, NULL))
+  while (blockmesh_next_block(mesh, &pos, &b_index, &block))
   {
     int b = pos - 1;
     int npx, npy, npz;
@@ -1023,7 +1024,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
   // Now fill in the edges.
   pos = 0;
-  while (blockmesh_next_block(mesh, &pos, &block))
+  while (blockmesh_next_block(mesh, &pos, &b_index, &block))
   {
     int b = pos - 1;
     int npx, npy, npz;

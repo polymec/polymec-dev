@@ -184,6 +184,23 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
                         int* i, int* j, int* k,
                         bbox_t* bbox);
 
+/// Traverses the locally-stored patches adjacent to the given boundary in the
+/// mesh, returning true and the next (i, j, k) triple if the traversal is
+/// incomplete, false otherwise.
+/// The traversal proceeds in lexicographic order through the triples of
+/// locally-stored patches. Set *pos to zero to reset the traversal.
+/// \param [in] boundary The boundary along which patches are sought.
+/// \param [inout] pos Controls the traversal. Set to 0 to reset.
+/// \param [out] i The i index of the next patch in the traversal.
+/// \param [out] j The j index of the next patch in the traversal.
+/// \param [out] k The k index of the next patch in the traversal.
+/// \param [inout] bbox If non-NULL, bbox's x1, x2, y1, y2, z1, z2 fields store
+///                the coordinates of the patch's extent (excluding ghost cells).
+/// \memberof unimesh
+bool unimesh_next_boundary_patch(unimesh_t* mesh, unimesh_boundary_t boundary,
+                                 int* pos, int* i, int* j, int* k,
+                                 bbox_t* bbox);
+
 /// Returns true if the mesh stores the patch at (i, j, k) on the local process,
 /// false if not.
 /// \memberof unimesh

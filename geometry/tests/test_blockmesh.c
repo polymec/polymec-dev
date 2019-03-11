@@ -10,13 +10,11 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
+
 #include "core/tuple.h"
 #include "geometry/blockmesh.h"
 
-extern blockmesh_t* create_cubed_sphere(MPI_Comm comm,
-                                        int block_nxy, int block_nz,
-                                        int patch_nxy, int patch_nz,
-                                        real_t R1, real_t R2);
+#include "geometry/tests/create_cubed_sphere.h"
 
 static void test_serial_ctor(void** state)
 {
@@ -54,15 +52,10 @@ static void test_next_block(void** state)
 {
   blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
                                           2, 2, 10, 10, 0.9, 1.0);
-  int pos = 0, b = 0;
+  int pos = 0, block_index;
   unimesh_t* block;
-  bbox_t domain;
-  coord_mapping_t* coords;
-  while (blockmesh_next_block(mesh, &pos, &block, &domain, &coords))
-  {
-    assert_true(block == blockmesh_block(mesh, b));
-    ++b;
-  }
+  while (blockmesh_next_block(mesh, &pos, &block_index, &block))
+    assert_true(block == blockmesh_block(mesh, block_index));
   blockmesh_free(mesh);
 }
 

@@ -162,10 +162,11 @@ bool blockmesh_field_is_updating_boundaries(blockmesh_field_t* field)
 
 bool blockmesh_field_next_block(blockmesh_field_t* field,
                                 int* pos,
+                                int* block_index,
                                 unimesh_field_t** block_field)
 {
   unimesh_t* block;
-  bool result = blockmesh_next_block(field->mesh, pos, &block);
+  bool result = blockmesh_next_block(field->mesh, pos, block_index, &block);
   if (result)
     *block_field = field->fields->data[*pos-1];
   return result;

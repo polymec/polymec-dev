@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,7 +19,7 @@ static unimesh_t* periodic_mesh(MPI_Comm comm)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
                  .y1 = 0.0, .y2 = 1.0,
                  .z1 = 0.0, .z2 = 1.0};
-  return unimesh_new(comm, &bbox, 
+  return unimesh_new(comm, &bbox,
                      4, 4, 4, 4, 8, 16,
                      true, true, true);
 }
@@ -29,7 +29,7 @@ static unimesh_t* nonperiodic_mesh(MPI_Comm comm)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
                  .y1 = 0.0, .y2 = 1.0,
                  .z1 = 0.0, .z2 = 1.0};
-  return unimesh_new(comm, &bbox, 
+  return unimesh_new(comm, &bbox,
                      4, 4, 4, 4, 8, 16,
                      false, false, false);
 }
@@ -42,7 +42,7 @@ static void set_up_bcs_if_needed(unimesh_field_t* field)
   bool x_periodic, y_periodic, z_periodic;
   unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
 
-  // If the mesh isn't periodic, we set up zero boundary conditions on 
+  // If the mesh isn't periodic, we set up zero boundary conditions on
   // the field at the boundaries of the mesh.
   real_t zeros[3] = {0.0, 0.0, 0.0};
   unimesh_patch_bc_t* zero_bc = constant_unimesh_patch_bc_new(mesh, zeros, 3);
@@ -131,7 +131,7 @@ static void test_cell_field(void** state, unimesh_t* mesh)
     }
 
     // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
+    int pi_m = (pi > 0) ? pi - 1
                         : x_periodic ? npx-1 : 0;
     int pi_p = (pi < npx-1) ? pi + 1 : 0;
     for (int j = 1; j <= patch->ny; ++j)
@@ -144,7 +144,7 @@ static void test_cell_field(void** state, unimesh_t* mesh)
     }
 
     // y boundaries.
-    int pj_m = (pj > 0) ? pj - 1 
+    int pj_m = (pj > 0) ? pj - 1
                         : y_periodic ? npy-1 : 0;
     int pj_p = (pj < npy-1) ? pj + 1 : 0;
     for (int i = 1; i <= patch->nx; ++i)
@@ -157,7 +157,7 @@ static void test_cell_field(void** state, unimesh_t* mesh)
     }
 
     // z boundaries.
-    int pk_m = (pk > 0) ? pk - 1 
+    int pk_m = (pk > 0) ? pk - 1
                         : z_periodic ? npz-1 : 0;
     int pk_p = (pk < npz-1) ? pk + 1 : 0;
     for (int i = 1; i <= patch->nx; ++i)
@@ -286,9 +286,9 @@ static void test_face_fields(void** state, unimesh_t* mesh)
     }
 
     // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
+    int pi_m = (pi > 0) ? pi - 1
                         : x_periodic ? npx-1 : 0;
-    int pi_p = (pi < npx-1) ? pi 
+    int pi_p = (pi < npx-1) ? pi
                             : x_periodic ? pi : 0;
     for (int j = 1; j < patch->ny-1; ++j)
     {
@@ -299,7 +299,7 @@ static void test_face_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // y boundaries 
+    // y boundaries
     for (int i = 1; i < patch->nx; ++i)
     {
       for (int k = 1; k < patch->nz-1; ++k)
@@ -309,7 +309,7 @@ static void test_face_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // z boundaries 
+    // z boundaries
     for (int i = 1; i < patch->nx; ++i)
     {
       for (int j = 1; j < patch->ny-1; ++j)
@@ -350,10 +350,10 @@ static void test_face_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
+    // y boundaries
+    int pj_m = (pj > 0) ? pj - 1
                         : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
+    int pj_p = (pj < npy-1) ? pj
                             : y_periodic ? pj : 0;
     for (int i = 1; i < patch->nx-1; ++i)
     {
@@ -364,7 +364,7 @@ static void test_face_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // z boundaries 
+    // z boundaries
     for (int i = 1; i < patch->nx-1; ++i)
     {
       for (int j = 1; j < patch->ny; ++j)
@@ -405,7 +405,7 @@ static void test_face_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // y boundaries 
+    // y boundaries
     for (int i = 1; i < patch->nx-1; ++i)
     {
       for (int k = 1; k < patch->nz; ++k)
@@ -415,10 +415,10 @@ static void test_face_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
+    // z boundaries
+    int pk_m = (pk > 0) ? pk - 1
                         : z_periodic ? npz-1 : 0;
-    int pk_p = (pk < npz-1) ? pk 
+    int pk_p = (pk < npz-1) ? pk
                             : z_periodic ? pk : 0;
     for (int i = 1; i < patch->nx-1; ++i)
     {
@@ -556,10 +556,10 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
+    // y boundaries
+    int pj_m = (pj > 0) ? pj - 1
                         : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
+    int pj_p = (pj < npy-1) ? pj
                             : y_periodic ? pj : 0;
     for (int i = 1; i < patch->nx-1; ++i)
     {
@@ -570,10 +570,10 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
+    // z boundaries
+    int pk_m = (pk > 0) ? pk - 1
                         : z_periodic ? npz - 1 : 0;
-    int pk_p = (pk < npz-1) ? pk  
+    int pk_p = (pk < npz-1) ? pk
                             : z_periodic ? pk : 0;
     for (int i = 1; i < patch->nx-1; ++i)
     {
@@ -605,9 +605,9 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
     }
 
     // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
+    int pi_m = (pi > 0) ? pi - 1
                         : x_periodic ? npx-1 : 0;
-    int pi_p = (pi < npx-1) ? pi 
+    int pi_p = (pi < npx-1) ? pi
                             : x_periodic ? pi : 0;
     for (int j = 1; j < patch->ny-1; ++j)
     {
@@ -618,7 +618,7 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
       }
     }
 
-    // y boundaries 
+    // y boundaries
     for (int i = 1; i < patch->nx; ++i)
     {
       for (int k = 1; k < patch->nz; ++k)
@@ -632,10 +632,10 @@ log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1],
       }
     }
 
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
+    // z boundaries
+    int pk_m = (pk > 0) ? pk - 1
                         : z_periodic ? npz - 1 : 0;
-    int pk_p = (pk < npz-1) ? pk  
+    int pk_p = (pk < npz-1) ? pk
                             : z_periodic ? pk : 0;
     for (int i = 1; i < patch->nx; ++i)
     {
@@ -667,9 +667,9 @@ log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1],
     }
 
     // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
+    int pi_m = (pi > 0) ? pi - 1
                         : x_periodic ? npx - 1 : 0;
-    int pi_p = (pi < npx-1) ? pi  
+    int pi_p = (pi < npx-1) ? pi
                             : x_periodic ? pi : 0;
     for (int j = 1; j < patch->ny; ++j)
     {
@@ -680,10 +680,10 @@ log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1],
       }
     }
 
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
+    // y boundaries
+    int pj_m = (pj > 0) ? pj - 1
                         : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
+    int pj_p = (pj < npy-1) ? pj
                             : y_periodic ? pj : 0;
     for (int i = 1; i < patch->nx; ++i)
     {
@@ -694,7 +694,7 @@ log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1],
       }
     }
 
-    // z boundaries 
+    // z boundaries
     for (int i = 1; i < patch->nx; ++i)
     {
       for (int j = 1; j < patch->ny; ++j)
@@ -772,9 +772,9 @@ static void test_node_field(void** state, unimesh_t* mesh)
     }
 
     // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
+    int pi_m = (pi > 0) ? pi - 1
                         : x_periodic ? npx-1 : 0;
-    int pi_p = (pi < npx-1) ? pi 
+    int pi_p = (pi < npx-1) ? pi
                             : x_periodic ? pi : 0;
     for (int j = 1; j < patch->ny; ++j)
     {
@@ -785,10 +785,10 @@ static void test_node_field(void** state, unimesh_t* mesh)
       }
     }
 
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
+    // y boundaries
+    int pj_m = (pj > 0) ? pj - 1
                         : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
+    int pj_p = (pj < npy-1) ? pj
                             : y_periodic ? pj : 0;
     for (int i = 1; i < patch->nx; ++i)
     {
@@ -799,10 +799,10 @@ static void test_node_field(void** state, unimesh_t* mesh)
       }
     }
 
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
+    // z boundaries
+    int pk_m = (pk > 0) ? pk - 1
                         : z_periodic ? npz-1 : 0;
-    int pk_p = (pk < npz-1) ? pk 
+    int pk_p = (pk < npz-1) ? pk
                             : z_periodic ? pk : 0;
     for (int i = 1; i < patch->nx; ++i)
     {
@@ -918,10 +918,10 @@ static void test_parallel_nonperiodic_node_field(void** state)
   test_node_field(state, mesh);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_serial_periodic_cell_field),
     cmocka_unit_test(test_serial_periodic_face_fields),

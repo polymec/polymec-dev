@@ -10,13 +10,21 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
+
 #include "core/options.h"
 #include "geometry/unimesh_field.h"
 #include "geometry/blockmesh_field.h"
 
+#include "geometry/tests/create_cubed_sphere.h"
+
 // These tests are based on the solid body rotation test described in
 // Nair and Jablonowski, "Moving Vortices on the Sphere: a Test Case for
 // Horizontal Advection Problems", Mon. Wea. Rev. (2007).
+
+// The equiangular domain.
+static bbox_t eq_domain = {.x1 = -0.25*M_PI, .x2 = 0.25*M_PI,
+                           .y1 = -0.25*M_PI, .y2 = 0.25*M_PI,
+                           .z1 = 0.0, .z2 = 1.0};
 
 // Horizontal solid body rotation velocity (u, v) as functions of lambda,
 // theta.
@@ -54,21 +62,21 @@ static sp_func_t* sbr_new(real_t u0, real_t alpha)
                      SP_FUNC_HETEROGENEOUS, 2);
 }
 
-static void initialize_field(sp_func_t* func, blockmesh_field_t* field)
+static void initialize_field(sp_func_t* func,
+                             coord_mapping_t* coord_mappings[6],
+                             blockmesh_field_t* field)
 {
   unimesh_centering_t centering = blockmesh_field_centering(field);
 
   // Traverse the blocks in the mesh and apply the function to our
   // underyling unimesh_fields.
-  int pos = 0;
+  int pos = 0, bindex;
   unimesh_field_t* bfield;
-  bbox_t domain;
-  coord_mapping_t* coords;
-  while (blockmesh_field_next_block(field, &pos, &bfield, &domain, &coords))
+  while (blockmesh_field_next_block(field, &pos, &bindex, &bfield))
   {
-    real_t Lx = domain.x2 - domain.x1;
-    real_t Ly = domain.y2 - domain.y1;
-    real_t Lz = domain.z2 - domain.z1;
+    real_t Lx = eq_domain.x2 - eq_domain.x1;
+    real_t Ly = eq_domain.y2 - eq_domain.y1;
+    real_t Lz = eq_domain.z2 - eq_domain.z1;
 
     // Loop through the patches in this block.
     int pos1 = 0, i, j, k;
@@ -79,12 +87,13 @@ static void initialize_field(sp_func_t* func, blockmesh_field_t* field)
       // Our logic here depends on our centering. In all cases, we construct
       // logical coordinates based on the domain of the block, and then
       // we map those coordinates to those of the block.
-      bbox_t D = {.x1 = domain.x1 + bbox.x1 * Lx,
-                  .x2 = domain.x1 + bbox.x2 * Lx,
-                  .y1 = domain.y1 + bbox.y1 * Ly,
-                  .y2 = domain.y1 + bbox.y2 * Ly,
-                  .z1 = domain.z1 + bbox.z1 * Lz,
-                  .z2 = domain.z1 + bbox.z2 * Lz};
+      bbox_t D = {.x1 = eq_domain.x1 + bbox.x1 * Lx,
+                  .x2 = eq_domain.x1 + bbox.x2 * Lx,
+                  .y1 = eq_domain.y1 + bbox.y1 * Ly,
+                  .y2 = eq_domain.y1 + bbox.y2 * Ly,
+                  .z1 = eq_domain.z1 + bbox.z1 * Lz,
+                  .z2 = eq_domain.z1 + bbox.z2 * Lz};
+      coord_mapping_t* coords = coord_mappings[bindex];
       real_t dx = (D.x2 - D.x1) / patch->nx;
       real_t dy = (D.y2 - D.y1) / patch->ny;
       real_t dz = (D.z2 - D.z1) / patch->nz;
@@ -269,39 +278,76 @@ static void initialize_field(sp_func_t* func, blockmesh_field_t* field)
   }
 }
 
-extern blockmesh_t* create_cubed_sphere(MPI_Comm comm,
-                                        int block_nxy, int block_nz,
-                                        int patch_nxy, int patch_nz,
-                                        real_t R1, real_t R2);
-
-static blockmesh_t* test_mesh(MPI_Comm comm)
+static void create_test_mesh(MPI_Comm comm, blockmesh_t** mesh,
+                             coord_mapping_t* coord_mappings[6])
 {
-  return create_cubed_sphere(MPI_COMM_SELF, 2, 2, 10, 10, 0.9, 1.0);
+  real_t R1 = 0.9, R2 = 1.0;
+  *mesh = create_cubed_sphere(MPI_COMM_SELF, 2, 2, 10, 10, R1, R2);
+  for (int b = 0; b < 4; ++b)
+    coord_mappings[b] = cubed_sphere_equator_block_coords(b, R1, R2);
+  coord_mappings[4] = cubed_sphere_north_block_coords(R1, R2);
+  coord_mappings[5] = cubed_sphere_south_block_coords(R1, R2);
 }
 
-static void test_cell_field(void** state, blockmesh_t* mesh)
+static void test_cell_field(void** state,
+                            blockmesh_t* mesh,
+                            coord_mapping_t* coord_mappings[6])
 {
   sp_func_t* sbr = sbr_new(1.0, 0.0);
   blockmesh_field_t* f = blockmesh_field_new(mesh, UNIMESH_CELL, 2);
-  initialize_field(sbr, f);
+  initialize_field(sbr, coord_mappings, f);
 
   repartition_blockmesh(&mesh, NULL, 0.05, &f, 1);
+
+  int pos = 0, bindex;
+  unimesh_field_t* bfield;
+  while (blockmesh_field_next_block(f, &pos, &bindex, &bfield))
+  {
+    for (int b = 0; b < 6; ++b)
+    {
+      unimesh_boundary_t boundary = (unimesh_boundary_t)b;
+      int pos1 = 0, i, j, k;
+      unimesh_patch_t* patch;
+      while (unimesh_field_next_boundary_patch(bfield, boundary, &pos1,
+                                               &i, &j, &k, &patch, NULL))
+      {
+      }
+    }
+  }
   blockmesh_field_update_boundaries(f, 0.0);
+  pos = 0;
+  while (blockmesh_field_next_block(f, &pos, &bindex, &bfield))
+  {
+    for (int b = 0; b < 6; ++b)
+    {
+      unimesh_boundary_t boundary = (unimesh_boundary_t)b;
+      int pos1 = 0, i, j, k;
+      unimesh_patch_t* patch;
+      while (unimesh_field_next_boundary_patch(bfield, boundary, &pos1,
+                                               &i, &j, &k, &patch, NULL))
+      {
+      }
+    }
+  }
 
   blockmesh_field_free(f);
   blockmesh_free(mesh);
   release_ref(sbr);
+  for (int b = 0; b < 6; ++b)
+    release_ref(coord_mappings[b]);
 }
 
-static void test_face_fields(void** state, blockmesh_t* mesh)
+static void test_face_fields(void** state,
+                             blockmesh_t* mesh,
+                             coord_mapping_t* coord_mappings[6])
 {
   sp_func_t* sbr = sbr_new(1.0, 0.0);
   blockmesh_field_t* fx = blockmesh_field_new(mesh, UNIMESH_XFACE, 2);
   blockmesh_field_t* fy = blockmesh_field_new(mesh, UNIMESH_YFACE, 2);
   blockmesh_field_t* fz = blockmesh_field_new(mesh, UNIMESH_ZFACE, 2);
-  initialize_field(sbr, fx);
-  initialize_field(sbr, fy);
-  initialize_field(sbr, fz);
+  initialize_field(sbr, coord_mappings, fx);
+  initialize_field(sbr, coord_mappings, fy);
+  initialize_field(sbr, coord_mappings, fz);
 
   blockmesh_field_t* fields[3] = {fx, fy, fz};
   repartition_blockmesh(&mesh, NULL, 0.05, fields, 3);
@@ -314,17 +360,21 @@ static void test_face_fields(void** state, blockmesh_t* mesh)
   blockmesh_field_free(fz);
   blockmesh_free(mesh);
   release_ref(sbr);
+  for (int b = 0; b < 6; ++b)
+    release_ref(coord_mappings[b]);
 }
 
-static void test_edge_fields(void** state, blockmesh_t* mesh)
+static void test_edge_fields(void** state,
+                             blockmesh_t* mesh,
+                             coord_mapping_t* coord_mappings[6])
 {
   sp_func_t* sbr = sbr_new(1.0, 0.0);
   blockmesh_field_t* fx = blockmesh_field_new(mesh, UNIMESH_XEDGE, 2);
   blockmesh_field_t* fy = blockmesh_field_new(mesh, UNIMESH_YEDGE, 2);
   blockmesh_field_t* fz = blockmesh_field_new(mesh, UNIMESH_ZEDGE, 2);
-  initialize_field(sbr, fx);
-  initialize_field(sbr, fy);
-  initialize_field(sbr, fz);
+  initialize_field(sbr, coord_mappings, fx);
+  initialize_field(sbr, coord_mappings, fy);
+  initialize_field(sbr, coord_mappings, fz);
 
   blockmesh_field_t* fields[3] = {fx, fy, fz};
   repartition_blockmesh(&mesh, NULL, 0.05, fields, 3);
@@ -336,67 +386,91 @@ static void test_edge_fields(void** state, blockmesh_t* mesh)
   blockmesh_field_free(fy);
   blockmesh_field_free(fz);
   blockmesh_free(mesh);
+  release_ref(sbr);
+  for (int b = 0; b < 6; ++b)
+    release_ref(coord_mappings[b]);
 }
 
-static void test_node_field(void** state, blockmesh_t* mesh)
+static void test_node_field(void** state,
+                            blockmesh_t* mesh,
+                            coord_mapping_t* coord_mappings[6])
 {
   sp_func_t* sbr = sbr_new(1.0, 0.0);
   blockmesh_field_t* f = blockmesh_field_new(mesh, UNIMESH_NODE, 2);
-  initialize_field(sbr, f);
+  initialize_field(sbr, coord_mappings, f);
 
   repartition_blockmesh(&mesh, NULL, 0.05, &f, 1);
   blockmesh_field_update_boundaries(f, 0.0);
 
   blockmesh_field_free(f);
   blockmesh_free(mesh);
+  release_ref(sbr);
+  for (int b = 0; b < 6; ++b)
+    release_ref(coord_mappings[b]);
 }
 
 static void test_serial_cell_field(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_SELF);
-  test_cell_field(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_SELF, &mesh, coord_mappings);
+  test_cell_field(state, mesh, coord_mappings);
 }
 
 static void test_serial_face_fields(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_SELF);
-  test_face_fields(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_SELF, &mesh, coord_mappings);
+  test_face_fields(state, mesh, coord_mappings);
 }
 
 static void test_serial_edge_fields(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_SELF);
-  test_edge_fields(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_SELF, &mesh, coord_mappings);
+  test_edge_fields(state, mesh, coord_mappings);
 }
 
 static void test_serial_node_field(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_SELF);
-  test_node_field(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_SELF, &mesh, coord_mappings);
+  test_node_field(state, mesh, coord_mappings);
 }
 
 static void test_parallel_cell_field(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_WORLD);
-  test_cell_field(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_WORLD, &mesh, coord_mappings);
+  test_cell_field(state, mesh, coord_mappings);
 }
 
 static void test_parallel_face_fields(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_WORLD);
-  test_face_fields(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_WORLD, &mesh, coord_mappings);
+  test_face_fields(state, mesh, coord_mappings);
 }
 
 static void test_parallel_edge_fields(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_WORLD);
-  test_edge_fields(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_WORLD, &mesh, coord_mappings);
+  test_edge_fields(state, mesh, coord_mappings);
 }
 
 static void test_parallel_node_field(void** state)
 {
-  blockmesh_t* mesh = test_mesh(MPI_COMM_WORLD);
-  test_node_field(state, mesh);
+  blockmesh_t* mesh;
+  coord_mapping_t* coord_mappings[6];
+  create_test_mesh(MPI_COMM_WORLD, &mesh, coord_mappings);
+  test_node_field(state, mesh, coord_mappings);
 }
 
 int main(int argc, char* argv[])

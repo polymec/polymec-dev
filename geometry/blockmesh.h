@@ -198,10 +198,12 @@ bool blockmesh_block_is_connected(blockmesh_t* field,
 /// Allows the traversal of all blocks in the blockmesh.
 /// \param [inout] pos Stores the index of the next block in the mesh. Set
 ///                    *pos to 0 to reset the traversal.
+/// \param [out] block_index Stores the index of the next block in the mesh.
 /// \param [out] block Stores the next block in the mesh.
 /// \returns True if the mesh contains another block, false if not.
 /// \memberof blockmesh
-bool blockmesh_next_block(blockmesh_t* mesh, int* pos, unimesh_t** block);
+bool blockmesh_next_block(blockmesh_t* mesh, int* pos,
+                          int* block_index, unimesh_t** block);
 
 typedef struct blockmesh_field_t blockmesh_field_t;
 

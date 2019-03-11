@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/blockmesh.h"
+#include "geometry/tests/create_cubed_sphere.h"
 
 //------------------------------------------------------------------------
 // Coordinate mappings:
@@ -159,62 +159,6 @@ static coord_mapping_t* ll_to_eq(coord_mapping_t* eq_to_ll)
   return X;
 }
 
-static coord_mapping_t* create_equator_block_coords(int block_index,
-                                                    real_t R1,
-                                                    real_t R2)
-{
-  ASSERT((block_index >= 0) && (block_index <= 3));
-  ASSERT(R1 < R2);
-  equiangular_t* eq = polymec_malloc(sizeof(equiangular_t));
-  eq->block = block_index;
-  eq->R1 = R1;
-  eq->R2 = R2;
-  coord_mapping_vtable vtable = {.map_point = equatorial_eq_to_ll_map_point,
-                                 .jacobian = equatorial_eq_to_ll_J,
-                                 .dtor = polymec_free};
-  char block_name[129];
-  snprintf(block_name, 128, "equatorial block %d", block_index);
-  coord_mapping_t* X = coord_mapping_new(block_name, eq, vtable);
-
-  coord_mapping_t* Xinv = ll_to_eq(X);
-  coord_mapping_set_inverse(X, Xinv);
-  return X;
-}
-
-static coord_mapping_t* create_north_block_coords(real_t R1, real_t R2)
-{
-  ASSERT(R1 < R2);
-  equiangular_t* eq = polymec_malloc(sizeof(equiangular_t));
-  eq->block = 4;
-  eq->R1 = R1;
-  eq->R2 = R2;
-  coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
-                                 .jacobian = polar_eq_to_ll_J,
-                                 .dtor = polymec_free};
-  coord_mapping_t* X = coord_mapping_new("north block", eq, vtable);
-
-  coord_mapping_t* Xinv = ll_to_eq(X);
-  coord_mapping_set_inverse(X, Xinv);
-  return X;
-}
-
-static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
-{
-  ASSERT(R1 < R2);
-  equiangular_t* eq = polymec_malloc(sizeof(equiangular_t));
-  eq->block = 5;
-  eq->R1 = R1;
-  eq->R2 = R2;
-  coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
-                                 .jacobian = polar_eq_to_ll_J,
-                                 .dtor = polymec_free};
-  coord_mapping_t* X = coord_mapping_new("south block", eq, vtable);
-
-  coord_mapping_t* Xinv = ll_to_eq(X);
-  coord_mapping_set_inverse(X, Xinv);
-  return X;
-}
-
 //------------------------------------------------------------------------
 //                        End coordinate mappings
 //------------------------------------------------------------------------
@@ -229,32 +173,17 @@ static coord_mapping_t* create_south_block_coords(real_t R1, real_t R2)
 blockmesh_t* create_cubed_sphere(MPI_Comm comm,
                                  int block_nxy, int block_nz,
                                  int patch_nxy, int patch_nz,
-                                 real_t R1, real_t R2);
-blockmesh_t* create_cubed_sphere(MPI_Comm comm,
-                                 int block_nxy, int block_nz,
-                                 int patch_nxy, int patch_nz,
                                  real_t R1, real_t R2)
 {
   blockmesh_t* mesh = blockmesh_new(comm, patch_nxy, patch_nxy, patch_nz);
 
-  // We use equiangular coordinates, which span [-pi/4, pi/4] in the
-  // first two coordinates.
-  bbox_t domain = {.x1 = -0.25 * M_PI, .x2 = 0.25 * M_PI,
-                   .y1 = -0.25 * M_PI, .y2 = 0.25 * M_PI,
-                   .z1 = 0.0, .z2 = 1.0};
-
   // Add the four equatorial blocks.
   for (int b = 0; b < 4; ++b)
-  {
-    blockmesh_add_block(mesh, &domain, create_equator_block_coords(b, R1, R2),
-                        block_nxy, block_nxy, block_nz);
-  }
+    blockmesh_add_block(mesh, block_nxy, block_nxy, block_nz);
 
   // Add the polar blocks.
-  blockmesh_add_block(mesh, &domain, create_north_block_coords(R1, R2),
-                      block_nxy, block_nxy, block_nz);
-  blockmesh_add_block(mesh, &domain, create_south_block_coords(R1, R2),
-                      block_nxy, block_nxy, block_nz);
+  blockmesh_add_block(mesh, block_nxy, block_nxy, block_nz);
+  blockmesh_add_block(mesh, block_nxy, block_nxy, block_nz);
 
   // Connect the east-west boundaries of the equatorial blocks.
   int east[4] = {1, 5, 6, 2};
@@ -283,5 +212,61 @@ blockmesh_t* create_cubed_sphere(MPI_Comm comm,
   // Finalize the mesh and return it.
   blockmesh_finalize(mesh);
   return mesh;
+}
+
+coord_mapping_t* cubed_sphere_equator_block_coords(int block_index,
+                                                   real_t R1,
+                                                   real_t R2)
+{
+  ASSERT((block_index >= 0) && (block_index <= 3));
+  ASSERT(R1 < R2);
+  equiangular_t* eq = polymec_malloc(sizeof(equiangular_t));
+  eq->block = block_index;
+  eq->R1 = R1;
+  eq->R2 = R2;
+  coord_mapping_vtable vtable = {.map_point = equatorial_eq_to_ll_map_point,
+                                 .jacobian = equatorial_eq_to_ll_J,
+                                 .dtor = polymec_free};
+  char block_name[129];
+  snprintf(block_name, 128, "equatorial block %d", block_index);
+  coord_mapping_t* X = coord_mapping_new(block_name, eq, vtable);
+
+  coord_mapping_t* Xinv = ll_to_eq(X);
+  coord_mapping_set_inverse(X, Xinv);
+  return X;
+}
+
+coord_mapping_t* cubed_sphere_north_block_coords(real_t R1, real_t R2)
+{
+  ASSERT(R1 < R2);
+  equiangular_t* eq = polymec_malloc(sizeof(equiangular_t));
+  eq->block = 4;
+  eq->R1 = R1;
+  eq->R2 = R2;
+  coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
+                                 .jacobian = polar_eq_to_ll_J,
+                                 .dtor = polymec_free};
+  coord_mapping_t* X = coord_mapping_new("north block", eq, vtable);
+
+  coord_mapping_t* Xinv = ll_to_eq(X);
+  coord_mapping_set_inverse(X, Xinv);
+  return X;
+}
+
+coord_mapping_t* cubed_sphere_south_block_coords(real_t R1, real_t R2)
+{
+  ASSERT(R1 < R2);
+  equiangular_t* eq = polymec_malloc(sizeof(equiangular_t));
+  eq->block = 5;
+  eq->R1 = R1;
+  eq->R2 = R2;
+  coord_mapping_vtable vtable = {.map_point = polar_eq_to_ll_map_point,
+                                 .jacobian = polar_eq_to_ll_J,
+                                 .dtor = polymec_free};
+  coord_mapping_t* X = coord_mapping_new("south block", eq, vtable);
+
+  coord_mapping_t* Xinv = ll_to_eq(X);
+  coord_mapping_set_inverse(X, Xinv);
+  return X;
 }
 

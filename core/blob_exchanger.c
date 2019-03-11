@@ -672,7 +672,7 @@ bool blob_exchanger_copy_in(blob_exchanger_t* ex,
   int* offset_p = int_int_unordered_map_get(ex->send_blob_offsets, blob_index);
   if (offset_p != NULL)
   {
-    int offset = size_factor * (*offset_p);
+    size_t offset = size_factor * (*offset_p);
     size_t size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
     memcpy(&(((char*)buffer->storage)[offset]), blob, size*size_factor);
     return true;
@@ -691,7 +691,7 @@ bool blob_exchanger_copy_out(blob_exchanger_t* ex,
   int* offset_p = int_int_unordered_map_get(ex->recv_blob_offsets, blob_index);
   if (offset_p != NULL)
   {
-    int offset = size_factor * (*offset_p);
+    size_t offset = size_factor * (*offset_p);
     size_t size = *blob_exchanger_size_map_get(ex->blob_sizes, blob_index);
     memcpy(blob, &(((char*)buffer->storage)[offset]), size*size_factor);
     return true;

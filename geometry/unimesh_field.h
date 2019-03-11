@@ -88,15 +88,37 @@ unimesh_t* unimesh_field_mesh(unimesh_field_t* field);
 /// \memberof unimesh_field
 unimesh_patch_t* unimesh_field_patch(unimesh_field_t* field, int i, int j, int k);
 
-/// Traverses the field data, returning true if a patch was found and false if not.
-/// Set *pos to 0 to reset the traversal. patch is set to the patch found.
-/// Additionally, if bbox is non-NULL, its fields x1, x2, y1, y2, z1, z2 will
-/// be set to the coordinates of the patch's extent, including ghost cells.
+/// Traverses the field data, returning true if a locally-stored patch is found
+/// and false if not.
+/// \param [inout] pos Controls the traversal. Set to 0 to reset.
+/// \param [out] i Stores the logical x coordinate for the next patch.
+/// \param [out] j Stores the logical y coordinate for the next patch.
+/// \param [out] k Stores the logical z coordinate for the next patch.
+/// \param [out] patch Stores the next patch found.
+/// \param [out] bbox If non-NULL, stores the bounding box for the patch,
+///                   including ghost cells if applicable.
 /// \memberof unimesh_field
 bool unimesh_field_next_patch(unimesh_field_t* field, int* pos,
                               int* i, int* j, int* k,
                               unimesh_patch_t** patch,
                               bbox_t* bbox);
+
+/// Traverses the field data, returning true if a locally-stored patch is found
+/// adjacent to the given boundary, and false if not.
+/// \param [in] boundary The boundary on which locally-stored patches are sought.
+/// \param [inout] pos Controls the traversal. Set to 0 to reset.
+/// \param [out] i Stores the logical x coordinate for the next patch.
+/// \param [out] j Stores the logical y coordinate for the next patch.
+/// \param [out] k Stores the logical z coordinate for the next patch.
+/// \param [out] patch Stores the next patch found.
+/// \param [out] bbox If non-NULL, stores the bounding box for the patch,
+///                   including ghost cells if applicable.
+/// \memberof unimesh_field
+bool unimesh_field_next_boundary_patch(unimesh_field_t* field,
+                                       unimesh_boundary_t boundary,
+                                       int* pos, int* i, int* j, int* k,
+                                       unimesh_patch_t** patch,
+                                       bbox_t* bbox);
 
 /// Returns the pointer to the underlying patch data buffer.
 /// \memberof unimesh_field

@@ -506,6 +506,24 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
   return result;
 }
 
+bool unimesh_next_boundary_patch(unimesh_t* mesh, unimesh_boundary_t boundary,
+                                 int* pos, int* i, int* j, int* k,
+                                 bbox_t* bbox)
+{
+  bool result, on_boundary = false;
+  while ((result = unimesh_next_patch(mesh, pos, i, j, k, bbox)) &&
+         !on_boundary)
+  {
+    on_boundary = (((boundary == UNIMESH_X1_BOUNDARY) && (*i == 0)) ||
+                   ((boundary == UNIMESH_X2_BOUNDARY) && (*i == (mesh->npx-1))) ||
+                   ((boundary == UNIMESH_Y1_BOUNDARY) && (*j == 0)) ||
+                   ((boundary == UNIMESH_Y2_BOUNDARY) && (*j == (mesh->npy-1))) ||
+                   ((boundary == UNIMESH_Z1_BOUNDARY) && (*k == 0)) ||
+                   ((boundary == UNIMESH_Z2_BOUNDARY) && (*k == (mesh->npz-1))));
+  }
+  return result;
+}
+
 void unimesh_get_extents(unimesh_t* mesh, int* npx, int* npy, int* npz)
 {
   *npx = mesh->npx;
