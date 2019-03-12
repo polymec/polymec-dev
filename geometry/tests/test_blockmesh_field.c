@@ -314,69 +314,91 @@ static void map_boundary_values_(bool inverse_map,
         real_t dy = (D.y2 - D.y1) / patch->ny;
         real_t dz = (D.z2 - D.z1) / patch->nz;
 
-        int pos2 = 0, ii, jj, kk;
-        real_t* data;
-        while (unimesh_patch_next_boundary_datum(patch, boundary, &pos2,
-                                                 &ii, &jj, &kk, &data))
+        int i1, i2, j1, j2, k1, k2;
+        // FIXME: Set these bounds based on centering/boundary.
+        for (int ii = i1; ii < i2; ++ii)
         {
-          point_t eta;
-          if (centering == UNIMESH_CELL)
+          for (int jj = j1; jj < j2; ++jj)
           {
-            eta.x = D.x1 + (ii+0.5)*dx;
-            eta.y = D.y1 + (jj+0.5)*dy;
-            eta.z = D.z1 + (kk+0.5)*dz;
+            for (int kk = k1; kk < k2; ++kk)
+            {
+              real_t* data;
+              point_t eta;
+              if (centering == UNIMESH_CELL)
+              {
+                DECLARE_UNIMESH_CELL_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + (ii+0.5)*dx;
+                eta.y = D.y1 + (jj+0.5)*dy;
+                eta.z = D.z1 + (kk+0.5)*dz;
+              }
+              else if (centering == UNIMESH_XFACE)
+              {
+                DECLARE_UNIMESH_XFACE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + ii*dx;
+                eta.y = D.y1 + (jj+0.5)*dy;
+                eta.z = D.z1 + (kk+0.5)*dz;
+              }
+              else if (centering == UNIMESH_YFACE)
+              {
+                DECLARE_UNIMESH_YFACE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + (ii+0.5)*dx;
+                eta.y = D.y1 + jj*dy;
+                eta.z = D.z1 + (kk+0.5)*dz;
+              }
+              else if (centering == UNIMESH_ZFACE)
+              {
+                DECLARE_UNIMESH_ZFACE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + (ii+0.5)*dx;
+                eta.y = D.y1 + (jj+0.5)*dy;
+                eta.z = D.z1 + kk*dz;
+              }
+              else if (centering == UNIMESH_XEDGE)
+              {
+                DECLARE_UNIMESH_XEDGE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + (ii+0.5)*dx;
+                eta.y = D.y1 + jj*dy;
+                eta.z = D.z1 + kk*dz;
+              }
+              else if (centering == UNIMESH_YEDGE)
+              {
+                DECLARE_UNIMESH_YEDGE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + ii*dx;
+                eta.y = D.y1 + (jj+0.5)*dy;
+                eta.z = D.z1 + kk*dz;
+              }
+              else if (centering == UNIMESH_ZEDGE)
+              {
+                DECLARE_UNIMESH_ZEDGE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + ii*dx;
+                eta.y = D.y1 + jj*dy;
+                eta.z = D.z1 + (kk+0.5)*dz;
+              }
+              else if (centering == UNIMESH_NODE)
+              {
+                DECLARE_UNIMESH_NODE_ARRAY(f, patch);
+                data = f[ii][jj][kk];
+                eta.x = D.x1 + ii*dx;
+                eta.y = D.y1 + jj*dy;
+                eta.z = D.z1 + kk*dz;
+              }
+              point_t x, *X;
+              if (inverse_map)
+              {
+                coord_mapping_map_point(coords, &eta, &x);
+                X = &x;
+              }
+              else
+                X = &eta;
+              coord_mapping_map_field_data(coords, md, X, data, data);
+            }
           }
-          else if (centering == UNIMESH_XFACE)
-          {
-            eta.x = D.x1 + ii*dx;
-            eta.y = D.y1 + (jj+0.5)*dy;
-            eta.z = D.z1 + (kk+0.5)*dz;
-          }
-          else if (centering == UNIMESH_XFACE)
-          {
-            eta.x = D.x1 + (ii+0.5)*dx;
-            eta.y = D.y1 + jj*dy;
-            eta.z = D.z1 + (kk+0.5)*dz;
-          }
-          else if (centering == UNIMESH_XFACE)
-          {
-            eta.x = D.x1 + (ii+0.5)*dx;
-            eta.y = D.y1 + (jj+0.5)*dy;
-            eta.z = D.z1 + kk*dz;
-          }
-          else if (centering == UNIMESH_XEDGE)
-          {
-            eta.x = D.x1 + (ii+0.5)*dx;
-            eta.y = D.y1 + jj*dy;
-            eta.z = D.z1 + kk*dz;
-          }
-          else if (centering == UNIMESH_YEDGE)
-          {
-            eta.x = D.x1 + ii*dx;
-            eta.y = D.y1 + (jj+0.5)*dy;
-            eta.z = D.z1 + kk*dz;
-          }
-          else if (centering == UNIMESH_ZEDGE)
-          {
-            eta.x = D.x1 + ii*dx;
-            eta.y = D.y1 + jj*dy;
-            eta.z = D.z1 + (kk+0.5)*dz;
-          }
-          else if (centering == UNIMESH_NODE)
-          {
-            eta.x = D.x1 + ii*dx;
-            eta.y = D.y1 + jj*dy;
-            eta.z = D.z1 + kk*dz;
-          }
-          point_t x, *X;
-          if (inverse_map)
-          {
-            coord_mapping_map_point(coords, &eta, &x);
-            X = &x;
-          }
-          else
-            X = &eta;
-          coord_mapping_map_field_data(coords, md, X, data, data);
         }
       }
     }

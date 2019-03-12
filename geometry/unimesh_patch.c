@@ -89,18 +89,11 @@ void unimesh_patch_free(unimesh_patch_t* patch)
 void unimesh_patch_copy(unimesh_patch_t* patch,
                         unimesh_patch_t* dest)
 {
-  size_t size = unimesh_patch_data_size(patch->centering, patch->nx, patch->ny, patch->nz, patch->nc);
-  ASSERT(size == unimesh_patch_data_size(dest->centering, dest->nx, dest->ny, dest->nz, dest->nc));
+  size_t size = unimesh_patch_data_size(patch->centering, patch->nx, patch->ny,
+                                        patch->nz, patch->nc);
+  ASSERT(size == unimesh_patch_data_size(dest->centering, dest->nx, dest->ny,
+                                         dest->nz, dest->nc));
   memcpy(dest->data, patch->data, size);
-}
-
-bool unimesh_patch_next_boundary_datum(unimesh_patch_t* patch,
-                                       unimesh_boundary_t boundary,
-                                       int* pos, int* i, int* j, int* k,
-                                       real_t** datum)
-{
-  POLYMEC_NOT_IMPLEMENTED;
-  return false;
 }
 
 void unimesh_patch_get_box(unimesh_patch_t* patch,

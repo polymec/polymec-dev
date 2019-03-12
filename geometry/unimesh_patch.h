@@ -208,19 +208,6 @@ void unimesh_patch_fill_boundary(unimesh_patch_t* patch,
                                  unimesh_boundary_t boundary,
                                  real_t* data);
 
-/// Traverses the data on the given boundary of the unimesh patch.
-/// \param [in] boundary The boundary of the patch for which data is traversed.
-/// \param [inout] pos Controls the traversal. Set to 0 to reset.
-/// \param [out] i Stores the x index for the next datum in this patch.
-/// \param [out] j Stores the y index for the next datum in this patch.
-/// \param [out] k Stores the z index for the next datum in this patch.
-/// \param [out] datum Stores an internal pointer to the next datum.
-/// \memberof unimesh_patch
-bool unimesh_patch_next_boundary_datum(unimesh_patch_t* patch,
-                                       unimesh_boundary_t boundary,
-                                       int* pos, int* i, int* j, int* k,
-                                       real_t** datum);
-
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given unimesh patch.
