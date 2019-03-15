@@ -314,13 +314,13 @@ static void map_boundary_values_(bool inverse_map,
         real_t dy = (D.y2 - D.y1) / patch->ny;
         real_t dz = (D.z2 - D.z1) / patch->nz;
 
-        int i1, i2, j1, j2, k1, k2;
-        // FIXME: Set these bounds based on centering/boundary.
-        for (int ii = i1; ii < i2; ++ii)
+        unimesh_patch_box_t pbox;
+        unimesh_patch_get_boundary_box(patch, boundary, &pbox);
+        for (int ii = pbox.i1; ii < pbox.i2; ++ii)
         {
-          for (int jj = j1; jj < j2; ++jj)
+          for (int jj = pbox.j1; jj < pbox.j2; ++jj)
           {
-            for (int kk = k1; kk < k2; ++kk)
+            for (int kk = pbox.k1; kk < pbox.k2; ++kk)
             {
               real_t* data;
               point_t eta;
