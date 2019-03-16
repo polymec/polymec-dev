@@ -596,6 +596,11 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     // Clean up.
     int_tuple_free(key);
     int_tuple_int_unordered_map_free(owner_for_patch);
+
+    // Finally, make sure that all processes know which blocks are connected
+    // to which.
+    MPI_Allreduce(MPI_IN_PLACE, bc->block_neighbors->data,
+                  (int)bc->block_neighbors->size, MPI_INT, MPI_MAX, comm);
   }
   else
 #else

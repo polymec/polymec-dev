@@ -42,7 +42,7 @@ void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc);
 ///                      block-block interface, from the first block to the
 ///                      second.
 /// \param [in] block2_index The index of the second block within the mesh.
-/// \param [in] block2_boundary The boundary of the first block along which
+/// \param [in] block2_boundary The boundary of the second block along which
 ///                             the patch is located.
 /// \param [in] i2 The i index identifying a patch in the second block.
 /// \param [in] j2 The j index identifying a patch in the second block

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,7 +25,7 @@
 #define lua_freeline(L, b)    ((void)L, free(b))
 
 //------------------------------------------------------------------------
-// The contents of this file are taken from a modified version of lua.c in 
+// The contents of this file are taken from a modified version of lua.c in
 // the Lua distribution.
 //------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ static bool _lua_driver_running = false;
 static char* _script = NULL;
 
 // This function reports an error in parsing input.
-static int report_error(lua_State *L, int status) 
+static int report_error(lua_State *L, int status)
 {
   // Errors are only reported on MPI rank 0.
   if ((status != LUA_OK) && (_mpi_rank == 0))
@@ -44,21 +44,21 @@ static int report_error(lua_State *L, int status)
     const char *msg = lua_tostring(L, -1);
     lua_writestringerror("%s: ", polymec_executable_name());
     lua_writestringerror("%s\n", msg);
-    lua_pop(L, 1); 
+    lua_pop(L, 1);
   }
   return status;
 }
 
 // This function handles error messages.
-static int handle_message(lua_State *L) 
+static int handle_message(lua_State *L)
 {
   const char *msg = lua_tostring(L, 1);
   if (msg == NULL) // not a string!
   {
     // Try to call __tostring on the message to render a string.
-    if (luaL_callmeta(L, 1, "__tostring") && 
-        (lua_type(L, -1) == LUA_TSTRING)) 
-      return 1; 
+    if (luaL_callmeta(L, 1, "__tostring") &&
+        (lua_type(L, -1) == LUA_TSTRING))
+      return 1;
     else
     {
       // We're stuck with a non-string, so barf out the type.
@@ -68,12 +68,12 @@ static int handle_message(lua_State *L)
   }
 
   // Return a standard traceback.
-  luaL_traceback(L, L, msg, 1); 
+  luaL_traceback(L, L, msg, 1);
   return 1;
 }
 
 // This function halts the interpreter when an interrupt signal is intercepted.
-static void stop_interpreter(lua_State *L, lua_Debug *ar) 
+static void stop_interpreter(lua_State *L, lua_Debug *ar)
 {
   (void)ar; // unused arg
 
@@ -88,14 +88,14 @@ static void stop_interpreter(lua_State *L, lua_Debug *ar)
 static lua_State* global_L = NULL;
 
 // This function handles the interrupt signal.
-static void handle_interrupt(int i) 
+static void handle_interrupt(int i)
 {
   signal(i, SIG_DFL); // If another SIGINT happens, terminate process.
   lua_sethook(global_L, stop_interpreter, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
 }
 
 // This function executes a chunk of Lua code.
-static int execute_chunk(lua_State *L, int n_arg, int n_res) 
+static int execute_chunk(lua_State *L, int n_arg, int n_res)
 {
   // Put a message handler in place for tracebacks.
   int base = lua_gettop(L) - n_arg;
@@ -103,8 +103,8 @@ static int execute_chunk(lua_State *L, int n_arg, int n_res)
   lua_insert(L, base);
 
   // Execute the code, setting a signal handler for the duration.
-  global_L = L;  
-  signal(SIGINT, handle_interrupt); 
+  global_L = L;
+  signal(SIGINT, handle_interrupt);
   int status = lua_pcall(L, n_arg, n_res, base);
   signal(SIGINT, SIG_DFL);
   lua_remove(L, base);
@@ -113,31 +113,31 @@ static int execute_chunk(lua_State *L, int n_arg, int n_res)
   return status;
 }
 
-// mark in error messages for incomplete statements 
+// mark in error messages for incomplete statements
 #define EOFMARK		"<eof>"
 #define marklen		(sizeof(EOFMARK)/sizeof(char) - 1)
 
-// This function checks whether status signals a syntax error and the 
+// This function checks whether status signals a syntax error and the
 // error message at the top of the stack ends with the above mark for
 // incomplete statements.
-static int incomplete(lua_State *L, int status) 
+static int incomplete(lua_State *L, int status)
 {
-  if (status == LUA_ERRSYNTAX) 
+  if (status == LUA_ERRSYNTAX)
   {
     size_t lmsg;
     const char *msg = lua_tolstring(L, -1, &lmsg);
-    if ((lmsg >= marklen) && 
-        (strcmp(msg + lmsg - marklen, EOFMARK) == 0)) 
+    if ((lmsg >= marklen) &&
+        (strcmp(msg + lmsg - marklen, EOFMARK) == 0))
     {
       lua_pop(L, 1);
       return 1;
     }
   }
-  return 0;  
+  return 0;
 }
 
 // This function prompts the user for a line of Lua code in interative mode.
-static bool prompt_for_line(lua_State *L) 
+static bool prompt_for_line(lua_State *L)
 {
   // Assemble a command prompt and stick it on the stack.
   const char *prog_name = polymec_executable_name();
@@ -155,7 +155,7 @@ static bool prompt_for_line(lua_State *L)
   bool got_input = lua_readline(L, b, prompt);
 
   // If we didn't get anything, bug out (prompt removed by caller).
-  if (!got_input) 
+  if (!got_input)
     return false;
 
   lua_pop(L, 1); // remove prompt from the stack.
@@ -163,73 +163,73 @@ static bool prompt_for_line(lua_State *L)
 
   // Remove any newline from the end of the line.
   if ((l > 0) && (b[l-1] == '\n'))
-    b[--l] = '\0'; 
+    b[--l] = '\0';
 
   lua_pushlstring(L, b, l);
   lua_freeline(L, b);
   return true;
 }
 
-// This function prepends a return command in front of an expression in 
+// This function prepends a return command in front of an expression in
 // an attempt to compile it.
-static int prepend_return(lua_State *L) 
+static int prepend_return(lua_State *L)
 {
   const char *line = lua_tostring(L, -1); // original line
   const char *mod_line = lua_pushfstring(L, "return %s;", line);
   int status = luaL_loadbuffer(L, mod_line, strlen(mod_line), "=stdin");
-  if (status == LUA_OK) 
+  if (status == LUA_OK)
   {
-    lua_remove(L, -2);  // remove modified line 
+    lua_remove(L, -2);  // remove modified line
     if (line[0] != '\0') // not empty?
-      lua_saveline(L, line);  // keep history 
+      lua_saveline(L, line);  // keep history
   }
   else
-    lua_pop(L, 2);  // pop result from 'luaL_loadbuffer' and modified line 
+    lua_pop(L, 2);  // pop result from 'luaL_loadbuffer' and modified line
   return status;
 }
 
-// This function reads multiple lines until a complete Lua statement 
+// This function reads multiple lines until a complete Lua statement
 // is assembled.
-static int compile_statement(lua_State *L) 
+static int compile_statement(lua_State *L)
 {
   while (true)
-  {  
+  {
     // Repeat until a complete statement is assembled.
     size_t len;
-    const char *line = lua_tolstring(L, 1, &len); 
-    int status = luaL_loadbuffer(L, line, len, "=stdin"); // try it 
-    if (!incomplete(L, status) || !prompt_for_line(L)) 
+    const char *line = lua_tolstring(L, 1, &len);
+    int status = luaL_loadbuffer(L, line, len, "=stdin"); // try it
+    if (!incomplete(L, status) || !prompt_for_line(L))
     {
-      lua_saveline(L, line); // keep history 
-      return status; // cannot or should not try to add continuation line 
+      lua_saveline(L, line); // keep history
+      return status; // cannot or should not try to add continuation line
     }
-    lua_pushliteral(L, "\n");  // add newline... 
-    lua_insert(L, -2);  // ...between the two lines 
-    lua_concat(L, 3);  // join them 
+    lua_pushliteral(L, "\n");  // add newline...
+    lua_insert(L, -2);  // ...between the two lines
+    lua_concat(L, 3);  // join them
   }
 }
 
-// This function reads a line of Lua code and trys to compile it as 
-// (1) an expression, and (2) a statement (if (1) fails). 
-static int read_line(lua_State *L) 
+// This function reads a line of Lua code and trys to compile it as
+// (1) an expression, and (2) a statement (if (1) fails).
+static int read_line(lua_State *L)
 {
   lua_settop(L, 0);
   if (!prompt_for_line(L))
-    return -1;  // no input 
+    return -1;  // no input
   int status;
   if ((status = prepend_return(L)) != LUA_OK)  // 'return ...' didn't work.
-    status = compile_statement(L); // try as statement, maybe with continuation lines 
-  lua_remove(L, 1); // remove line from the stack 
+    status = compile_statement(L); // try as statement, maybe with continuation lines
+  lua_remove(L, 1); // remove line from the stack
   lua_assert(lua_gettop(L) == 1);
   return status;
 }
 
 // This function prints the result of an expression.
-static void print_result(lua_State *L) 
+static void print_result(lua_State *L)
 {
   int n = lua_gettop(L);
-  if (n > 0) 
-  { 
+  if (n > 0)
+  {
     luaL_checkstack(L, LUA_MINSTACK, "too many results to print");
     lua_getglobal(L, "print");
     lua_insert(L, 1);
@@ -247,29 +247,29 @@ static void interact(lua_State* L)
     status = read_line(L);
     if (status == LUA_OK)
       status = execute_chunk(L, 0, LUA_MULTRET);
-    if (status == LUA_OK) 
+    if (status == LUA_OK)
       print_result(L);
-    else 
+    else
       report_error(L, status);
   }
   while (status != -1);
-  
+
   // Clear the stack.
-  lua_settop(L, 0); 
+  lua_settop(L, 0);
   lua_writeline();
 }
 
-// This function writes an executable chunk to a string that can be 
+// This function writes an executable chunk to a string that can be
 // sent across the wire. Adapted from 3rdparty/lua/src/lstrlib.c.
-static int serialize_chunk(lua_State *L, const void *b, size_t size, void *B) 
+static int serialize_chunk(lua_State *L, const void *b, size_t size, void *B)
 {
   luaL_addlstring((luaL_Buffer*)B, (const char *)b, size);
   return 0;
 }
 
-// This function broadcasts an executable chunk at the top of the stack 
+// This function broadcasts an executable chunk at the top of the stack
 // from process 0 to all other processes.
-static int broadcast_chunk(lua_State *L) 
+static int broadcast_chunk(lua_State *L)
 {
   ASSERT(_mpi_rank == 0);
   if (_mpi_nprocs > 1)
@@ -294,7 +294,7 @@ static int broadcast_chunk(lua_State *L)
   return LUA_OK;
 }
 
-static void broadcast_error(lua_State *L, int err) 
+static void broadcast_error(lua_State *L, int err)
 {
   ASSERT(_mpi_rank == 0);
   if (_mpi_nprocs > 1)
@@ -308,7 +308,7 @@ static void broadcast_error(lua_State *L, int err)
   }
 }
 
-static int receive_chunk(lua_State *L) 
+static int receive_chunk(lua_State *L)
 {
   ASSERT(_mpi_rank != 0);
   ASSERT(_mpi_nprocs > 1);
@@ -357,7 +357,7 @@ static int pmain(lua_State* L)
     char* arg = options_argument(opts, i);
 
     // Disregard named values and flags.
-    if (!string_contains(arg, "=") && (arg[0] != '-')) 
+    if (!string_contains(arg, "=") && (arg[0] != '-'))
       filename = arg;
   }
 
@@ -374,7 +374,7 @@ static int pmain(lua_State* L)
   // Run the input file, if we have one.
   if (filename != NULL)
   {
-    // Load the file on rank 0, parse it into an executable chunk, and 
+    // Load the file on rank 0, parse it into an executable chunk, and
     // broadcast this chunk to other ranks.
     int status;
     if (_mpi_rank == 0)
@@ -406,7 +406,7 @@ static int pmain(lua_State* L)
   // If we're interactive, surrender control.
   if (interactive || (filename == NULL))
   {
-    // We don't currently support interactive mode on more than one 
+    // We don't currently support interactive mode on more than one
     // process.
     if (_mpi_nprocs > 1)
       polymec_error("Interactive mode is not supported in a parallel environment.");
@@ -462,7 +462,7 @@ static noreturn void usage(int argc, char** argv)
     printf("                   return <-- MPI errors return error codes\n");
     printf(" num_threads=N     Sets number of OpenMP threads to use.\n");
     printf(" timers=VAL        Enables or disables timers.\n");
-    printf("                   Case-insensitive values are:\n"); 
+    printf("                   Case-insensitive values are:\n");
     printf("                   1,true,yes,on     <-- enable\n");
     printf("                   (everything else) <-- disable\n");
     printf(" timer_file=PATH   Specifies the file for the timer report if\n");
@@ -496,7 +496,7 @@ int lua_driver(int argc,
                char** argv,
                int (*register_types_and_modules)(lua_State* L))
 {
-  // Look for "-h" or "--help" in the command line args and print usage 
+  // Look for "-h" or "--help" in the command line args and print usage
   // info if we find it.
   for (int i = 1; i < argc; ++i)
   {
@@ -515,7 +515,7 @@ int lua_driver(int argc,
   MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &_mpi_nprocs);
 
-  // Override the default error handler so that polymec_error reports to 
+  // Override the default error handler so that polymec_error reports to
   // Lua.
   polymec_set_error_handler(lua_error_handler);
 
@@ -525,7 +525,7 @@ int lua_driver(int argc,
   // Access our Lua state.
   lua_State* L = polymec_lua_State();
 
-  // Pass the command line arguments into the main function, which runs in 
+  // Pass the command line arguments into the main function, which runs in
   // protected mode.
   lua_pushcfunction(L, &pmain);
   lua_pushcfunction(L, register_types_and_modules);
