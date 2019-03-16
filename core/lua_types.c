@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -49,7 +49,7 @@ void lua_get_docstrings(lua_State* L)
   {
     lua_pop(L, 1);
 
-    // Create a table with weak keys that associates these keys (objects) with 
+    // Create a table with weak keys that associates these keys (objects) with
     // values (their docstrings).
     lua_newtable(L);
     lua_newtable(L);
@@ -69,7 +69,7 @@ void lua_set_docstring(lua_State* L, int index, const char* docstring)
 {
   ASSERT(!lua_isnil(L, index));
 
-  if (docstring == NULL) 
+  if (docstring == NULL)
     return;
 
   // Convert to an absolute stack index.
@@ -202,7 +202,7 @@ static int lua_open_module(lua_State* L)
   // If we have fields, create and populate a metatable.
   if (fields != NULL)
   {
-    lua_newtable(L); 
+    lua_newtable(L);
     lua_pushcfunction(L, module_index);
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, module_newindex);
@@ -253,7 +253,7 @@ void lua_register_module(lua_State* L,
                          const char* module_name,
                          const char* module_doc,
                          lua_module_field fields[],
-                         lua_module_function funcs[]) 
+                         lua_module_function funcs[])
 {
   // Load the module by calling lua_open_module with the right globals set.
   lua_pushlightuserdata(L, (void*)funcs);
@@ -269,7 +269,7 @@ void lua_register_module_function_table(lua_State* L,
                                         const char* module_name,
                                         const char* table_name,
                                         const char* table_doc,
-                                        lua_module_function funcs[]) 
+                                        lua_module_function funcs[])
 {
   ASSERT(funcs != NULL);
   lua_getglobal(L, module_name);
@@ -313,7 +313,7 @@ void lua_register_module_function_table(lua_State* L,
 //                               Classes
 //------------------------------------------------------------------------
 
-typedef struct 
+typedef struct
 {
   char* name;
   lua_class_field* fields;
@@ -324,7 +324,7 @@ typedef struct
   void (*dtor)(void*);
 } lua_class_t;
 
-// This is the function that gets called when a lua object is 
+// This is the function that gets called when a lua object is
 // garbage-collected.
 static int lua_class_gc(lua_State* L)
 {
@@ -398,7 +398,7 @@ static int lua_class_newindex(lua_State* L)
 static void destroy_class_fields(void* val)
 {
   lua_class_field* fields = val;
-  int i = 0; 
+  int i = 0;
   while (fields[i].name != NULL)
   {
     string_free((char*)fields[i].name);
@@ -455,7 +455,7 @@ static int lua_open_class(lua_State* L)
   }
 
   // Register the given C destructor.
-  string_ptr_unordered_map_insert_with_kv_dtors(lua_c_dtors, 
+  string_ptr_unordered_map_insert_with_kv_dtors(lua_c_dtors,
                                                 string_dup(class_name),
                                                 c_dtor,
                                                 string_free,
@@ -491,7 +491,7 @@ static int lua_open_class(lua_State* L)
       f[i].setter = fields[i].setter;
     }
     f[num_fields].name = NULL;
-    string_ptr_unordered_map_insert_with_kv_dtors(lua_class_fields, 
+    string_ptr_unordered_map_insert_with_kv_dtors(lua_class_fields,
                                                   string_dup(class_name),
                                                   f,
                                                   string_free,
@@ -507,7 +507,7 @@ static int lua_open_class(lua_State* L)
       // Register any user-defined __index and __newindex metamethods.
       if (strcmp(methods[num_methods].name, "__index") == 0)
       {
-        string_ptr_unordered_map_insert_with_k_dtor(lua_class_index_mms, 
+        string_ptr_unordered_map_insert_with_k_dtor(lua_class_index_mms,
                                                     string_dup(class_name),
                                                     &methods[num_methods],
                                                     string_free);
@@ -516,7 +516,7 @@ static int lua_open_class(lua_State* L)
       }
       else if (strcmp(methods[num_methods].name, "__newindex") == 0)
       {
-        string_ptr_unordered_map_insert_with_k_dtor(lua_class_newindex_mms, 
+        string_ptr_unordered_map_insert_with_k_dtor(lua_class_newindex_mms,
                                                     string_dup(class_name),
                                                     &methods[num_methods],
                                                     string_free);
@@ -619,10 +619,10 @@ static int lua_open_class(lua_State* L)
   return 1;
 }
 
-// This helper registers the module on top of the stack in the module contained 
-// within that module name, if there are dots in the name. If the name has no 
+// This helper registers the module on top of the stack in the module contained
+// within that module name, if there are dots in the name. If the name has no
 // dots, this function does nothing.
-static void register_in_parent_module(lua_State* L, 
+static void register_in_parent_module(lua_State* L,
                                       const char* full_module_name)
 {
   if (string_contains(full_module_name, "."))
@@ -644,7 +644,7 @@ static void register_in_parent_module(lua_State* L,
     lua_getglobal(L, module);
     if (lua_isnil(L, -1))
     {
-      luaL_error(L, "Couldn't register %s in module %s.", 
+      luaL_error(L, "Couldn't register %s in module %s.",
                  &full_module_name[len+1], module);
     }
     else
@@ -690,7 +690,7 @@ void lua_register_class(lua_State* L,
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
   luaL_requiref(L, class_name, lua_open_class, 1);
 
-  // Modules with dots in the name should be registered in the right 
+  // Modules with dots in the name should be registered in the right
   // place.
   register_in_parent_module(L, class_name);
 }
@@ -729,7 +729,7 @@ void lua_push_object(lua_State* L,
   // Assign data.
   obj->context = context;
 
-  // By default, Lua owns this object, so find the C destructor associated 
+  // By default, Lua owns this object, so find the C destructor associated
   // with it.
   obj->dtor = dtor_for_object(class_name);
 }
@@ -752,7 +752,7 @@ void* lua_check_object(lua_State* L,
     luaL_error(L, "Argument must be a %s.", class_name);
     return NULL;
   }
-  else 
+  else
     return obj;
 }
 
@@ -763,7 +763,7 @@ bool lua_is_object(lua_State* L,
   return (luaL_testudata(L, index, class_name) != NULL);
 }
 
-void lua_transfer_object(lua_State* L, 
+void lua_transfer_object(lua_State* L,
                          int index,
                          const char* class_name,
                          lua_ownership_t ownership)
