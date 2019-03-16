@@ -474,7 +474,7 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
           int index = patch_index(mesh, ii, jj, kk);
           if (int_unordered_set_contains(mesh->patches, index))
           {
-            if (l == m)
+            if (l == m++)
             {
               result = true;
               *i = ii;
@@ -483,8 +483,6 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
               ++(*pos);
               break;
             }
-            else
-              ++m;
           }
         }
       }

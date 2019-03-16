@@ -624,7 +624,8 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
 {
   ASSERT(block_index >= 0);
   ASSERT(block_index < blockmesh_num_blocks(bc->mesh));
-  memcpy(block_neighbor_indices, &bc->block_neighbors[6*block_index],
+  ASSERT(6*block_index+5 < (int)(bc->block_neighbors->size));
+  memcpy(block_neighbor_indices, &bc->block_neighbors->data[6*block_index],
          6*sizeof(int));
 }
 

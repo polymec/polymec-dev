@@ -428,11 +428,11 @@ static void find_patch2_indices(int boundary1,
   if (j2 >= 0)
     patch2_ind[j2] = patch1_ind[j1];
   else
-    patch2_ind[-j2] = block2_ext[-j2] - patch1_ind[j1];
+    patch2_ind[-j2] = block2_ext[-j2] - 1 - patch1_ind[j1];
   if (k2 >= 0)
     patch2_ind[k2] = patch1_ind[k1];
   else
-    patch2_ind[-k2] = block2_ext[-k2] - patch1_ind[k1];
+    patch2_ind[-k2] = block2_ext[-k2] - 1 - patch1_ind[k1];
 }
 
 static void find_connected_patch(blockmesh_t* mesh,
@@ -637,6 +637,8 @@ bool blockmesh_block_is_connected(blockmesh_t* mesh,
                                   int index,
                                   unimesh_boundary_t boundary)
 {
+  ASSERT(mesh->finalized);
+
   int nblocks[6];
   blockmesh_interblock_bc_get_block_neighbors(mesh->interblock_bc, index, nblocks);
   int b = (int)boundary;
@@ -726,9 +728,17 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
     int nblocks[6];
     blockmesh_interblock_bc_get_block_neighbors(mesh->interblock_bc, b, nblocks);
-    int npxs[6], npys[6], npzs[6];
+    int npxs[6] = {0, 0, 0, 0, 0, 0},
+        npys[6] = {0, 0, 0, 0, 0, 0},
+        npzs[6] = {0, 0, 0, 0, 0, 0};
     for (int f = 0; f < 6; ++f)
-      unimesh_get_extents(mesh->blocks->data[nblocks[f]], &npxs[f], &npys[f], &npzs[f]);
+    {
+      if (nblocks[f] != -1)
+      {
+        unimesh_get_extents(mesh->blocks->data[nblocks[f]],
+                            &npxs[f], &npys[f], &npzs[f]);
+      }
+    }
 
     for (int i = 0; i < npx; ++i)
     {
@@ -770,6 +780,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
       }
     }
   }
+adj_graph_fprintf(g, stdout);
 
   STOP_FUNCTION_TIMER();
   return g;
