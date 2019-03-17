@@ -542,16 +542,25 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
                                       block1_index, block1_boundary, i1, j1, k1,
                                       rotation,
                                       block2_index, block2_boundary, i2, j2, k2);
+    }
+  }
 
-      // If block2's patch is locally stored, connect it to block1's.
-      if (unimesh_has_patch(block2, i2, j2, k2))
-      {
-        int opp_rotation = (rotation + 2) % 4;
-        blockmesh_interblock_bc_connect(mesh->interblock_bc,
-                                        block2_index, block2_boundary, i2, j2, k2,
-                                        opp_rotation,
-                                        block1_index, block1_boundary, i1, j1, k1);
-      }
+  // Now connect the blocks the other way.
+  pos = 0;
+  int i2, j2, k2;
+  while (unimesh_next_patch(block2, &pos, &i2, &j2, &k2, NULL))
+  {
+    // Figure out the coordinates of the corresponding patch in block2.
+    find_connected_patch(mesh, block2_index, block2_boundary, i2, j2, k2,
+                         rotation,
+                         block1_index, block1_boundary, &i1, &j1, &k1);
+    if ((i1 != -1) && (j1 != -1) && (k1 != -1))
+    {
+      // Connect block2's local patch to block1's patch.
+      blockmesh_interblock_bc_connect(mesh->interblock_bc,
+                                      block2_index, block2_boundary, i2, j2, k2,
+                                      (rotation + 2) % 4,
+                                      block1_index, block1_boundary, i1, j1, k1);
     }
   }
 }
@@ -777,10 +786,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
 
           // +y neighbor
           if ((j == npy-1) && (nblocks[3] != -1))
-          {
-            edges[offset++] = patch_offsets[nblocks[3]] +
-                              npys[3]*npzs[3]*i + k;
-          }
+            edges[offset++] = patch_offsets[nblocks[3]] + npys[3]*npzs[3]*i + k;
           else if (j < npy-1)
             edges[offset++] = patch_offsets[b_index] + npy*npz*i + npz*(j+1) + k;
 
