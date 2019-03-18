@@ -636,33 +636,34 @@ void blockmesh_interblock_bc_get_block_neighbors(blockmesh_interblock_bc_t* bc,
 
 // This non-public function is used by the blockmesh class to construct a
 // global adjacency graph for repartitioning.
-bool blockmesh_interblock_next_connection(blockmesh_interblock_bc_t* bc,
-                                          int* pos,
-                                          int* block1_index,
-                                          int* i1, int* j1, int* k1,
-                                          unimesh_boundary_t* boundary1,
-                                          int* block2_index,
-                                          int* i2, int* j2, int* k2,
-                                          unimesh_boundary_t* boundary2);
-bool blockmesh_interblock_next_connection(blockmesh_interblock_bc_t* bc,
-                                          int* pos,
-                                          int* block1_index,
-                                          int* i1, int* j1, int* k1,
-                                          unimesh_boundary_t* boundary1,
-                                          int* block2_index,
-                                          int* i2, int* j2, int* k2,
-                                          unimesh_boundary_t* boundary2)
+bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
+                                             int* pos,
+                                             int* block1_index,
+                                             int* i1, int* j1, int* k1,
+                                             unimesh_boundary_t* boundary1,
+                                             int* block2_index,
+                                             int* i2, int* j2, int* k2,
+                                             unimesh_boundary_t* boundary2);
+bool blockmesh_interblock_bc_next_connection(blockmesh_interblock_bc_t* bc,
+                                             int* pos,
+                                             int* block1_index,
+                                             int* i1, int* j1, int* k1,
+                                             unimesh_boundary_t* boundary1,
+                                             int* block2_index,
+                                             int* i2, int* j2, int* k2,
+                                             unimesh_boundary_t* boundary2)
 {
+  int b_index;
   cxn_t* cxn;
-  bool result = cxn_map_next(bc->cxns, pos, &cxn);
+  bool result = cxn_map_next(bc->cxns, pos, &b_index, &cxn);
   if (result)
   {
-    *block1_index = blockmesh_block_index(cxn->block1);
+    *block1_index = blockmesh_block_index(bc->mesh, cxn->block1);
     *i1 = cxn->i1;
     *j1 = cxn->j1;
     *k1 = cxn->k1;
     *boundary1 = cxn->boundary1;
-    *block2_index = blockmesh_block_index(cxn->block2);
+    *block2_index = blockmesh_block_index(bc->mesh, cxn->block2);
     *i2 = cxn->i2;
     *j2 = cxn->j2;
     *k2 = cxn->k2;

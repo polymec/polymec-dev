@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,20 +9,20 @@
 #include "core/array_utils.h"
 #include "core/timer.h"
 
-struct adj_graph_t 
+struct adj_graph_t
 {
   MPI_Comm comm;
   int rank, nproc;
 
   // The adjacency list in compressed-row storage (CRS) format.
-  int* adjacency; 
+  int* adjacency;
 
-  // xadj[i] holds the offset in adjacency for the edges attached to the 
+  // xadj[i] holds the offset in adjacency for the edges attached to the
   // ith vertex.
-  int* xadj; 
+  int* xadj;
 
   // vtx_dist[p] holds the global index of the first vertex on process p.
-  index_t* vtx_dist; 
+  index_t* vtx_dist;
 
   // The current capacity of adjacency.
   size_t edge_cap;
@@ -57,8 +57,8 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, size_t num_local_vertices)
   return adj_graph_new_with_dist(comm, num_global_vertices, vtxdist);
 }
 
-adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
-                                     size_t num_global_vertices, 
+adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
+                                     size_t num_global_vertices,
                                      index_t* vertex_dist)
 {
   adj_graph_t* graph = polymec_malloc(sizeof(adj_graph_t));
@@ -106,14 +106,14 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
 
-  // Distribute the vertices in a manner analogous to the way they are 
+  // Distribute the vertices in a manner analogous to the way they are
   // distributed in the given graph.
   size_t num_global_vertices = (size_t)(block_size * graph->vtx_dist[nproc]);
   index_t vtx_dist[nproc+1];
   vtx_dist[0] = 0;
   for (int p = 1; p <= nproc; ++p)
     vtx_dist[p] = (index_t)(block_size * graph->vtx_dist[p]);
-  adj_graph_t* block_graph = adj_graph_new_with_dist(comm, 
+  adj_graph_t* block_graph = adj_graph_new_with_dist(comm,
                                                      num_global_vertices,
                                                      vtx_dist);
 
@@ -182,8 +182,8 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
 
-  // Since the block size is variable, we have to be careful about 
-  // counting up the vertices in the resulting block graph. If this is 
+  // Since the block size is variable, we have to be careful about
+  // counting up the vertices in the resulting block graph. If this is
   // a distributed graph, we need to communicate.
   size_t num_block_vertices = adj_graph_num_vertices(graph);
   int vertex_offsets[num_block_vertices+1];
@@ -204,9 +204,9 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
     {
       int vertex = (int)(vertex_offsets[block_vertex] + b);
 
-      // Count up the edges in all the blocks. Be sure to include "block 
-      // diagonal" edges, too (block_size - 1 of these), and accomodate the 
-      // fact that some of these edges may connect block_vertex to a 
+      // Count up the edges in all the blocks. Be sure to include "block
+      // diagonal" edges, too (block_size - 1 of these), and accomodate the
+      // fact that some of these edges may connect block_vertex to a
       // vertex with a different block size!!
       size_t num_edges = block_size - 1;
       int edge_offsets[num_block_edges+1];
@@ -251,7 +251,7 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   return block_graph;
 }
 
-adj_graph_t* dense_adj_graph_new(MPI_Comm comm, 
+adj_graph_t* dense_adj_graph_new(MPI_Comm comm,
                                  size_t num_local_vertices,
                                  size_t num_remote_vertices)
 {
@@ -417,9 +417,9 @@ index_t adj_graph_last_vertex(adj_graph_t* graph)
   return graph->vtx_dist[graph->rank+1] - 1;
 }
 
-bool adj_graph_next_edge(adj_graph_t* graph, 
+bool adj_graph_next_edge(adj_graph_t* graph,
                          int vertex,
-                         int* pos, 
+                         int* pos,
                          int* other_vertex)
 {
   if ((graph->xadj[vertex] + *pos) >= graph->xadj[vertex+1])
@@ -452,9 +452,9 @@ static bool topo_dfs(adj_graph_t* graph, int v, int* visited, int* topo_index, i
     return true;
 
   // If v has been marked temporarily, we have a cycle.
-  if (visited[v] == 2) 
+  if (visited[v] == 2)
     return false;
-   
+
   // Mark this vertex as visited (temporarily).
   visited[v] = 2;
   for (int i = graph->xadj[v]; i < graph->xadj[v+1]; ++i)
@@ -471,7 +471,7 @@ static bool topo_dfs(adj_graph_t* graph, int v, int* visited, int* topo_index, i
       return false;
   }
   // Mark this vertex as visited (permanently).
-  visited[v] = 1; 
+  visited[v] = 1;
 
   // Stick v into our list of sorted vertices.
   sorted_vertices[*topo_index] = v;
@@ -525,14 +525,14 @@ void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
   fprintf(stream, "\n");
 }
 
-struct adj_graph_coloring_t 
+struct adj_graph_coloring_t
 {
   int* vertices; // Vertices of colors in compressed row storage (CRS).
   int* offsets; // Offsets, also in compressed row storage.
   size_t num_colors;
 };
 
-typedef struct 
+typedef struct
 {
   int* degree;
   int* vertices;
@@ -545,12 +545,12 @@ static int compare_degrees(const void* left, const void* right)
   const int* p_right = left;
   int ldeg = p_left[1];
   int rdeg = p_right[1];
-  return (ldeg < rdeg) ? -1 
-                       : (ldeg > rdeg) ? 1 
+  return (ldeg < rdeg) ? -1
+                       : (ldeg > rdeg) ? 1
                                        : 0;
 }
 
-// This function sorts an array consisting of interlaced (vertex, degree) 
+// This function sorts an array consisting of interlaced (vertex, degree)
 // tuples in order of vertex degrees.
 static void sort_vertices_by_degree(int* v_degrees, size_t num_vertices)
 {
@@ -566,7 +566,7 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
   // The vertices with the largest degree appear first in the list.
   size_t num_vertices = adj_graph_num_vertices(graph);
 
-  // Compute the degree of each vertex. We compute the negative of the 
+  // Compute the degree of each vertex. We compute the negative of the
   // degree so that we can sort the vertices in "ascending" order.
   int* v_degrees = polymec_malloc(sizeof(int) * 2 * (v_max + 1));
   for (int v = 0; v <= v_max; ++v)
@@ -589,9 +589,9 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   int v_max = adj_graph_max_vertex_index(graph);
   size_t num_vertices = adj_graph_num_vertices(graph);
 
-  // The vertices with the smallest degree appear last in the list, and 
-  // the calculation of the degree of a vertex excludes all vertices that 
-  // appear later in the list. We compute the negative of the degree so 
+  // The vertices with the smallest degree appear last in the list, and
+  // the calculation of the degree of a vertex excludes all vertices that
+  // appear later in the list. We compute the negative of the degree so
   // that we can sort the vertices in "ascending" order.
   int* v_degrees = polymec_malloc(sizeof(int) * 2 * (v_max + 1));
   for (int v = 0; v <= v_max; ++v)
@@ -622,19 +622,19 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
 
 static noreturn void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
 {
-  // In this ordering, the next vertex in the ordering is the one with the  
-  // largest degree of incidence with the subgraph consisting only of those 
+  // In this ordering, the next vertex in the ordering is the one with the
+  // largest degree of incidence with the subgraph consisting only of those
   // vertices that preceed it (and their edges).
   vertices[0] = 0; // Arbitrary (but fine).
   // FIXME
   POLYMEC_NOT_IMPLEMENTED
 }
 
-// This function colors a graph sequentially, assuming that the vertices in 
-// the graph are ordered some way. On output, colors[i] contains the color 
-// index of the ith vertex, and num_colors contains the number of colors 
+// This function colors a graph sequentially, assuming that the vertices in
+// the graph are ordered some way. On output, colors[i] contains the color
+// index of the ith vertex, and num_colors contains the number of colors
 // used to color the graph. This is Algorithm 3.1 of Gebremedhin (2005).
-static void color_sequentially(adj_graph_t* graph, int* vertices, 
+static void color_sequentially(adj_graph_t* graph, int* vertices,
                                int* colors, size_t* num_colors)
 {
   START_FUNCTION_TIMER();
@@ -689,7 +689,7 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
       }
     }
 
-    // If we didn't find a valid existing color, make a new one 
+    // If we didn't find a valid existing color, make a new one
     // and assign it to v.
     if (colors[v] == -1)
     {
@@ -722,7 +722,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
     compute_incidence_degree_ordering(graph, vertices);
   }
 
-  // Now color the graph using a (greedy) sequential algoritm. 
+  // Now color the graph using a (greedy) sequential algoritm.
   int* colors = polymec_malloc(sizeof(int) * (v_max + 1));
   size_t num_colors;
   color_sequentially(graph, vertices, colors, &num_colors);
@@ -768,9 +768,9 @@ size_t adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring)
   return coloring->num_colors;
 }
 
-bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring, 
+bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring,
                                     int color,
-                                    int* pos, 
+                                    int* pos,
                                     int* vertex)
 {
   ASSERT(color >= 0);

@@ -380,7 +380,7 @@ static void map_boundary_values_(bool inverse_map,
                 eta.y = D.y1 + jj*dy;
                 eta.z = D.z1 + (kk+0.5)*dz;
               }
-              else if (centering == UNIMESH_NODE)
+              else // if (centering == UNIMESH_NODE)
               {
                 DECLARE_UNIMESH_NODE_ARRAY(f, patch);
                 data = f[ii][jj][kk];
