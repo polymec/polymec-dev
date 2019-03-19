@@ -114,8 +114,8 @@ static int execute_chunk(lua_State *L, int n_arg, int n_res)
 }
 
 // mark in error messages for incomplete statements
-#define EOFMARK		"<eof>"
-#define marklen		(sizeof(EOFMARK)/sizeof(char) - 1)
+#define EOFMARK "<eof>"
+#define marklen (sizeof(EOFMARK)/sizeof(char) - 1)
 
 // This function checks whether status signals a syntax error and the
 // error message at the top of the stack ends with the above mark for

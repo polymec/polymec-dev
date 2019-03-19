@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "core/memory_info.h"
 
 // This stuff is not, ehm, "portable" in any sense of the word. So we do what
-// we can. This stuff is largely taken from the discussion at 
+// we can. This stuff is largely taken from the discussion at
 // stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process.
 #ifdef LINUX
 #include <sys/types.h>
@@ -162,7 +162,7 @@ static void get_memory_info_apple(memory_info_t* info)
   struct task_basic_info t_info;
   mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
   if (task_info(mach_task_self(),
-                TASK_BASIC_INFO, (task_info_t)&t_info, 
+                TASK_BASIC_INFO, (task_info_t)&t_info,
                 &t_info_count) != KERN_SUCCESS)
   {
     info->process_virtual_size = 0;
@@ -176,7 +176,7 @@ static void get_memory_info_apple(memory_info_t* info)
 
   // Peak resident set size.
   struct rusage rusage;
-	getrusage(RUSAGE_SELF, &rusage);
+  getrusage(RUSAGE_SELF, &rusage);
   info->process_peak_resident_size = rusage.ru_maxrss / 1024;
 
 }
