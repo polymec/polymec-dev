@@ -19,6 +19,7 @@ typedef struct blockmesh_t blockmesh_t;
 /// This patch BC connects patches in different unimeshes (blocks) within
 /// a blockmesh, mapping quantities between these patches with a
 /// diffeomorphism defined by the respective coordinate systems of the blocks.
+/// \experimental
 typedef struct blockmesh_interblock_bc_t blockmesh_interblock_bc_t;
 
 /// Constructs a new inter-block BC for the given mesh (block).

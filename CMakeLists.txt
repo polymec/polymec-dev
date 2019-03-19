@@ -409,19 +409,20 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindValgrind.cmake DESTI
 
 # Additional targets.
 
-find_program(PYTHON python)
-if (NOT PYTHON STREQUAL "PYTHON-NOTFOUND")
+find_package(Python COMPONENTS Interpreter)
+if (Python_FOUND AND Python_VERSION_MAJOR EQUAL 3)
+  message(STATUS "Found Python. Generating 'stats', 'prepend-license' targets.")
   # make stats
-  add_custom_target(stats ${PYTHON} ${PROJECT_SOURCE_DIR}/tools/gather_stats.py ${PROJECT_SOURCE_DIR})
+  add_custom_target(stats ${Python_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/gather_stats.py ${PROJECT_SOURCE_DIR})
   # make prepend-license
-  add_custom_target(prepend-license ${PYTHON} ${PROJECT_SOURCE_DIR}/tools/prepend_license.py ${PROJECT_SOURCE_DIR})
+  add_custom_target(prepend-license ${Python_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/prepend_license.py ${PROJECT_SOURCE_DIR})
 endif()
 
 # Documentation.
 
-find_package(Doxygen
-             OPTIONAL_COMPONENTS dot)
+find_package(Doxygen OPTIONAL_COMPONENTS dot QUIET)
 if (DOXYGEN_FOUND)
+  message(STATUS "Found Doxygen. Generating 'doc' target.")
   set(DOXYGEN_EXTRACT_LOCAL_CLASSES NO)
   set(DOXYGEN_FILE_PATTERNS "*.h")
   set(DOXYGEN_GENERATE_HTML YES)
@@ -442,6 +443,7 @@ if (DOXYGEN_FOUND)
   set(DOXYGEN_ALIASES
       [[collective="\xrefitem collective \"Collective functions\" \"Collective (MPI) functions\""]]
       [[refcounted="\xrefitem refcounted \"Reference counted resources\" \"Reference counted resources\""]]
+      [[experimental="\xrefitem experimental \"Experimental code: not extensively tested!\" \"Experimental code: not extensively tested!\""]]
      )
   set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
   doxygen_add_docs(doc ${PROJECT_BINARY_DIR}/core/polymec.h;core;geometry;solvers;model;io

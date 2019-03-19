@@ -21,6 +21,7 @@ typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
 /// \class blockmesh_field
 /// A blockmesh field is a collection of fields defined on blocks represented
 /// by uniform cartesian meshes in 3D space.
+/// \experimental
 typedef struct blockmesh_field_t blockmesh_field_t;
 
 /// Creates a blockmesh_field object associated with the given block mesh, with

@@ -35,6 +35,7 @@
 /// There are no periodic blocks in a block mesh. If you want a periodic block,
 /// you can always connectg the opposite faces of that block to get the same
 /// effect.
+/// \experimental
 typedef struct blockmesh_t blockmesh_t;
 
 //------------------------------------------------------------------------
