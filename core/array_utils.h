@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -59,15 +59,15 @@ static inline int string_bsearch_comp(const void* l, const void* r)
 /// Fills an array of integers with the given value.
 void int_fill(int* array, size_t length, int value);
 
-/// Executes a linear search for an element in an unsorted array of integers, 
+/// Executes a linear search for an element in an unsorted array of integers,
 /// returning a pointer to the element if it's found and NULL if it's not.
 int* int_lsearch(int* array, size_t length, int element);
 
-/// Executes a binary search for an element in a sorted array of integers, 
+/// Executes a binary search for an element in a sorted array of integers,
 /// returning a pointer to the element if it's found and NULL if it's not.
 int* int_bsearch(int* array, size_t length, int element);
 
-/// Returns the index of the (sorted) array at which the desired element 
+/// Returns the index of the (sorted) array at which the desired element
 /// appears (if it is present), or would appear (if it is not).
 size_t int_lower_bound(int* array, size_t length, int element);
 
@@ -83,15 +83,15 @@ void int_pair_qsort(int* array, size_t length);
 /// Fills an array of indices with the given value.
 void index_fill(index_t* array, size_t length, index_t value);
 
-/// Executes a linear search for an element in an unsorted array of indices, 
+/// Executes a linear search for an element in an unsorted array of indices,
 /// returning a pointer to the element if it's found and NULL if it's not.
 index_t* index_lsearch(index_t* array, size_t length, index_t element);
 
-/// Executes a binary search for an element in a sorted array of indices, 
+/// Executes a binary search for an element in a sorted array of indices,
 /// returning a pointer to the element if it's found and NULL if it's not.
 index_t* index_bsearch(index_t* array, size_t length, index_t element);
 
-/// Returns the index of the (sorted) array at which the desired element 
+/// Returns the index of the (sorted) array at which the desired element
 /// appears (if it is present), or would appear (if it is not).
 size_t index_lower_bound(index_t* array, size_t length, index_t element);
 
@@ -104,15 +104,15 @@ void index_qsort_to_perm(index_t* array, size_t length, size_t* perm);
 /// Fills an array of real numbers with the given value.
 void real_fill(real_t* array, size_t length, real_t value);
 
-/// Executes a linear search for an element in an unsorted array of real numbers, 
+/// Executes a linear search for an element in an unsorted array of real numbers,
 /// returning a pointer to the element if it's found and NULL if it's not.
 real_t* real_lsearch(real_t* array, size_t length, real_t element);
 
-/// Executes a binary search for an element in a sorted array of real numbers, 
+/// Executes a binary search for an element in a sorted array of real numbers,
 /// returning a pointer to the element if it's found and NULL if it's not.
 real_t* real_bsearch(real_t* array, size_t length, real_t element);
 
-/// Returns the index of the (sorted) array at which the desired element 
+/// Returns the index of the (sorted) array at which the desired element
 /// appears (if it is present), or would appear (if it is not).
 size_t real_lower_bound(real_t* array, size_t length, real_t element);
 

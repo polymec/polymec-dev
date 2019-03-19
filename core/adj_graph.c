@@ -508,6 +508,37 @@ void adj_graph_manage_arrays(adj_graph_t* graph, bool flag)
   graph->manages_arrays = flag;
 }
 
+bool adj_graph_is_valid(adj_graph_t* graph, char** reason)
+{
+  // This stores explanations for graph issues.
+  char _reason[1025];
+
+  // Comb through the graph and make sure that each edges is represented
+  // accurately by both of its vertices.
+  int nv = (int)adj_graph_num_vertices(graph);
+  for (int v1 = 0; v1 < nv; ++v1)
+  {
+    int ne1 = (int)adj_graph_num_edges(graph, v1);
+    int* edges1 = adj_graph_edges(graph, v1);
+    for (int e = 0; e < ne1; ++e)
+    {
+      int v2 = edges1[e];
+      size_t ne2 = adj_graph_num_edges(graph, v2);
+      int* edges2 = adj_graph_edges(graph, v2);
+      if (int_lsearch(edges2, ne2, v1) == NULL)
+      {
+        snprintf(_reason, 1024, "Vertex %d has an edge to vertex %d, but "
+                 "%d does not have a reciprocal edge.", v1, v2, v2);
+        *reason = _reason;
+        return false;
+      }
+    }
+  }
+
+  // If we got here, the graph is valid.
+  return true;
+}
+
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
 {
   if (stream == NULL) return;

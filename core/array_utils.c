@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -23,9 +23,9 @@ static int perm_cmp_func(const void* l, const void* r)
   return ll->cmp(ll->elem, rr->elem);
 }
 
-static void qsort_to_perm(void* array, 
-                          size_t length, 
-                          size_t elem_size, 
+static void qsort_to_perm(void* array,
+                          size_t length,
+                          size_t elem_size,
                           int (*cmp)(const void* l, const void* r),
                           size_t* perm)
 {
@@ -41,7 +41,7 @@ static void qsort_to_perm(void* array,
     perm[i] = elems[i].index;
 }
 
-// This is the generic implementation of lower_bound(). 
+// This is the generic implementation of lower_bound().
 static size_t lower_bound(void* array, size_t length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
 {
   size_t first = 0;

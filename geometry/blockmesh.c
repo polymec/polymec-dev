@@ -546,20 +546,21 @@ void blockmesh_connect_blocks(blockmesh_t* mesh,
   }
 
   // Now connect the blocks the other way.
+  int opp_rotation = (rotation % 2) ? (rotation + 2) % 4 : rotation;
   pos = 0;
   int i2, j2, k2;
   while (unimesh_next_patch(block2, &pos, &i2, &j2, &k2, NULL))
   {
     // Figure out the coordinates of the corresponding patch in block2.
     find_connected_patch(mesh, block2_index, block2_boundary, i2, j2, k2,
-                         (rotation + 2) % 4,
+                         opp_rotation,
                          block1_index, block1_boundary, &i1, &j1, &k1);
     if ((i1 != -1) && (j1 != -1) && (k1 != -1))
     {
       // Connect block2's local patch to block1's patch.
       blockmesh_interblock_bc_connect(mesh->interblock_bc,
                                       block2_index, block2_boundary, i2, j2, k2,
-                                      (rotation + 2) % 4,
+                                      opp_rotation,
                                       block1_index, block1_boundary, i1, j1, k1);
     }
   }
@@ -826,7 +827,11 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
   // Now get agreement on the edges for all vertices in the graph.
   MPI_Allreduce(MPI_IN_PLACE, adj_graph_adjacency(g), total_num_edges,
                 MPI_INT, MPI_MAX, mesh->comm);
-adj_graph_fprintf(g, stdout);
+
+  // Verify the validity of the graph.
+  char* reason;
+  if (!adj_graph_is_valid(g, &reason))
+    polymec_error("Invalid blockmesh graph: %s", reason);
 
   STOP_FUNCTION_TIMER();
   return g;

@@ -175,6 +175,14 @@ bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices);
 /// \memberof adj_graph
 void adj_graph_manage_arrays(adj_graph_t* graph, bool flag);
 
+/// Returns true if the graph is internally consistant, and false if it isn't.
+/// Provides an explanation if an issue is found with the graph.
+/// \param [out] reason Stores a pointer to an internal string containing an
+///                     explanation for why the graph is invalid. Only used if
+///                     this function returns false.
+/// \memberof adj_graph
+bool adj_graph_is_valid(adj_graph_t* graph, char** reason);
+
 /// Prints a textual representation of the graph to the given file.
 /// \memberof adj_graph
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream);
