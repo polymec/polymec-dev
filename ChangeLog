@@ -1,6 +1,47 @@
-TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+TO-BE-FILLED-IN Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.5.0
+    * New distributed mesh type: blockmesh
+      - This is an EXPERIMENTAL multi-block structured mesh. It passes basic
+        smoke tests, but hasn't been fully verified yet.
+      - Blockmesh fields are available on all centerings relevant to unimeshes.
+    * Build/configure system enhancements
+      - Added support for Ninja to the build system.
+      - Added support for parallel unit testing to the build system.
+      - Added various optimizations to speed up builds.
+    * Field enhancements
+      - Fields now have metadata objects that store information about physical
+        considerations, scalars, vectors, tensors.
+      - Exchangers can now aggregate values from multiple sources and reduce
+        them using MPI's operators.
+      - Implemented field exchanges for the colmesh on all centerings.
+      - Implemented field exchanges for edge-centered polymesh fields.
+    * Other parallelism enhancements
+      - Added a blob_exchanger for exchanging variable-sized binary objects.
+        (Not for use in environments with heterogeneous CPUs, at least not those
+        with mixed endian-ness)
+    * Interpreter enhancements
+      - sp_func and st_func objects can now be implemented in Lua.
+      - Improved support for Lua-implemented models and probes.
+      - Added a dl module for dynamic library loading configuration.
+    * Other features
+      - Added log_flush, which writes data to a log synchronously.
+      - Loggers no longer close system file descriptors.
+      - Dynamic load libraries are now sought in the installation path by
+        default.
+    * Maintenance and tech debt
+      - Bumped third-party libraries to their latest versions, with the
+        exception of Sundials 4.1, which requires a rewrite of the solvers
+        library.
+      - Added a thirdparty Lua module that contains information about our
+        third-party libraries. This module replaces the older 3rdparty.cfg file.
+      - Removed the Fortran special functions library.
+      - Removed unused code from the model library.
+      - Travis CI builds are now much faster (they use a polymec-specific Docker
+        image, and tests run in parallel).
+      - Countless bugfixes, and a lot of cleanup.
+Fri Nov 23 00:01:09 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.4.0
-    * New distributed mesh type: colmesh, a semi-structured extruded 
+    * New distributed mesh type: colmesh, a semi-structured extruded
       polygonal mesh.
     * New planar polygonal (2D) mesh type, useful for constructing a colmesh.
     * Improved support for 2D points and vectors.
@@ -8,24 +49,24 @@ TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Silo files can now include colmesh and planar_polyesh data.
     * Probes can now run postprocessing, and can even stream acquired data
       over UDP or Unix sockets.
-    * Enumerables: generator expressions with quantifiers, for easier 
+    * Enumerables: generator expressions with quantifiers, for easier
       testing.
-    * Lua interpreter and model_run/model_advance now intercept SIGINT and 
+    * Lua interpreter and model_run/model_advance now intercept SIGINT and
       SIGTERM, provide uninterruptible steps and clean exits.
     * Added more type-generic math functions.
-    * Added exchanger_proc_map class to eliminate boilerplate code when 
+    * Added exchanger_proc_map class to eliminate boilerplate code when
       constructing exhangers.
     * Updated third-party libraries: cmocka, Sundials, HDF5, zlib.
     * Improved code documentation.
     * More features exposed to lua.
-    * Added partition_graph_n_ways and partition_points_n_ways for 
+    * Added partition_graph_n_ways and partition_points_n_ways for
       single-process decomposition.
     * Exchangers can now perform local copies.
     * Added MPI_COMPLEX_T type for exchanging complex numbers.
     * Reworked older Lua classes: they now use the new type system.
     * Reworked managed C memory in terms of refcounting, not garbage collection.
     * Serializers are now owned by their global registry.
-    * "Garbage collection" C allocation functions have been renamed to 
+    * "Garbage collection" C allocation functions have been renamed to
       reflect that they actually perform reference counting.
     * x_unordered_map_clone() and x_table_clone() now do deep copies.
     * Added Silo 4.10 user guide to the repo.
@@ -35,14 +76,14 @@ Thu Jul 26 20:03:08 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.3.0
     * Lua type system now just uses classes (no more record types).
     * It's easier to add fields (with getters/setters) to classes and to modules.
-    * The Lua interface is a bit more comfortable, since objects can have 
+    * The Lua interface is a bit more comfortable, since objects can have
       fields now, and not just methods.
     * Added a "doc" target that generates API documentation with Doxygen.
 Tue Jul 24 09:57:53 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.5
     * Fixed various installation-related glitches.
     * The lua dir() function is better:
-      - When called with no arguments, it lists the members of the global 
+      - When called with no arguments, it lists the members of the global
         namespace.
       - It alphabetizes the members it returns.
 Fri Jul  6 10:22:24 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
@@ -68,7 +109,7 @@ Thu May 24 20:00:12 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Fixed a minor cleanup issue with Silo compression.
     * Bumped HDF5 version to 1.10.2.
     * Replaced 'make config' system with a simpler bootstrap process.
-    * Replaced update_version_h and generate_headers Python scripts with 
+    * Replaced update_version_h and generate_headers Python scripts with
     * scripts, easing a build dependency.
 Sun May 13 21:53:54 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.1
@@ -79,10 +120,10 @@ Sun May 13 21:53:54 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
 Thu May  3 6:29:35 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.0
     * A low-level partitioning interface has been added.
-    * Existing partitioning interfaces for point_cloud and polymesh are 
+    * Existing partitioning interfaces for point_cloud and polymesh are
       simpler than before.
     * The migrator class is gone.
-    * PETSc and HYPRE solvers are more robust, and are enabled for static 
+    * PETSc and HYPRE solvers are more robust, and are enabled for static
       builds.
     * Polymec now uses Docker­enabled Travis CI builds.
     * Adopted the abandonware Silo library for the moment (usilo).
@@ -106,30 +147,30 @@ Mon Apr  2 00:07:19 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
 Thu Nov 30 13:38:42 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.1
     * Fixed a bug in garbage collection.
-    * Added diagnostic modes for models to control whether time steps 
+    * Added diagnostic modes for models to control whether time steps
       are affected by plots and/or probe measurements.
-    * The io library now depends on all other libraries. Silo features 
+    * The io library now depends on all other libraries. Silo features
       have been consolidated into this library.
-    * Removed MPI tag arguments from silo_file_new, silo_file_open. This 
-      breaks compatibility, strictly speaking, but remains a very minor 
+    * Removed MPI tag arguments from silo_file_new, silo_file_open. This
+      breaks compatibility, strictly speaking, but remains a very minor
       change.
 Sun Nov 19 14:41:52 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.0
     * Implemented a proper Lua interpreter for writing input scripts.
-      - Added types and functions for defining records and objects that 
+      - Added types and functions for defining records and objects that
         represent polymec data structures.
-      - Implemented logic for interactive interpreter, including accommodations 
+      - Implemented logic for interactive interpreter, including accommodations
         for parallel I/O.
       - Added Lua representations of all fundamental data types.
-      - Added help() and document(), an interactive docstring-based help 
+      - Added help() and document(), an interactive docstring-based help
         system.
       - Provided lua_driver, which handles startup and provides a Lua
         interpreter inside which input is executed.
     * Added signed distance function classes: sd_func and sdt_func.
     * Added vectorized forms for sp_func and st_func.
-    * Replaced model observations with probes, making data acquisition 
+    * Replaced model observations with probes, making data acquisition
       available to the Lua interpreter.
-    * Added complex_t and corresponding functions for manipulating complex 
+    * Added complex_t and corresponding functions for manipulating complex
       numbers.
     * Implemented several special functions (real- and complex-valued).
     * Renamed integrators library to solvers and moved several classes there.
@@ -180,7 +221,7 @@ Fri Oct 28 17:49:38 PDT 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Added first-class support for garbage collection in allocators.
     * Fixed problems with untraced memory allocations (which cause failure to
       collect objects tracked within).
-    * Fixed problems involving use of standard malloc/free, mixed with 
+    * Fixed problems involving use of standard malloc/free, mixed with
       polymec's allocators.
     * Removed explicit use of the Boehm garbage collector from the library.
     * Surrogates for system functions now use regular allocators.
@@ -223,7 +264,7 @@ Mon Aug 15 20:10:58 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * Fixed several minor issues uncovered by static analysis.
     * Added floating-point comparison functions
       * reals_equal - true/false if two reals are equal/not equal
-      * set_real_epsilon - sets threshold for equality of reals 
+      * set_real_epsilon - sets threshold for equality of reals
       * reals_nearly_equal - true/false if two reals are within a given tolerance.
 
 Thu Aug  4 15:53:04 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
@@ -231,9 +272,9 @@ Thu Aug  4 15:53:04 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * Fixed a minor problem in HDF5 library location with polyglot.
     * Fixed ordering of the HDF5 libraries.
     * Disallowing serial builds on Edison/Cori, fixing some HDF5 settings.
-    * Exchangers/migrators are now garbage collected. Their destructor 
+    * Exchangers/migrators are now garbage collected. Their destructor
       functions are now deprecated.
-    * Set up a more formal mechanism for supporting builds on specific 
+    * Set up a more formal mechanism for supporting builds on specific
       machines. Machine files are stored in a polymec-machines repo.
     * Adding Valgrind support for Travis CI via 'make memcheck'.
     * Adding support for testing on batch systems via ctest.
@@ -245,7 +286,7 @@ Thu Aug  4 15:53:04 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
 Fri Jun 24 21:25:33 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * polymec: version 1.1
     * The implementation of the distance_based_neighbor_pairing_new function,
-      bundled with the neighbor_pairing class, had a bug in its parallel 
+      bundled with the neighbor_pairing class, had a bug in its parallel
       implementation, which has been fixed.
     * Added support for LIS Krylov solvers (no block matrix support yet).
     * Implemented parallel_sort.
@@ -255,31 +296,31 @@ Fri Jun 24 21:25:33 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * Various little enhancements for the build system.
     * Removed support for NERSC hopper.
     * Point cloud dynamic repartitioning now works.
-    * Also, there's a new migrator type that is distinct from the exchanger 
-      type, since having the latter do both exchanges and transfers was 
+    * Also, there's a new migrator type that is distinct from the exchanger
+      type, since having the latter do both exchanges and transfers was
       confusing.
     * The Krylov matrix/vector classes no longer include assembly methods in their interfaces.
     * Numerous bugs were fixed in the HYPRE Krylov solver. The PCG, GMRES, and BICGSTAB solvers now correctly solve the 1D Laplace equation.
     *  LIS now builds with debugging symbols (and without optimization) under Debug builds.
     *  HYPRE error reporting is now improved.
     * All interfaces (LIS, PETSc, HYPRE) use 64-bit integers to store global indices.
-    * Reworked the Krylov solver unit test to be thorough for PETSc/HYPRE 
+    * Reworked the Krylov solver unit test to be thorough for PETSc/HYPRE
       interfaces.
-    * New methods have been added to the krylov_matrix class for adding and 
+    * New methods have been added to the krylov_matrix class for adding and
       inserting/getting blocks.
-    * Variable and fixed block matrices are now supported in all Krylov 
+    * Variable and fixed block matrices are now supported in all Krylov
       solver implementations.
     * Polymec's versioning information now doesn't include diffs in tests.
-    * The build system is more selective about generating headers and version 
-      information, resulting in considerable build savings when debugging 
+    * The build system is more selective about generating headers and version
+      information, resulting in considerable build savings when debugging
       small numbers of files.
     * Travis CI now builds PETSc/HYPRE libraries where they are to be tested.
     * Bumped Lua to 5.3.3.
     * Bumped HDF5 to 1.10.0-patch1.
-    * Added missing migrator methods, which allow us to use the migrator 
+    * Added missing migrator methods, which allow us to use the migrator
       interface and avoid the deprecated portion of the exchanger interface.
-    * Simplified the logic behind the determination of HDF5 library names in 
-      the 3rd-party build system in order for successful builds on NERSC 
+    * Simplified the logic behind the determination of HDF5 library names in
+      the 3rd-party build system in order for successful builds on NERSC
       Edison/Cori.
     * The Lua interpreter's functions are now documented.
     * Enhanced logging features like log_mode(), more flexible ordering of log-related command line args.
