@@ -718,18 +718,37 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
     for (int i = 0; i < npx; ++i)
     {
       int num_x_edges = 0;
-      if ((i > 0) || (nblocks[0] != -1)) ++num_x_edges;
-      if ((i < npz-1) || (nblocks[1] != -1)) ++num_x_edges;
+      if ((i == 0) && (nblocks[0] != -1))
+        ++num_x_edges;
+      else if (i > 0)
+        ++num_x_edges;
+      if ((i == npx-1) && (nblocks[1] != -1))
+        ++num_x_edges;
+      else if (i < npx-1)
+        ++num_x_edges;
       for (int j = 0; j < npy; ++j)
       {
         int num_y_edges = 0;
-        if ((j > 0) || (nblocks[2] != -1)) ++num_y_edges;
-        if ((j < npy-1) || (nblocks[3] != -1)) ++num_y_edges;
+        if ((j == 0) && (nblocks[2] != -1))
+          ++num_y_edges;
+        else if (j > 0)
+          ++num_y_edges;
+        if ((j == npy-1) && (nblocks[3] != -1))
+          ++num_y_edges;
+        else if (j < npy-1)
+          ++num_y_edges;
         for (int k = 0; k < npz; ++k)
         {
           int num_z_edges = 0;
-          if ((k > 0) || (nblocks[4] != -1)) ++num_z_edges;
-          if ((k < npz-1) || (nblocks[5] != -1)) ++num_z_edges;
+          if ((k == 0) && (nblocks[4] != -1))
+            ++num_z_edges;
+          else if (k > 0)
+            ++num_z_edges;
+          if ((k == npz-1) && (nblocks[5] != -1))
+            ++num_z_edges;
+          else if (k < npz-1)
+            ++num_z_edges;
+
           int num_edges = num_x_edges + num_y_edges + num_z_edges;
           int index = patch_offsets[b_index] + npy*npz*i + npz*j + k;
           adj_graph_set_num_edges(g, index, num_edges);
@@ -747,37 +766,38 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
   while (blockmesh_next_block(mesh, &pos, &b_index, &block))
   {
     int npx = npxs[b_index], npy = npys[b_index], npz = npzs[b_index];
+    int p_offset = patch_offsets[b_index];
 
     int pos1 = 0, i, j, k;
     while (unimesh_next_patch(block, &pos1, &i, &j, &k, NULL))
     {
-      int index = patch_offsets[b_index] + npy*npz*i + npz*j + k;
+      int index = p_offset + npy*npz*i + npz*j + k;
       int* edges = adj_graph_edges(g, index);
       int offset = edge_offsets[index];
 
       // -x neighbor
       if (i > 0)
-        edges[offset++] = patch_offsets[b_index] + npy*npz*(i-1) + npz*j + k;
+        edges[offset++] = p_offset + npy*npz*(i-1) + npz*j + k;
 
       // +x neighbor
       if (i < npx-1)
-        edges[offset++] = patch_offsets[b_index] + npy*npz*(i+1) + npz*j + k;
+        edges[offset++] = p_offset + npy*npz*(i+1) + npz*j + k;
 
       // -y neighbor
       if (j > 0)
-        edges[offset++] = patch_offsets[b_index] + npy*npz*i + npz*(j-1) + k;
+        edges[offset++] = p_offset + npy*npz*i + npz*(j-1) + k;
 
       // +y neighbor
       if (j < npy-1)
-        edges[offset++] = patch_offsets[b_index] + npy*npz*i + npz*(j+1) + k;
+        edges[offset++] = p_offset + npy*npz*i + npz*(j+1) + k;
 
       // -z neighbor
       if (k > 0)
-        edges[offset++] = patch_offsets[b_index] + npy*npz*i + npz*j + k-1;
+        edges[offset++] = p_offset + npy*npz*i + npz*j + k-1;
 
       // +z neighbor
       if (k < npz-1)
-        edges[offset++] = patch_offsets[b_index] + npy*npz*i + npz*j + k+1;
+        edges[offset++] = p_offset + npy*npz*i + npz*j + k+1;
 
       edge_offsets[index] = offset;
     }
@@ -793,37 +813,13 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
                                                  &b2_index, &i2, &j2, &k2,
                                                  &boundary2))
   {
-    int npx1 = npxs[b1_index], npy1 = npys[b1_index], npz1 = npzs[b1_index];
-    int npx2 = npxs[b2_index], npy2 = npys[b2_index], npz2 = npzs[b2_index];
+    int npy1 = npys[b1_index], npz1 = npzs[b1_index];
+    int npy2 = npys[b2_index], npz2 = npzs[b2_index];
 
     int index = patch_offsets[b1_index] + npy1*npz1*i1 + npz1*j1 + k1;
     int* edges = adj_graph_edges(g, index);
     int offset = edge_offsets[index];
-
-    // -x neighbor
-    if (i1 == 0)
-      edges[offset++] = patch_offsets[b2_index] + npy2*npz2*(npx2-1) + npz2*j2 + k2;
-
-    // +x neighbor
-    if (i1 == npx1-1)
-      edges[offset++] = patch_offsets[b2_index] + npz2*j2 + k2;
-
-    // -y neighbor
-    if (j1 == 0)
-      edges[offset++] = patch_offsets[b2_index] + npy2*npz2*i2 + npz2*(npy2-1) + k2;
-
-    // +y neighbor
-    if (j1 == npy1-1)
-      edges[offset++] = patch_offsets[b2_index] + npy2*npz2*i2 + k2;
-
-    // -z neighbor
-    if (k1 == 0)
-      edges[offset++] = patch_offsets[b2_index] + npy2*npz2*i2 + npz2*j2 + npz2-1;
-
-    // +z neighbor
-    if (k1 == npz1-1)
-      edges[offset++] = patch_offsets[b2_index] + npy2*npz2*i2 + npz2*j2;
-
+    edges[offset++] = patch_offsets[b2_index] + npy2*npz2*i2 + npz2*j2 + k2;
     edge_offsets[index] = offset;
   }
 
