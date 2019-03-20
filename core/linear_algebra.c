@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "core/linear_algebra.h"
 
 // NOTE: All LAPACK functions are implemented within the library, not here.
-// However, the real-valued prototypes are implemented here as 
+// However, the real-valued prototypes are implemented here as
 // dispatches to their LAPACK functions.
 
 void rgemv(char* trans, int* m, int* n, real_t* alpha,
@@ -23,7 +23,7 @@ void rgemv(char* trans, int* m, int* n, real_t* alpha,
 }
 
 void rgemm(char* transa, char* transB, int* m, int* n, int* k, real_t* alpha,
-           real_t* A, int* lda, real_t* B, int* ldb, real_t* beta, real_t* C, 
+           real_t* A, int* lda, real_t* B, int* ldb, real_t* beta, real_t* C,
            int* ldc)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -33,7 +33,7 @@ void rgemm(char* transa, char* transB, int* m, int* n, int* k, real_t* alpha,
 #endif
 }
 
-void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, 
+void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv,
            real_t* b, int* ldb, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -46,14 +46,14 @@ void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv,
 void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
             int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
             real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
-            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work,
             int* iwork, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-  dgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
+  dgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb,
          x, ldx, rcond, ferr, berr, work, iwork, info);
 #else
-  sgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb, 
+  sgesvx(fact, trans, n, nrhs, A, lda, af, ldaf, ipiv, equed, r, c, b, ldb,
          x, ldx, rcond, ferr, berr, work, iwork, info);
 #endif
 }
@@ -67,7 +67,7 @@ void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info)
 #endif
 }
 
-void rgetrs(char* trans, int* n, int* nrhs, real_t* A, 
+void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
             int* lda, int* ipiv, real_t* b, int* ldb, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -77,7 +77,7 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 #endif
 }
 
-void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
+void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda,
            real_t* b, int* ldb, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -88,16 +88,16 @@ void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda,
 }
 
 void rposvx(char* fact, char* uplo, int* n, int* nrhs, real_t* A,
-            int* lda, real_t* af, int* ldaf, char* equed, real_t* s, 
+            int* lda, real_t* af, int* ldaf, char* equed, real_t* s,
             real_t* b, int* ldb, real_t* x, int* ldx,
-            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work,
             int* iwork, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-  dposvx(fact, uplo, n, nrhs, A, lda, af, ldaf, equed, s, b, ldb, 
+  dposvx(fact, uplo, n, nrhs, A, lda, af, ldaf, equed, s, b, ldb,
          x, ldx, rcond, ferr, berr, work, iwork, info);
 #else
-  sposvx(fact, uplo, n, nrhs, A, lda, af, ldaf, equed, s, b, ldb, 
+  sposvx(fact, uplo, n, nrhs, A, lda, af, ldaf, equed, s, b, ldb,
          x, ldx, rcond, ferr, berr, work, iwork, info);
 #endif
 }
@@ -111,7 +111,7 @@ void rpotrf(char* uplo, int* n, real_t* A, int* lda, int* info)
 #endif
 }
 
-void rpotrs(char* uplo, int* n, int* nrhs, real_t* A, 
+void rpotrs(char* uplo, int* n, int* nrhs, real_t* A,
             int* lda, real_t* b, int* ldb, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -142,7 +142,7 @@ void rorgqr(int* m, int* n, int* k, real_t* A, int* lda, real_t* tau,
 }
 
 void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
-            int* lda, real_t* tau, real_t* C, int* ldc, real_t* work, 
+            int* lda, real_t* tau, real_t* C, int* ldc, real_t* work,
             int* lwork, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -152,8 +152,8 @@ void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
 #endif
 }
 
-void rgesvd(char* jobU, char* jobVT, int* m, int* n, 
-           real_t *A, int* lda, real_t* S, real_t* U, int* ldu, 
+void rgesvd(char* jobU, char* jobVT, int* m, int* n,
+           real_t *A, int* lda, real_t* S, real_t* U, int* ldu,
            real_t* VT, int* ldvt, real_t *work, int* lwork, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -163,7 +163,7 @@ void rgesvd(char* jobU, char* jobVT, int* m, int* n,
 #endif
 }
 
-void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
            real_t* work, int* lwork, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -173,8 +173,8 @@ void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* 
 #endif
 }
 
-void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
-            int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork, 
+void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
+            int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork,
             int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -184,8 +184,8 @@ void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 #endif
 }
 
-void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
-            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
+void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork,
             int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -195,8 +195,8 @@ void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 #endif
 }
 
-void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
-            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
+void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork,
             int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -239,7 +239,7 @@ real_t matrix2_det(real_t* matrix)
 real_t matrix3_det(real_t* matrix)
 {
   return matrix[0]*(matrix[4]*matrix[8] - matrix[5]*matrix[7]) -
-         matrix[3]*(matrix[1]*matrix[8] - matrix[2]*matrix[7]) + 
+         matrix[3]*(matrix[1]*matrix[8] - matrix[2]*matrix[7]) +
          matrix[6]*(matrix[1]*matrix[5] - matrix[2]*matrix[4]);
 }
 
@@ -258,17 +258,17 @@ void solve_3x3(real_t* A, real_t* b, real_t* x)
   // x = Ainv * b.
   real_t inv_det_A = 1.0 / matrix3_det(A);
 
-  x[0] = inv_det_A * 
-         ((A[8]*A[4]-A[5]*A[7]) * b0 - 
-          (A[8]*A[3]-A[5]*A[6]) * b1 + 
+  x[0] = inv_det_A *
+         ((A[8]*A[4]-A[5]*A[7]) * b0 -
+          (A[8]*A[3]-A[5]*A[6]) * b1 +
           (A[7]*A[3]-A[4]*A[6]) * b2);
 
-  x[1] = inv_det_A * 
+  x[1] = inv_det_A *
          (-(A[8]*A[1]-A[2]*A[7]) * b0 +
            (A[8]*A[0]-A[2]*A[6]) * b1 -
            (A[7]*A[0]-A[1]*A[6]) * b2);
 
-  x[2] = inv_det_A * 
+  x[2] = inv_det_A *
          ((A[5]*A[1]-A[2]*A[4]) * b0 -
           (A[5]*A[0]-A[2]*A[3]) * b1 +
           (A[4]*A[0]-A[1]*A[3]) * b2);
@@ -283,8 +283,8 @@ real_t rlange(char* norm, int* m, int* n, real_t* A, int* lda, real_t* work)
 #endif
 }
 
-void rgeev(char* jobvl, char* jobvr, int* n, real_t* A, int* lda, real_t* wr, real_t* wi, 
-           real_t* vl, int* ldvl, real_t* vr, int* ldvr, 
+void rgeev(char* jobvl, char* jobvr, int* n, real_t* A, int* lda, real_t* wr, real_t* wi,
+           real_t* vl, int* ldvl, real_t* vr, int* ldvr,
            real_t* work, int* lwork, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION

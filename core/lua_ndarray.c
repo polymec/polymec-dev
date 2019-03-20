@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -93,7 +93,7 @@ static int ndarray_new(lua_State* L)
     return luaL_error(L, "Arguments must be a shape table and a data type.");
   if (!lua_istable(L, 1))
     return luaL_error(L, "Argument 1 must be a shape table.");
-  if (!lua_isstring(L, 2)) 
+  if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument 2 must be a data type.");
 
   // Decipher the shape table.
@@ -130,7 +130,7 @@ static lua_module_function ndarray_funcs[] = {
 void lua_register_ndarray(lua_State* L);
 void lua_register_ndarray(lua_State* L)
 {
-  lua_register_class(L, "ndarray", 
+  lua_register_class(L, "ndarray",
                      "An N-dimensional array class.",
                      ndarray_funcs,
                      ndarray_fields,
@@ -141,7 +141,7 @@ void lua_register_ndarray(lua_State* L)
 void lua_push_ndarray(lua_State* L,
                       int rank,
                       size_t* shape,
-                      void* array, 
+                      void* array,
                       lua_array_data_t type)
 {
   lua_ndarray_t* a = polymec_malloc(sizeof(lua_ndarray_t));
@@ -166,10 +166,10 @@ bool lua_is_ndarray(lua_State* L, int index, lua_array_data_t type)
     return false;
 }
 
-void* lua_to_ndarray(lua_State* L, 
-                     int index, 
-                     lua_array_data_t type, 
-                     int* rank, 
+void* lua_to_ndarray(lua_State* L,
+                     int index,
+                     lua_array_data_t type,
+                     int* rank,
                      size_t** shape)
 {
   lua_ndarray_t* a = lua_to_object(L, index, "ndarray");

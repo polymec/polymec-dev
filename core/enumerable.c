@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -64,7 +64,7 @@ bool_array_t* enumerable_xor(bool_array_t* values1, bool_array_t* values2)
   bool_array_t* result = bool_array_new_with_size(values1->size);
   for (size_t i = 0; i < result->size; ++i)
   {
-    result->data[i] = ((values1->data[i] && !values2->data[i]) || 
+    result->data[i] = ((values1->data[i] && !values2->data[i]) ||
                        (!values1->data[i] && values2->data[i]));
   }
   bool_array_free(values1);
@@ -184,27 +184,27 @@ bool_array_t* datatype_prefix##_##cmp_name(datatype_prefix##_enumerable_generato
 } \
 \
 
-static inline bool int_gt(int x, int y) 
+static inline bool int_gt(int x, int y)
 {
   return (x > y);
 }
 
-static inline bool int_gte(int x, int y) 
+static inline bool int_gte(int x, int y)
 {
   return (x >= y);
 }
 
-static inline bool int_lt(int x, int y) 
+static inline bool int_lt(int x, int y)
 {
   return (x < y);
 }
 
-static inline bool int_lte(int x, int y) 
+static inline bool int_lte(int x, int y)
 {
   return (x <= y);
 }
 
-static inline bool int_eq(int x, int y) 
+static inline bool int_eq(int x, int y)
 {
   return (x == y);
 }
@@ -215,22 +215,22 @@ DEFINE_ORDERING_CMP(less_than, int, int, int_lt)
 DEFINE_ORDERING_CMP(less_than_or_equal_to, int, int, int_lte)
 DEFINE_ORDERING_CMP(equal_to, int, int, int_eq)
 
-static inline bool real_gt(real_t x, real_t y) 
+static inline bool real_gt(real_t x, real_t y)
 {
   return (x > y);
 }
 
-static inline bool real_gte(real_t x, real_t y) 
+static inline bool real_gte(real_t x, real_t y)
 {
   return (x >= y);
 }
 
-static inline bool real_lt(real_t x, real_t y) 
+static inline bool real_lt(real_t x, real_t y)
 {
   return (x < y);
 }
 
-static inline bool real_lte(real_t x, real_t y) 
+static inline bool real_lte(real_t x, real_t y)
 {
   return (x <= y);
 }

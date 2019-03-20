@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -76,43 +76,43 @@ void rgemv(char* trans, int* m, int* n, real_t* alpha,
 ///@{
 /// Matrix-matrix multiplication: C := alpha*op(A)*op(B) + beta*C.
 void dgemm(char* transa, char* transB, int* m, int* n, int* k, double* alpha,
-           double* A, int* lda, double* B, int* ldb, double* beta, double* C, 
+           double* A, int* lda, double* B, int* ldb, double* beta, double* C,
            int* ldc);
 void sgemm(char* transa, char* transB, int* m, int* n, int* k, float* alpha,
-           float* A, int* lda, float* B, int* ldb, float* beta, float* C, 
+           float* A, int* lda, float* B, int* ldb, float* beta, float* C,
            int* ldc);
 void rgemm(char* transa, char* transB, int* m, int* n, int* k, real_t* alpha,
-           real_t* A, int* lda, real_t* B, int* ldb, real_t* beta, real_t* C, 
+           real_t* A, int* lda, real_t* B, int* ldb, real_t* beta, real_t* C,
            int* ldc);
 ///@}
 
 ///@{
 /// Solves a linear system using LU factorization (in one step).
-void dgesv(int* n, int* nrhs, double* A, int* lda, int* ipiv, 
+void dgesv(int* n, int* nrhs, double* A, int* lda, int* ipiv,
            double* b, int* ldb, int* info);
-void sgesv(int* n, int* nrhs, float* A, int* lda, int* ipiv, 
+void sgesv(int* n, int* nrhs, float* A, int* lda, int* ipiv,
            float* b, int* ldb, int* info);
-void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, 
+void rgesv(int* n, int* nrhs, real_t* A, int* lda, int* ipiv,
            real_t* b, int* ldb, int* info);
 ///@}
 
 ///@{
-/// Solves a linear system using LU factorization (existing or not), providing 
+/// Solves a linear system using LU factorization (existing or not), providing
 /// error bounds and an estimate of the condition number of the matrix A.
 void dgesvx(char* fact, char* trans, int* n, int* nrhs, double* A,
             int* lda, double* af, int* ldaf, int* ipiv, char* equed,
             double* r, double* c, double* b, int* ldb, double* x, int* ldx,
-            double* rcond, double* ferr, double* berr, double* work, 
+            double* rcond, double* ferr, double* berr, double* work,
             int* iwork, int* info);
 void sgesvx(char* fact, char* trans, int* n, int* nrhs, float* A,
             int* lda, float* af, int* ldaf, int* ipiv, char* equed,
             float* r, float* c, float* b, int* ldb, float* x, int* ldx,
-            float* rcond, float* ferr, float* berr, float* work, 
+            float* rcond, float* ferr, float* berr, float* work,
             int* iwork, int* info);
 void rgesvx(char* fact, char* trans, int* n, int* nrhs, real_t* A,
             int* lda, real_t* af, int* ldaf, int* ipiv, char* equed,
             real_t* r, real_t* c, real_t* b, int* ldb, real_t* x, int* ldx,
-            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work,
             int* iwork, int* info);
 ///@}
 
@@ -125,43 +125,43 @@ void rgetrf(int* n, int* nrhs, real_t* A, int* lda, int* ipiv, int* info);
 
 ///@{
 /// Solves a linear system using an existing LU factorization.
-void dgetrs(char* trans, int* n, int* nrhs, double* A, 
+void dgetrs(char* trans, int* n, int* nrhs, double* A,
             int* lda, int* ipiv, double* b, int* ldb, int* info);
-void sgetrs(char* trans, int* n, int* nrhs, float* A, 
+void sgetrs(char* trans, int* n, int* nrhs, float* A,
             int* lda, int* ipiv, float* b, int* ldb, int* info);
-void rgetrs(char* trans, int* n, int* nrhs, real_t* A, 
+void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
             int* lda, int* ipiv, real_t* b, int* ldb, int* info);
 ///@}
 
 ///@{
 /// Solves a linear system using Cholesky factorization (in one step).
 /// Note that A should be symmetric and positive definite.
-void dposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
+void dposv(char* uplo, int* n, int* nrhs, double* A, int* lda,
            double* b, int* ldb, int* info);
-void sposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
+void sposv(char* uplo, int* n, int* nrhs, double* A, int* lda,
            float* b, int* ldb, int* info);
-void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
+void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda,
            real_t* b, int* ldb, int* info);
 ///@}
 
 ///@{
-/// Solves a linear system using Cholesky factorization (existing or not), 
-/// providing error bounds and an estimate of the condition number of the 
+/// Solves a linear system using Cholesky factorization (existing or not),
+/// providing error bounds and an estimate of the condition number of the
 /// (symmetric positive definite) matrix A.
 void dposvx(char* fact, char* uplo, int* n, int* nrhs, double* A,
-            int* lda, double* af, int* ldaf, char* equed, double* s, 
+            int* lda, double* af, int* ldaf, char* equed, double* s,
             double* b, int* ldb, double* x, int* ldx,
-            double* rcond, double* ferr, double* berr, double* work, 
+            double* rcond, double* ferr, double* berr, double* work,
             int* iwork, int* info);
 void sposvx(char* fact, char* uplo, int* n, int* nrhs, float* A,
-            int* lda, float* af, int* ldaf, char* equed, float* s, 
+            int* lda, float* af, int* ldaf, char* equed, float* s,
             float* b, int* ldb, float* x, int* ldx,
-            float* rcond, float* ferr, float* berr, float* work, 
+            float* rcond, float* ferr, float* berr, float* work,
             int* iwork, int* info);
 void rposvx(char* fact, char* uplo, int* n, int* nrhs, real_t* A,
-            int* lda, real_t* af, int* ldaf, char* equed, real_t* s, 
+            int* lda, real_t* af, int* ldaf, char* equed, real_t* s,
             real_t* b, int* ldb, real_t* x, int* ldx,
-            real_t* rcond, real_t* ferr, real_t* berr, real_t* work, 
+            real_t* rcond, real_t* ferr, real_t* berr, real_t* work,
             int* iwork, int* info);
 ///@}
 
@@ -176,11 +176,11 @@ void rpotrf(char* uplo, int* n, real_t* A, int* lda, int* info);
 ///@{
 /// Solves a linear system using an existing Cholesky factorization.
 /// Note that A should be symmetric and positive definite.
-void dpotrs(char* uplo, int* n, int* nrhs, double* A, 
+void dpotrs(char* uplo, int* n, int* nrhs, double* A,
             int* lda, double* b, int* ldb, int* info);
-void spotrs(char* uplo, int* n, int* nrhs, float* A, 
+void spotrs(char* uplo, int* n, int* nrhs, float* A,
             int* lda, float* b, int* ldb, int* info);
-void rpotrs(char* uplo, int* n, int* nrhs, real_t* A, 
+void rpotrs(char* uplo, int* n, int* nrhs, real_t* A,
             int* lda, real_t* b, int* ldb, int* info);
 ///@}
 
@@ -225,13 +225,13 @@ void rorgqr(int* m, int* n, int* k, real_t* A, int* lda, real_t* tau,
 /// as returned by dgeqrf. Q is of order m if side = 'L' and of order n
 /// if side = 'R'.
 void dormqr(char* side, char* trans, int* m, int* n, int* k, double* A,
-            int* lda, double* tau, double* C, int* ldc, double* work, 
+            int* lda, double* tau, double* C, int* ldc, double* work,
             int* lwork, int* info);
 void sormqr(char* side, char* trans, int* m, int* n, int* k, float* A,
-            int* lda, float* tau, float* C, int* ldc, float* work, 
+            int* lda, float* tau, float* C, int* ldc, float* work,
             int* lwork, int* info);
 void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
-            int* lda, real_t* tau, real_t* C, int* ldc, real_t* work, 
+            int* lda, real_t* tau, real_t* C, int* ldc, real_t* work,
             int* lwork, int* info);
 ///@}
 
@@ -239,7 +239,7 @@ void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
 /// Singular value decomposition: computes the SVD of an MxN matrix A:
 /// A = U * Sigma * transpose(V)
 /// where Sigma is a diagonal MxN matrix containing the singular values of A,
-/// U is an MxM orthogonal matrix, and V is an NxN orthogonal matrix. The columns 
+/// U is an MxM orthogonal matrix, and V is an NxN orthogonal matrix. The columns
 /// of U and V are the left and right singular vectors of A.
 /// Arguments:
 /// jobU - specifies options for computing the matrix U:
@@ -259,14 +259,14 @@ void rormqr(char* side, char* trans, int* m, int* n, int* k, real_t* A,
 ///        'N':  no columns of VT (no right singular vectors) are
 ///              computed.
 /// \note jobU and jobVT cannot both be 'O'.
-void dgesvd(char* jobU, char* jobVT, int* m, int* n, 
-            double *A, int* lda, double* S, double* U, int* ldu, 
+void dgesvd(char* jobU, char* jobVT, int* m, int* n,
+            double *A, int* lda, double* S, double* U, int* ldu,
             double* VT, int* ldvt, double *work, int* lwork, int* info);
-void sgesvd(char* jobU, char* jobVT, int* m, int* n, 
-            float *A, int* lda, float* S, float* U, int* ldu, 
+void sgesvd(char* jobU, char* jobVT, int* m, int* n,
+            float *A, int* lda, float* S, float* U, int* ldu,
             float* VT, int* ldvt, float *work, int* lwork, int* info);
-void rgesvd(char* jobU, char* jobVT, int* m, int* n, 
-            real_t *A, int* lda, real_t* S, real_t* U, int* ldu, 
+void rgesvd(char* jobU, char* jobVT, int* m, int* n,
+            real_t *A, int* lda, real_t* S, real_t* U, int* ldu,
             real_t* VT, int* ldvt, real_t *work, int* lwork, int* info);
 ///@}
 
@@ -276,11 +276,11 @@ void rgesvd(char* jobU, char* jobVT, int* m, int* n,
 ///       minimize || A * X - B ||
 /// using a QR factorization of A. A is an M-by-N
 /// matrix which must not be rank-deficient. See LAPACK documentation for details.
-void dgels(char* trans, int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
+void dgels(char* trans, int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb,
            double* work, int* lwork, int* info);
-void sgels(char* trans, int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
+void sgels(char* trans, int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb,
            float* work, int* lwork, int* info);
-void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
+void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
            real_t* work, int* lwork, int* info);
 ///@}
 
@@ -290,14 +290,14 @@ void rgels(char* trans, int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* 
 ///       minimize || A * X - B ||
 /// using a complete orthogonal factorization of A. A is an M-by-N
 /// matrix which may be rank-deficient. See LAPACK documentation for details.
-void dgelsy(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
-            int* jpvt, double* rcond, int* rank, double* work, int* lwork, 
+void dgelsy(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb,
+            int* jpvt, double* rcond, int* rank, double* work, int* lwork,
             int* info);
-void sgelsy(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
-            int* jpvt, float* rcond, int* rank, float* work, int* lwork, 
+void sgelsy(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb,
+            int* jpvt, float* rcond, int* rank, float* work, int* lwork,
             int* info);
-void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
-            int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork, 
+void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
+            int* jpvt, real_t* rcond, int* rank, real_t* work, int* lwork,
             int* info);
 ///@}
 
@@ -307,14 +307,14 @@ void rgelsy(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 ///       minimize || A * X - B ||
 /// using the singular value decomposition of A. A is an M-by-N
 /// matrix which may be rank-deficient. See LAPACK documentation for details.
-void dgelss(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
-            double* S, double* rcond, int* rank, double* work, int* lwork, 
+void dgelss(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb,
+            double* S, double* rcond, int* rank, double* work, int* lwork,
             int* info);
-void sgelss(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
-            float* S, float* rcond, int* rank, float* work, int* lwork, 
+void sgelss(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb,
+            float* S, float* rcond, int* rank, float* work, int* lwork,
             int* info);
-void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
-            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
+void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork,
             int* info);
 ///@}
 
@@ -322,17 +322,17 @@ void rgelss(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
 /// Computes the minimum-norm solution to a real linear least
 /// squares problem:
 ///       minimize || A * X - B ||
-/// using the singular value decomposition of A with a divide-and-conquer 
-/// method. A is an M-by-N matrix which may be rank-deficient. See LAPACK 
+/// using the singular value decomposition of A with a divide-and-conquer
+/// method. A is an M-by-N matrix which may be rank-deficient. See LAPACK
 /// documentation for details.
-void dgelsd(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb, 
-            double* S, double* rcond, int* rank, double* work, int* lwork, 
+void dgelsd(int* m, int* n, int* nrhs, double* A, int* lda, double* B, int* ldb,
+            double* S, double* rcond, int* rank, double* work, int* lwork,
             int* info);
-void sgelsd(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb, 
-            float* S, float* rcond, int* rank, float* work, int* lwork, 
+void sgelsd(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb,
+            float* S, float* rcond, int* rank, float* work, int* lwork,
             int* info);
-void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
-            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
+void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb,
+            real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork,
             int* info);
 ///@}
 
@@ -346,14 +346,14 @@ real_t rlange(char* norm, int* m, int* n, real_t* A, int* lda, real_t* work);
 
 ///@{
 /// Computes the eigenvalues and eigenvectors of a matrix A.
-void dgeev(char* jobvl, char* jobvr, int* n, double* A, int* lda, double* wr, double* wi, 
-           double* vl, int* ldvl, double* vr, int* ldvr, 
+void dgeev(char* jobvl, char* jobvr, int* n, double* A, int* lda, double* wr, double* wi,
+           double* vl, int* ldvl, double* vr, int* ldvr,
            double* work, int* lwork, int* info);
-void sgeev(char* jobvl, char* jobvr, int* n, float* A, int* lda, float* wr, float* wi, 
-           float* vl, int* ldvl, float* vr, int* ldvr, 
+void sgeev(char* jobvl, char* jobvr, int* n, float* A, int* lda, float* wr, float* wi,
+           float* vl, int* ldvl, float* vr, int* ldvr,
            float* work, int* lwork, int* info);
-void rgeev(char* jobvl, char* jobvr, int* n, real_t* A, int* lda, real_t* wr, real_t* wi, 
-           real_t* vl, int* ldvl, real_t* vr, int* ldvr, 
+void rgeev(char* jobvl, char* jobvr, int* n, real_t* A, int* lda, real_t* wr, real_t* wi,
+           real_t* vl, int* ldvl, real_t* vr, int* ldvr,
            real_t* work, int* lwork, int* info);
 ///@}
 
@@ -379,7 +379,7 @@ real_t matrix2_det(real_t* matrix);
 /// Computes the determinant of the given 3x3 matrix.
 real_t matrix3_det(real_t* matrix);
 
-/// Solves a 2x2 linear system Ax = b. 
+/// Solves a 2x2 linear system Ax = b.
 /// Note that b and x CAN point to the same vector.
 void solve_2x2(real_t* A, real_t* b, real_t* x);
 

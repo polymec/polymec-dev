@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -88,7 +88,7 @@ static inline void set_name##_delete(set_name##_t* set, set_name##_element_t dat
 ///
 /// \param set_name The name of the ordered set.
 /// \param element The data type stored by the set.
-/// \param comparator A comparator function that takes elements a, b, and 
+/// \param comparator A comparator function that takes elements a, b, and
 ///                   returns -1 if a < b, 0 if a == b, and 1 if a > b.
 #define DEFINE_ORDERED_SET(set_name, element, comparator) \
 DEFINE_AVL_TREE(set_name##_avl_tree, element, comparator) \

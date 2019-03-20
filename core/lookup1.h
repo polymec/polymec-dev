@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -26,11 +26,11 @@ typedef enum
   LOOKUP1_QUADRATIC
 } lookup1_interp_t;
 
-/// Constructs a new "x-y" lookup table with the given number of x values 
-/// distributed uniformly within [x_min, x_max], and corresponding (sorted) 
+/// Constructs a new "x-y" lookup table with the given number of x values
+/// distributed uniformly within [x_min, x_max], and corresponding (sorted)
 /// y values.
 /// \memberof lookup1
-lookup1_t* lookup1_new(real_t x_min, real_t x_max, int num_values, 
+lookup1_t* lookup1_new(real_t x_min, real_t x_max, int num_values,
                        real_t* y_values, lookup1_interp_t interpolation);
 
 /// Destroys the given lookup table.
@@ -45,17 +45,17 @@ int lookup1_num_values(lookup1_t* table);
 /// \memberof lookup1
 lookup1_interp_t lookup1_interpolation(lookup1_t* table);
 
-/// Fills x_min and x_max with the lower and upper bounds of the "x" values 
+/// Fills x_min and x_max with the lower and upper bounds of the "x" values
 /// within the table.
 /// \memberof lookup1
 void lookup1_get_bounds(lookup1_t* table, real_t* x_min, real_t* x_max);
 
-/// Fills y_min and y_max with the minimum and maximum y values within the 
+/// Fills y_min and y_max with the minimum and maximum y values within the
 /// table.
 /// \memberof lookup1
 void lookup1_get_extreme_values(lookup1_t* table, real_t* y_min, real_t* y_max);
 
-/// Returns the interpolated "y" value corresponding to the given "x" value 
+/// Returns the interpolated "y" value corresponding to the given "x" value
 /// in the table, assuming that x falls within the bounds of the table.
 /// \memberof lookup1
 real_t lookup1_value(lookup1_t* table, real_t x);

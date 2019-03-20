@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -21,8 +21,8 @@ static int avl_tree_max(int x, int y)
 }
 
 /// \def DEFINE_AVL_TREE(tree_name, element, element_cmp):
-/// Defines an AVL tree (a balanced binary tree) that can be used to implement 
-/// other data structures. The following interface is defined for a tree with 
+/// Defines an AVL tree (a balanced binary tree) that can be used to implement
+/// other data structures. The following interface is defined for a tree with
 /// tree_name `x_tree`.
 /// * `x_tree_t* x_tree_new()` - Creates a new empty tree.
 /// * `void x_tree_free(x_tree_t* tree)` - Destroys the tree.

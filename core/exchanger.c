@@ -774,7 +774,7 @@ bool exchanger_is_valid(exchanger_t* ex, char** reason)
       {
         polymec_free(neighbors_for_proc);
         snprintf(_reason, 1024, "Proc %d is sending %d elements to proc %d, "
-                 "which is expecting %d elements.", p, num_theyre_sending, 
+                 "which is expecting %d elements.", p, num_theyre_sending,
                  ex->rank, num_im_receiving);
         if (reason != NULL)
           *reason = _reason;

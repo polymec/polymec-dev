@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,9 +14,9 @@
 ///@{
 
 /// \def DEFINE_PRIORITY_QUEUE(queue_name, element)
-/// Defines a priority queue with the given element type. A priority queue is 
-/// a container that maintains its elements in order according to their given 
-/// (integer-valued) priority. The following interface is defined for a 
+/// Defines a priority queue with the given element type. A priority queue is
+/// a container that maintains its elements in order according to their given
+/// (integer-valued) priority. The following interface is defined for a
 /// priority queue with name `x_priority_queue`.
 /// * `x_priority_queue_t* x_priority_queue_new()` - Creates a new empty priority queue.
 /// * `void x_priority_queue_free(x_priority_queue_t* queue)` - Destroys the priority queue.

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 #include "core/unordered_map.h"
 
 // A serializer is just a set of read/write functions.
-struct serializer_t 
+struct serializer_t
 {
   char* name;
   serializer_size_func  size;
@@ -18,7 +18,7 @@ struct serializer_t
   serializer_dtor_func  dtor;
 };
 
-// We keep a global registry of serializers so that objects can be sent 
+// We keep a global registry of serializers so that objects can be sent
 // across the network portably.
 DEFINE_UNORDERED_MAP(serializer_registry, char*, serializer_t*, string_hash, string_equals)
 static serializer_registry_t* registry = NULL;
@@ -52,7 +52,7 @@ serializer_t* serializer_new(const char* name,
     polymec_atexit(destroy_serializer_registry);
   }
 
-  // If our global registry does not contain this serializer, make one 
+  // If our global registry does not contain this serializer, make one
   // and insert it.
   serializer_t* s = NULL;
   serializer_t** s_ptr = serializer_registry_get(registry, (char*)name);
@@ -428,37 +428,37 @@ DEFINE_ARRAY_SERIALIZER(index_array, index_t)
 DEFINE_ARRAY_SERIALIZER(real_array, real_t)
 
 // String array stuff -- a one-off.
-static size_t string_array_byte_size(void* obj) 
-{ 
-  string_array_t* a = obj; 
-  return sizeof(size_t) + sizeof(size_t) + sizeof(char*) * a->size; 
-} 
+static size_t string_array_byte_size(void* obj)
+{
+  string_array_t* a = obj;
+  return sizeof(size_t) + sizeof(size_t) + sizeof(char*) * a->size;
+}
 
-static void* string_array_byte_read(byte_array_t* bytes, size_t* offset) 
-{ 
-  size_t size, capacity; 
-  byte_array_read_size_ts(bytes, 1, &size, offset); 
-  byte_array_read_size_ts(bytes, 1, &capacity, offset); 
-  ASSERT(capacity >= size); 
-  string_array_t* a = string_array_new_with_capacity(capacity); 
+static void* string_array_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  size_t size, capacity;
+  byte_array_read_size_ts(bytes, 1, &size, offset);
+  byte_array_read_size_ts(bytes, 1, &capacity, offset);
+  ASSERT(capacity >= size);
+  string_array_t* a = string_array_new_with_capacity(capacity);
   for (int i = 0; i < size; ++i)
     string_array_append_with_dtor(a, string_byte_read(bytes, offset), string_free);
-  return a; 
-} 
+  return a;
+}
 
-static void string_array_byte_write(void* obj, byte_array_t* bytes, size_t* offset) 
-{ 
-  string_array_t* a = obj; 
-  byte_array_write_size_ts(bytes, 1, &a->size, offset); 
-  byte_array_write_size_ts(bytes, 1, &a->capacity, offset); 
+static void string_array_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  string_array_t* a = obj;
+  byte_array_write_size_ts(bytes, 1, &a->size, offset);
+  byte_array_write_size_ts(bytes, 1, &a->capacity, offset);
   for (int i = 0; i < a->size; ++i)
     string_byte_write(a->data[i], bytes, offset);
-} 
+}
 
-serializer_t* string_array_serializer() 
-{ 
-  return serializer_new("string_array", string_array_byte_size, 
-                        string_array_byte_read, string_array_byte_write, 
-                        DTOR(string_array_free)); 
-} 
+serializer_t* string_array_serializer()
+{
+  return serializer_new("string_array", string_array_byte_size,
+                        string_array_byte_read, string_array_byte_write,
+                        DTOR(string_array_free));
+}
 

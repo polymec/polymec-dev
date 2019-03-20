@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -55,7 +55,7 @@ bbox_t* empty_set_bbox_new()
 
 bool bbox_is_empty_set(bbox_t* box)
 {
-  return ((box->x1 >= box->x2) || 
+  return ((box->x1 >= box->x2) ||
           (box->y1 >= box->y2) ||
           (box->z1 >= box->z2));
 }
@@ -69,18 +69,18 @@ bool bbox_is_point(bbox_t* box)
 
 bool bbox_is_line(bbox_t* box)
 {
-  return (!bbox_is_point(box) && 
-          ((reals_equal(box->x1, box->x2) && reals_equal(box->y1, box->y2)) || 
-           (reals_equal(box->y1, box->y2) && reals_equal(box->z1, box->z2)) || 
+  return (!bbox_is_point(box) &&
+          ((reals_equal(box->x1, box->x2) && reals_equal(box->y1, box->y2)) ||
+           (reals_equal(box->y1, box->y2) && reals_equal(box->z1, box->z2)) ||
            (reals_equal(box->z1, box->z2) && reals_equal(box->x1, box->x2))));
 }
 
 bool bbox_is_plane(bbox_t* box)
 {
-  return (!bbox_is_point(box) && 
-          !bbox_is_line(box) && 
-          (reals_equal(box->x1, box->x2) || 
-           reals_equal(box->y1, box->y2) || 
+  return (!bbox_is_point(box) &&
+          !bbox_is_line(box) &&
+          (reals_equal(box->x1, box->x2) ||
+           reals_equal(box->y1, box->y2) ||
            reals_equal(box->z1, box->z2)));
 }
 
@@ -89,7 +89,7 @@ bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
   if (bbox_is_empty_set(box1) || bbox_is_empty_set(box2))
     return false;
 
-  // Two non-empty boxes intersect if their centers x1 and x2 are within the sum of 
+  // Two non-empty boxes intersect if their centers x1 and x2 are within the sum of
   // their spatial extents of one another along each axis.
   point_t x1 = {.x = 0.5 * (box1->x1 + box1->x2),
                 .y = 0.5 * (box1->y1 + box1->y2),
@@ -97,7 +97,7 @@ bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
   point_t x2 = {.x = 0.5 * (box2->x1 + box2->x2),
                 .y = 0.5 * (box2->y1 + box2->y2),
                 .z = 0.5 * (box2->z1 + box2->z2)};
-  return ((ABS(x1.x - x2.x) * 2.0 <= (box1->x2 - box1->x1 + box2->x2 - box2->x1)) && 
+  return ((ABS(x1.x - x2.x) * 2.0 <= (box1->x2 - box1->x1 + box2->x2 - box2->x1)) &&
           (ABS(x1.y - x2.y) * 2.0 <= (box1->y2 - box1->y1 + box2->y2 - box2->y1)) &&
           (ABS(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
 }
@@ -120,17 +120,17 @@ void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
   // should work.
   if (!reals_equal(e1->x, 0.0))
   {
-    e2->y = 1.0; e2->z = 1.0; 
+    e2->y = 1.0; e2->z = 1.0;
     e2->x = -(e1->y + e1->z) / e1->x;
   }
   else if (!reals_equal(e1->y, 0.0))
   {
-    e2->x = 1.0; e2->z = 1.0; 
+    e2->x = 1.0; e2->z = 1.0;
     e2->y = -(e1->x + e1->z) / e1->y;
   }
   else if (!reals_equal(e1->z, 0.0))
   {
-    e2->x = 1.0; e2->y = 1.0; 
+    e2->x = 1.0; e2->y = 1.0;
     e2->z = -(e1->x + e1->y) / e1->z;
   }
   vector_normalize(e2);
@@ -140,19 +140,19 @@ void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
   ASSERT(vector_mag(e3) > 1e-14);
 }
 
-static inline void intersect_segment(real_t x1_1, real_t x2_1, 
+static inline void intersect_segment(real_t x1_1, real_t x2_1,
                                      real_t x1_2, real_t x2_2,
                                      real_t* x1_i, real_t* x2_i)
 {
   // First end of the intersection segment.
   if (x1_1 < x1_2)
   {
-    if (x2_1 < x1_2) 
+    if (x2_1 < x1_2)
     {
       *x1_i = REAL_MAX;
       *x2_i = -REAL_MAX;
     }
-    else 
+    else
     {
       *x1_i = x1_2;
       *x2_i = x2_1;
@@ -163,14 +163,14 @@ static inline void intersect_segment(real_t x1_1, real_t x2_1,
     *x1_i = x1_1;
     *x2_i = MIN(x2_1, x2_2);
   }
-  else 
+  else
   {
-    if (x2_2 < x1_1) 
+    if (x2_2 < x1_1)
     {
       *x1_i = REAL_MAX;
       *x2_i = -REAL_MAX;
     }
-    else 
+    else
     {
       *x1_i = x2_2;
       *x2_i = x2_1;
@@ -220,7 +220,7 @@ int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs)
     return NULL;
   }
 
-  // Gather all the data for the bounding boxes of all processes on this 
+  // Gather all the data for the bounding boxes of all processes on this
   // communicator.
   real_t my_data[6] = {bbox->x1, bbox->x2, bbox->y1, bbox->y2, bbox->z1, bbox->z2};
   real_t* all_data = polymec_malloc(sizeof(real_t) * 6 * nprocs);
@@ -250,7 +250,7 @@ int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs)
 #endif
 }
 
-// points_are_coplanar uses exact floating point predicates, so it's safe 
+// points_are_coplanar uses exact floating point predicates, so it's safe
 // to do a direct floating point comparison.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"

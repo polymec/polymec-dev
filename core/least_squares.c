@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -112,8 +112,8 @@ static ls_weight_func_t* unweighted_func_new()
   return ls_weight_func_new("Unweighted", NULL, vtable);
 }
 
-void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
-                                     point_t* points, int num_points, real_t* data, 
+void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
+                                     point_t* points, int num_points, real_t* data,
                                      real_t* moment_matrix, real_t* rhs)
 {
   ASSERT(p >= 0);
@@ -127,7 +127,7 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
 
   memset(moment_matrix, 0, sizeof(real_t)*size*size);
   memset(rhs, 0, sizeof(real_t)*size);
- 
+
   // Set up a polynomial basis, expanded about x0.
   real_t coeffs[size];
   for (int i = 0; i < size; ++i)
@@ -142,7 +142,7 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
 
     real_t Wd;
     vector_t gradWd;
-    ls_weight_func_eval(wf, &points[n], &Wd, &gradWd); 
+    ls_weight_func_eval(wf, &points[n], &Wd, &gradWd);
     for (int i = 0; i < size; ++i)
     {
       for (int j = 0; j < size; ++j)
@@ -154,7 +154,7 @@ void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
   wf = NULL;
 }
 
-void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
+void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
                             real_t* data, real_t* moment_matrix, real_t* rhs)
 {
   ASSERT(p >= 0);

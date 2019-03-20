@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,7 @@
 ///@{
 
 /// \def DEFINE_KEY_VALUE(key_value_name, key_type, value_type)
-/// A key_value is a pair associating a key with a value. It is used by 
+/// A key_value is a pair associating a key with a value. It is used by
 /// map-like containers. Data members for a key-value pair `kv`:
 /// * `kv->key` - The key in the pair
 /// * `kv->value` - The value in the pair

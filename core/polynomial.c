@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,9 +9,9 @@
 #include "core/slist.h"
 #include "core/unordered_map.h"
 
-struct polynomial_t 
+struct polynomial_t
 {
-  int degree; 
+  int degree;
   size_t num_terms;
   real_t* coeffs;
   int *x_pow, *y_pow, *z_pow;
@@ -36,17 +36,17 @@ int polynomial_basis_dim(int degree)
 }
 
 // Powers of x, y, and z in the standard basis.
-static int std_x_pow[35] = {0, 1, 0, 0, 2, 1, 1, 0, 0, 0, 
-                            3, 2, 2, 1, 1, 1, 0, 0, 0, 0, 
-                            4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 
+static int std_x_pow[35] = {0, 1, 0, 0, 2, 1, 1, 0, 0, 0,
+                            3, 2, 2, 1, 1, 1, 0, 0, 0, 0,
+                            4, 3, 3, 2, 2, 2, 1, 1, 1, 1,
                             0, 0, 0, 0, 0};
-static int std_y_pow[35] = {0, 0, 1, 0, 0, 1, 0, 2, 1, 0, 
-                            0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
-                            0, 1, 0, 2, 1, 0, 3, 2, 1, 0, 
+static int std_y_pow[35] = {0, 0, 1, 0, 0, 1, 0, 2, 1, 0,
+                            0, 1, 0, 2, 1, 0, 3, 2, 1, 0,
+                            0, 1, 0, 2, 1, 0, 3, 2, 1, 0,
                             4, 3, 2, 1, 0};
-static int std_z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2, 
-                            0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
-                            0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 
+static int std_z_pow[35] = {0, 0, 0, 1, 0, 0, 1, 0, 1, 2,
+                            0, 0, 1, 0, 1, 2, 0, 1, 2, 3,
+                            0, 0, 1, 0, 1, 2, 0, 1, 2, 3,
                             0, 1, 2, 3, 4};
 
 static int fact(int x)
@@ -57,9 +57,9 @@ static int fact(int x)
   return f;
 }
 
-void polynomial_compute_basis(int degree, 
-                              int x_deriv, int y_deriv, int z_deriv, 
-                              point_t* x, 
+void polynomial_compute_basis(int degree,
+                              int x_deriv, int y_deriv, int z_deriv,
+                              point_t* x,
                               real_t* basis)
 {
   ASSERT(degree >= 0);
@@ -92,7 +92,7 @@ static void polynomial_trim(polynomial_t* p)
     }
   }
 
-  // Make sure we haven't trimmed everything! If all the terms evaporated, 
+  // Make sure we haven't trimmed everything! If all the terms evaporated,
   // add a single zero term back.
   if (p->num_terms == 0)
   {
@@ -127,8 +127,8 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
   return p;
 }
 
-polynomial_t* polynomial_from_monomials(int degree, size_t num_monomials, real_t* coeffs, 
-                                        int* x_powers, int* y_powers, int* z_powers, 
+polynomial_t* polynomial_from_monomials(int degree, size_t num_monomials, real_t* coeffs,
+                                        int* x_powers, int* y_powers, int* z_powers,
                                         point_t* x0)
 {
   ASSERT(degree >= 0);
@@ -229,8 +229,8 @@ real_t polynomial_value(polynomial_t* p, point_t* x)
   real_t coeff, val = 0.0;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    val += coeff * pow(x->x - p->x0.x, x_pow) * 
-                   pow(x->y - p->x0.y, y_pow) * 
+    val += coeff * pow(x->x - p->x0.x, x_pow) *
+                   pow(x->y - p->x0.y, y_pow) *
                    pow(x->z - p->x0.z, z_pow);
   }
   return val;
@@ -269,8 +269,8 @@ bool polynomial_next(polynomial_t* p, int* pos, real_t* coeff, int* x_power, int
   return true;
 }
 
-// Returns the index of the term within p for which the x, y, and z powers 
-// match those given. If such a term is not found, returns -1. This function 
+// Returns the index of the term within p for which the x, y, and z powers
+// match those given. If such a term is not found, returns -1. This function
 // uses a linear search.
 static int matching_term_index(polynomial_t* p, int x_pow, int y_pow, int z_pow)
 {
@@ -285,9 +285,9 @@ static int matching_term_index(polynomial_t* p, int x_pow, int y_pow, int z_pow)
 void polynomial_add(polynomial_t* p, real_t factor, polynomial_t* q)
 {
   // There are two cases we need to consider for each term in q:
-  // 1. We have a term matching this term in p, and the coefficient should 
+  // 1. We have a term matching this term in p, and the coefficient should
   //    simply be added in.
-  // 2. We have no such matching term, and a new term should be appended 
+  // 2. We have no such matching term, and a new term should be appended
   //    to p.
   int_slist_t* terms_to_append = int_slist_new();
   for (size_t i = 0; i < q->num_terms; ++i)
@@ -325,7 +325,7 @@ void polynomial_add(polynomial_t* p, real_t factor, polynomial_t* q)
 
 polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
 {
-  // We cannot compute the product of two polynomials centered at 
+  // We cannot compute the product of two polynomials centered at
   // different points.
   ASSERT(point_distance(&p->x0, &q->x0) < 1e-14);
 
@@ -357,7 +357,7 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
         // Add in the coefficient.
         coeffs[i] += coeffs[j];
 
-        // Replace this term with the last one in our last, and shorten the 
+        // Replace this term with the last one in our last, and shorten the
         // list by one.
         coeffs[j] = coeffs[num_terms-1];
         x_pow[j] = x_pow[num_terms-1];
@@ -373,7 +373,7 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
   }
 
   // Create a polynomial from the reduced terms.
-  return polynomial_from_monomials(degree, num_terms, coeffs, 
+  return polynomial_from_monomials(degree, num_terms, coeffs,
                                    x_pow, y_pow, z_pow, &p->x0);
 }
 
@@ -383,7 +383,7 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
   {
     real_t zero = 0.0;
     int zero_pow = 0;
-    return polynomial_from_monomials(0, 1, &zero, 
+    return polynomial_from_monomials(0, 1, &zero,
                                      &zero_pow, &zero_pow, &zero_pow, NULL);
   }
 
@@ -402,8 +402,8 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
     z_pow[i] = z_powdiff;
   }
 
-  return polynomial_from_monomials(p->degree - (x_deriv + y_deriv + z_deriv), 
-                                   p->num_terms, coeffs, x_pow, y_pow, z_pow, 
+  return polynomial_from_monomials(p->degree - (x_deriv + y_deriv + z_deriv),
+                                   p->num_terms, coeffs, x_pow, y_pow, z_pow,
                                    &p->x0);
 }
 
@@ -422,18 +422,18 @@ int polynomial_index(polynomial_t* p, int x_power, int y_power, int z_power)
 
 bool polynomial_equals(polynomial_t* p, polynomial_t* q)
 {
-  if (p == q) 
-    return true; 
+  if (p == q)
+    return true;
 
-  if (!reals_equal(p->x0.x, q->x0.x) || 
-      !reals_equal(p->x0.y, q->x0.y) || 
+  if (!reals_equal(p->x0.x, q->x0.x) ||
+      !reals_equal(p->x0.y, q->x0.y) ||
       !reals_equal(p->x0.z, q->x0.z))
     return false;
 
   if (!reals_equal(p->factor, q->factor))
     return false;
 
-  // Encode the x, y, z powers of p into integers, and map those integers to 
+  // Encode the x, y, z powers of p into integers, and map those integers to
   // coefficients.
   int_real_unordered_map_t* coeff_map = int_real_unordered_map_new();
   int pos = 0, x_pow, y_pow, z_pow;
@@ -445,9 +445,9 @@ bool polynomial_equals(polynomial_t* p, polynomial_t* q)
     int_real_unordered_map_insert(coeff_map, key, coeff);
   }
 
-  // Now go through the terms in q and make sure that (1) all of them exist 
+  // Now go through the terms in q and make sure that (1) all of them exist
   // in our map, and (2) the map contains no terms that do not exist in q.
-  // To verify (2), we remove q terms that we find in the map. If p == q, 
+  // To verify (2), we remove q terms that we find in the map. If p == q,
   // we should end up with an empty map.
   pos = 0;
   while (polynomial_next(q, &pos, &coeff, &x_pow, &y_pow, &z_pow))
@@ -554,7 +554,7 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
   fprintf(stream, "\n");
 }
 
-struct poly_basis_t 
+struct poly_basis_t
 {
   polynomial_t** polynomials;
   int degree, dim;
@@ -618,7 +618,7 @@ bool poly_basis_next(poly_basis_t* basis,
   return true;
 }
 
-void poly_basis_compute(poly_basis_t* basis, 
+void poly_basis_compute(poly_basis_t* basis,
                         int x_deriv, int y_deriv, int z_deriv,
                         point_t* x,
                         real_t* values)
@@ -641,14 +641,14 @@ void poly_basis_scale(poly_basis_t* basis, real_t factor)
 
 bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2)
 {
-  if (basis1 == basis2) 
+  if (basis1 == basis2)
     return true;
 
   if ((basis1->dim != basis2->dim) || (basis1->degree != basis2->degree))
     return false;
 
-  // We count the number of vectors in basis1 that equal one of the vectors 
-  // in basis2. If the number of these vectors equals its dimension, the 
+  // We count the number of vectors in basis1 that equal one of the vectors
+  // in basis2. If the number of these vectors equals its dimension, the
   // two bases are equal. Otherwise they are not.
   int equal_vectors = 0;
   for (int i = 0; i < basis1->dim; ++i)
@@ -667,7 +667,7 @@ bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2)
   return (equal_vectors == basis1->dim);
 }
 
-struct multicomp_poly_basis_t 
+struct multicomp_poly_basis_t
 {
   poly_basis_t** bases;
   int num_comp, degree, dim;
@@ -681,7 +681,7 @@ static void multicomp_poly_basis_free(void* ctx)
   polymec_free(basis->bases);
 }
 
-multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components, 
+multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components,
                                                  poly_basis_t** component_bases)
 {
   ASSERT(num_components > 0);
@@ -697,7 +697,7 @@ multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components,
   }
   return basis;
 }
-                                                 
+
 
 multicomp_poly_basis_t* standard_multicomp_poly_basis_new(int num_components,
                                                           int degree)
@@ -766,7 +766,7 @@ bool multicomp_poly_basis_next(multicomp_poly_basis_t* basis,
 }
 
 void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
-                                  int component, 
+                                  int component,
                                   int x_deriv, int y_deriv, int z_deriv,
                                   point_t* x,
                                   real_t* values)
@@ -788,18 +788,18 @@ void multicomp_poly_basis_scale(multicomp_poly_basis_t* basis, real_t factor)
     poly_basis_scale(basis->bases[c], factor);
 }
 
-bool multicomp_poly_basis_equals(multicomp_poly_basis_t* basis1, 
+bool multicomp_poly_basis_equals(multicomp_poly_basis_t* basis1,
                                  multicomp_poly_basis_t* basis2)
 {
-  if (basis1 == basis2) 
+  if (basis1 == basis2)
     return true;
 
   if ((basis1->num_comp != basis2->num_comp) ||
-      (basis1->dim != basis2->dim) || 
+      (basis1->dim != basis2->dim) ||
       (basis1->degree != basis2->degree))
     return false;
 
-  // For two multi-component polynomial bases to be equal, they must have 
+  // For two multi-component polynomial bases to be equal, they must have
   // equal bases for each of their components.
   for (int c = 0; c < basis1->num_comp; ++c)
   {

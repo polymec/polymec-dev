@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,7 +15,7 @@
 ///@{
 
 /// \def DEFINE_ORDERED_MAP(map_name, key_type, value_type, key_comparator)
-/// Defines an ordered map for the given key and value types. The following 
+/// Defines an ordered map for the given key and value types. The following
 /// interface is defined for a map with map_name `x_map`.
 /// * `x_map_t* x_map_new()` - Creates a new empty ordered map.
 /// * `void x_map_free(x_map_t* map)` - Destroys the map.
@@ -31,7 +31,7 @@
 /// \param map_name The name of the unordered map.
 /// \param key_type The data type used as a key in the map.
 /// \param value_type The data type used as a value in the map.
-/// \param key_comparator A comparator function that accepts two key arguments a, b, and 
+/// \param key_comparator A comparator function that accepts two key arguments a, b, and
 ///                       returns -1 if a < b, 0 if a == b, and 1 if a > b.
 #define DEFINE_ORDERED_MAP(map_name, key_type, value_type, key_comparator) \
 DEFINE_KEY_VALUE(map_name##_key_value, key_type, value_type) \

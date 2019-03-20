@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,10 +14,10 @@
 ///@{
 
 /// \def DEFINE_TABLE(map_name, element_type).
-/// Defines a table with a given element type. A table is a sparse table 
-/// (like a spreadsheet) that has rows consisting of sparse columns, each of 
-/// which contains a primitive element. Elements in a table must be primitive 
-/// data types. The following interface is defined for a table with name 
+/// Defines a table with a given element type. A table is a sparse table
+/// (like a spreadsheet) that has rows consisting of sparse columns, each of
+/// which contains a primitive element. Elements in a table must be primitive
+/// data types. The following interface is defined for a table with name
 /// `x_table`.
 /// * `x_table_t* x_table_new()` - Creates a new empty table.
 /// * `x_table_t* x_table_new_with_capacity(int N)` - Creates a new table with initial capacity N (rows).

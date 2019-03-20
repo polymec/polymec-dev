@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,18 +11,18 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-// These functions and types are intended to help with the construction of 
+// These functions and types are intended to help with the construction of
 // least-squares fits to scattered data.
 
 /// \addtogroup core core
 ///@{
 
-/// Computes the coefficients A and b for a linear regression y = A*x + B 
+/// Computes the coefficients A and b for a linear regression y = A*x + B
 /// given arrays of (scalar) x and y values. Also computes the variance sigma.
 void linear_regression(real_t* x, real_t* y, int N, real_t* A, real_t* B, real_t* sigma);
 
 /// \class ls_weight_func
-/// This type is a weight function used for least-squares systems. 
+/// This type is a weight function used for least-squares systems.
 /// \refcounted
 typedef struct ls_weight_func_t ls_weight_func_t;
 
@@ -33,7 +33,7 @@ typedef struct ls_weight_func_t ls_weight_func_t;
 /// - A pointer to storage for the weighting function gradient.
 typedef void (*ls_weight_func_eval_func)(void* context, vector_t* y, real_t* W, vector_t* grad_W);
 
-/// This is the signature for setting the "domain" (set of points) that will 
+/// This is the signature for setting the "domain" (set of points) that will
 /// define the extent of a least-squares weight function.
 typedef void (*ls_weight_func_set_domain_func)(void* context, point_t* x0, point_t* points, int num_points);
 
@@ -46,10 +46,10 @@ typedef struct
 {
   ls_weight_func_set_domain_func set_domain;
   ls_weight_func_eval_func       eval;
-  ls_weight_func_dtor            dtor; 
+  ls_weight_func_dtor            dtor;
 } ls_weight_func_vtable;
 
-/// Creates a least-squares weight function from a name, a context, and a 
+/// Creates a least-squares weight function from a name, a context, and a
 /// virtual table.
 /// \memberof ls_weight_func
 ls_weight_func_t* ls_weight_func_new(const char* name,
@@ -68,23 +68,23 @@ void ls_weight_func_set_domain(ls_weight_func_t* W, point_t* x0, point_t* points
 /// \memberof ls_weight_func
 void ls_weight_func_eval(ls_weight_func_t* W, point_t* x, real_t* value, vector_t* gradient);
 
-/// Returns the current center point x0 of the weight function. 
+/// Returns the current center point x0 of the weight function.
 /// \memberof ls_weight_func
 point_t* ls_weight_func_x0(ls_weight_func_t* W);
 
-/// Computes the least squares system for a pth-order polynomial fit to a set 
-/// of scattered point data, centered about the point x0. This computes the 
-/// moment matrix and the right-hand side vector for a polynomial fit to the 
+/// Computes the least squares system for a pth-order polynomial fit to a set
+/// of scattered point data, centered about the point x0. This computes the
+/// moment matrix and the right-hand side vector for a polynomial fit to the
 /// given (scalar) data on the given points.
 /// \memberof ls_weight_func
-void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points, 
+void compute_poly_ls_system(int p, point_t* x0, point_t* points, int num_points,
                             real_t* data, real_t* moment_matrix, real_t* rhs);
 
-/// This computes the weighted least squares system for the weighting function W, centered 
+/// This computes the weighted least squares system for the weighting function W, centered
 /// about the point x0 and with spatial extent h.
 /// \memberof ls_weight_func
-void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0, 
-                                     point_t* points, int num_points, real_t* data, 
+void compute_weighted_poly_ls_system(int p, ls_weight_func_t* W, point_t* x0,
+                                     point_t* points, int num_points, real_t* data,
                                      real_t* moment_matrix, real_t* rhs);
 
 ///@}

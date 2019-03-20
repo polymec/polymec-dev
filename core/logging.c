@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +10,7 @@
 #include <string.h>
 #include "core/polymec.h"
 
-typedef struct 
+typedef struct
 {
   // Message buffering.
   int message_size_limit;
@@ -201,8 +201,8 @@ void set_log_buffering(log_level_t level, int message_size_limit, int num_messag
 void set_log_stream(log_level_t log_type, FILE* stream)
 {
   logger_t* logger = get_logger(log_type);
-  if (((mpi_rank == logger->mpi_rank) || 
-       (logging_mode == LOG_TO_ALL_RANKS)) && 
+  if (((mpi_rank == logger->mpi_rank) ||
+       (logging_mode == LOG_TO_ALL_RANKS)) &&
       (logger != NULL))
   {
     if ((logger->stream != NULL) &&
@@ -238,7 +238,7 @@ int log_mpi_rank(log_level_t log_type)
 
 FILE* log_stream(log_level_t log_type)
 {
-  if (logging_level < log_type) 
+  if (logging_level < log_type)
     return NULL;
   else
   {
@@ -289,7 +289,7 @@ void log_debug(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DEBUG);
   if (logging_level < LOG_DEBUG) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -309,7 +309,7 @@ void log_debug_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_DEBUG);
   if (logging_level < LOG_DEBUG) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -322,7 +322,7 @@ void log_detail(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DETAIL);
   if (logging_level < LOG_DETAIL) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -342,7 +342,7 @@ void log_detail_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_DETAIL);
   if (logging_level < LOG_DETAIL) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -355,7 +355,7 @@ void log_info(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_INFO);
   if (logging_level < LOG_INFO) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -375,7 +375,7 @@ void log_info_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_INFO);
   if (logging_level < LOG_INFO) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -388,7 +388,7 @@ void log_urgent(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_URGENT);
   if (logging_level < LOG_URGENT) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
@@ -408,7 +408,7 @@ void log_urgent_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_URGENT);
   if (logging_level < LOG_URGENT) return;
-  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+  if ((logging_mode == LOG_TO_SINGLE_RANK) &&
       (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {

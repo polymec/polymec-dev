@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,7 +22,7 @@ typedef struct
   real_t x, y;
 } point2_t;
 
-/// Creates a new point with the given coordinates in the plane. 
+/// Creates a new point with the given coordinates in the plane.
 /// Not necessary if you are allocating a point on the stack.
 /// \refcounted
 /// \memberof point2
@@ -45,8 +45,8 @@ static inline real_t point2_distance(point2_t* x, point2_t* y)
 /// Returns true if the two given points are within the given distance,
 /// false if not.
 /// \relates point
-static inline bool point2s_within_distance(point2_t* x, 
-                                           point2_t* y, 
+static inline bool point2s_within_distance(point2_t* x,
+                                           point2_t* y,
                                            real_t distance)
 {
   return reals_nearly_equal(point2_square_distance(x, y), distance*distance, 0.0);
@@ -75,7 +75,7 @@ typedef struct
   real_t x, y;
 } vector2_t;
 
-// Creates a new vector with the given components in the plane. 
+// Creates a new vector with the given components in the plane.
 // Not necessary if you are allocating a vector on the stack.
 // This vector will be garbage-collected.
 /// \memberof vector2

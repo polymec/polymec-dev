@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -49,7 +49,7 @@ static void node_free(kd_tree_node_t* node)
 }
 
 // This defines a bounding 3-rectangle for points in the kd_tree.
-typedef struct 
+typedef struct
 {
   real_t min[3], max[3];
 } kd_tree_rect_t;
@@ -67,7 +67,7 @@ static void rect_free(kd_tree_rect_t* rect)
   polymec_free(rect);
 }
 
-// Returns the square of the distance from the rectange to the vector 
+// Returns the square of the distance from the rectange to the vector
 // with components given by pos.
 static real_t rect_square_dist(kd_tree_rect_t* rect, real_t* pos)
 {
@@ -82,14 +82,14 @@ static real_t rect_square_dist(kd_tree_rect_t* rect, real_t* pos)
   return r2;
 }
 
-// Returns true if any point within the given rectangle satisfies the given 
+// Returns true if any point within the given rectangle satisfies the given
 // predicate with the coordinates pos, false if not.
-static bool rect_satisfies_predicate(kd_tree_rect_t* rect, 
-                                     real_t* pos, 
+static bool rect_satisfies_predicate(kd_tree_rect_t* rect,
+                                     real_t* pos,
                                      bool (*predicate)(void* context, point_t* x, point_t* y),
                                      void* context)
 {
-  // Find the coordinates of the closest point in rect to pos and 
+  // Find the coordinates of the closest point in rect to pos and
   // store them in xi.
   real_t xi[3] = {pos[0], pos[1], pos[2]};
   for (int i = 0; i < 3; ++i)
@@ -116,7 +116,7 @@ static void rect_extend(kd_tree_rect_t* rect, real_t* pos)
   }
 }
 
-struct kd_tree_t 
+struct kd_tree_t
 {
   kd_tree_node_t* root; // Root node of 3d-tree.
   kd_tree_rect_t* rect; // Containing rectangle.
@@ -271,17 +271,17 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
-  
+
   // Search recursively for the closest node.
   find_nearest(tree->root, pos, &node, &r2, &rect);
   return node->index;
 }
 
-static void find_nearest_n(kd_tree_node_t* node, 
-                           real_t* pos, 
-                           int n, 
-                           int* neighbors, 
-                           real_t* square_distances, 
+static void find_nearest_n(kd_tree_node_t* node,
+                           real_t* pos,
+                           int n,
+                           int* neighbors,
+                           real_t* square_distances,
                            kd_tree_rect_t* rect)
 {
   // Go left or right?
@@ -313,8 +313,8 @@ static void find_nearest_n(kd_tree_node_t* node,
     *near_coord = coord;
   }
 
-  // Get the square distance from point to the current node, and insert 
-  // the current node into the list of n nearest neighbors if it's closer 
+  // Get the square distance from point to the current node, and insert
+  // the current node into the list of n nearest neighbors if it's closer
   // than any of the current nearest neighbors.
   real_t my_r2 = square_dist(node->pos, pos);
   if (my_r2 < square_distances[n-1])
@@ -364,14 +364,14 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
-  
+
   // Search recursively for the closest nodes.
   find_nearest_n(tree->root, pos, n, neighbors, square_distances, &rect);
   ASSERT((neighbors[n-1] >= 0) || ((tree->size < n) && (neighbors[n-1] == -1)));
 }
 
-static void find_within_radius(kd_tree_node_t* node, 
-                               real_t* pos, 
+static void find_within_radius(kd_tree_node_t* node,
+                               real_t* pos,
                                real_t radius,
                                kd_tree_rect_t* rect,
                                int_array_t* results)
@@ -421,8 +421,8 @@ static void find_within_radius(kd_tree_node_t* node,
   }
 }
 
-int_array_t* kd_tree_within_radius(kd_tree_t* tree, 
-                                   point_t* point, 
+int_array_t* kd_tree_within_radius(kd_tree_t* tree,
+                                   point_t* point,
                                    real_t radius)
 {
   int_array_t* results = int_array_new();
@@ -435,14 +435,14 @@ int_array_t* kd_tree_within_radius(kd_tree_t* tree,
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
-  
+
   // Search recursively for the closest node.
   find_within_radius(tree->root, pos, radius, &rect, results);
   return results;
 }
 
-static void find_for_predicate(kd_tree_node_t* node, 
-                               real_t* pos, 
+static void find_for_predicate(kd_tree_node_t* node,
+                               real_t* pos,
                                bool (*pred)(void* context, point_t* x, point_t* y),
                                void* context,
                                kd_tree_rect_t* rect,
@@ -488,14 +488,14 @@ static void find_for_predicate(kd_tree_node_t* node,
     // Bisect and recurse (if needed).
     real_t coord = *far_coord;
     *far_coord = node->pos[dir];
-    if (rect_satisfies_predicate(rect, pos, pred, context)) 
+    if (rect_satisfies_predicate(rect, pos, pred, context))
       find_for_predicate(far_subtree, pos, pred, context, rect, results);
     *far_coord = coord;
   }
 }
 
-int_array_t* kd_tree_for_predicate(kd_tree_t* tree, 
-                                   point_t* point, 
+int_array_t* kd_tree_for_predicate(kd_tree_t* tree,
+                                   point_t* point,
                                    bool (*pred)(void* context, point_t* point, point_t* x),
                                    void* context)
 {
@@ -509,7 +509,7 @@ int_array_t* kd_tree_for_predicate(kd_tree_t* tree,
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
-  
+
   // Search recursively for the closest node.
   find_for_predicate(tree->root, pos, pred, context, &rect, results);
   return results;
@@ -541,7 +541,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
 #if POLYMEC_HAVE_MPI
 
   // Create a bounding box containing all the local points in the tree.
-  bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX, 
+  bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX,
                  .y1 = REAL_MAX, .y2 = -REAL_MAX,
                  .z1 = REAL_MAX, .z2 = -REAL_MAX};
   {
@@ -608,7 +608,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     }
   }
 
-  // Now send each neighboring process the points that fall within its 
+  // Now send each neighboring process the points that fall within its
   // bounding box.
   {
     real_array_t* points_sent[num_neighbor_procs];
@@ -630,7 +630,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       int_array_t* sent_point_indices = int_array_new();
       points_sent[p] = real_array_new();
 
-      // Make a list of our points that fall into process p's 
+      // Make a list of our points that fall into process p's
       // bounding box, and populate the send info in our exchanger.
       int pos = 0, index;
       point_t x;
@@ -654,7 +654,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
 
       // Now send the number of points to process p.
       int num_points_sent = (int)(points_sent[p]->size/3);
-      int err = MPI_Isend(&num_points_sent, 1, MPI_INT, 
+      int err = MPI_Isend(&num_points_sent, 1, MPI_INT,
                           proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not send point numbers to %d", rank, proc);
@@ -682,7 +682,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     {
       // Now send the number of points to process p.
       int proc = neighbor_procs[p];
-      int err = MPI_Isend(points_sent[p]->data, (int)points_sent[p]->size, MPI_REAL_T, 
+      int err = MPI_Isend(points_sent[p]->data, (int)points_sent[p]->size, MPI_REAL_T,
                           proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not send point numbers to %d", rank, proc);
@@ -691,7 +691,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     // Finish the sends.
     MPI_Waitall(2*num_neighbor_procs, requests, statuses);
 
-    // Add the points to our tree and populate the receive entries in 
+    // Add the points to our tree and populate the receive entries in
     // our exchanger.
     for (int p = 0; p < num_neighbor_procs; ++p)
     {
@@ -699,7 +699,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       real_array_t* point_data = points_received[p];
       for (int i = 0; i < point_data->size/3; ++i)
       {
-        point_t x = {.x = point_data->data[3*i], 
+        point_t x = {.x = point_data->data[3*i],
                      .y = point_data->data[3*i+1],
                      .z = point_data->data[3*i+2]};
         int ghost_index = (int)tree->size;

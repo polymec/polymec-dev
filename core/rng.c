@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/rng.h"
 
-struct rng_t 
+struct rng_t
 {
   char* name;
   void* context;
@@ -24,7 +24,7 @@ static void rng_free(void* ctx)
     rng->vtable.dtor(rng->context);
 }
 
-rng_t* rng_new(const char* name, void* context, 
+rng_t* rng_new(const char* name, void* context,
                uint32_t min, uint32_t max, rng_vtable vtable,
                bool has_global_state, bool is_thread_safe)
 {

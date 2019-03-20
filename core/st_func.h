@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,8 +17,8 @@
 
 /// \class st_func
 /// A "space-time" function is an analytic function of space and time.
-/// This opaque type encapsulates the notion of such an analytic function 
-/// and any associated metadata (whether it is homogeneous, constant in 
+/// This opaque type encapsulates the notion of such an analytic function
+/// and any associated metadata (whether it is homogeneous, constant in
 /// time, etc).
 /// \refcounted
 typedef struct st_func_t st_func_t;
@@ -50,7 +50,7 @@ typedef void (*st_dtor)(void*);
 
 /// \struct st_func_vtable
 /// This virtual table must be implemented by any space-time function.
-typedef struct 
+typedef struct
 {
   st_eval_func              eval;
   st_eval_n_func            eval_n;
@@ -67,7 +67,7 @@ st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
 /// Constructs a space-time function from a function pointer with the given metadata.
 /// The function will be passed NULL as its context.
 /// \memberof st_func
-st_func_t* st_func_from_func(const char* name, st_eval_func func, 
+st_func_t* st_func_from_func(const char* name, st_eval_func func,
                              st_func_homogeneity_t homogeneity,
                              st_func_constancy_t constancy,
                              int num_comp);
@@ -96,7 +96,7 @@ bool st_func_is_constant(st_func_t* func);
 /// \memberof st_func
 int st_func_num_comp(st_func_t* func);
 
-/// Returns the context pointer for the given object. Sometimes useful 
+/// Returns the context pointer for the given object. Sometimes useful
 /// for implementing specialized interfaces.
 /// \memberof st_func
 void* st_func_context(st_func_t* func);
@@ -105,7 +105,7 @@ void* st_func_context(st_func_t* func);
 /// \memberof st_func
 void st_func_eval(st_func_t* func, point_t* x, real_t t, real_t* result);
 
-/// Evaluates the function at n points xs = [x1, x2, ..., xn], placing the 
+/// Evaluates the function at n points xs = [x1, x2, ..., xn], placing the
 /// result in results = [F1, F2, ..., Fn].
 /// \memberof st_func
 void st_func_eval_n(st_func_t* func, point_t* xs, size_t n, real_t t, real_t* results);
@@ -114,20 +114,20 @@ void st_func_eval_n(st_func_t* func, point_t* xs, size_t n, real_t t, real_t* re
 /// \memberof st_func
 sp_func_t* st_func_freeze(st_func_t* func, real_t t);
 
-/// Constructs a multi-component space-time function from a set of 
+/// Constructs a multi-component space-time function from a set of
 /// single-valued space-time functions.
 /// \memberof st_func
-st_func_t* multicomp_st_func_from_funcs(const char* name, 
+st_func_t* multicomp_st_func_from_funcs(const char* name,
                                         st_func_t** functions,
                                         int num_comp);
 
-/// Constructs a single-component space-time function from one of the 
+/// Constructs a single-component space-time function from one of the
 /// components of a multicomponent function.
 /// \memberof st_func
 st_func_t* st_func_from_component(st_func_t* multicomp_func,
                                   int component);
 
-/// Creates a function that is constant in space and time, with the given 
+/// Creates a function that is constant in space and time, with the given
 /// components.
 /// \memberof st_func
 st_func_t* constant_st_func_new(real_t components[], int num_components);

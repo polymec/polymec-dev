@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -80,7 +80,7 @@ size_t lua_array_elem_size(lua_array_data_t type)
 static int array_index(lua_State* L)
 {
   lua_array_t* a = lua_to_object(L, 1, "array");
-  if (!lua_isinteger(L, 2) && lua_isstring(L, 2) && 
+  if (!lua_isinteger(L, 2) && lua_isstring(L, 2) &&
       (strcmp(lua_tostring(L, 2), "type") == 0))
   {
     char type_str[24];
@@ -251,7 +251,7 @@ static void* array_from_bytes(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
 
   byte_array_t* array = byte_array_new_with_capacity(len);
@@ -260,7 +260,7 @@ static void* array_from_bytes(lua_State* L, int index)
     lua_rawgeti(L, index, (lua_Integer)i);
     if (lua_isinteger(L, -1))
       byte_array_append(array, (int8_t)(lua_tointeger(L, -1)));
-    else 
+    else
     {
       byte_array_free(array);
       array = NULL;
@@ -276,7 +276,7 @@ static void* array_from_ints(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
 
   int_array_t* array = int_array_new_with_capacity(len);
@@ -285,7 +285,7 @@ static void* array_from_ints(lua_State* L, int index)
     lua_rawgeti(L, index, (lua_Integer)i);
     if (lua_isinteger(L, -1))
       int_array_append(array, (int)(lua_tointeger(L, -1)));
-    else 
+    else
     {
       int_array_free(array);
       array = NULL;
@@ -301,7 +301,7 @@ static void* array_from_int64s(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
 
   int64_array_t* array = int64_array_new_with_capacity(len);
@@ -310,7 +310,7 @@ static void* array_from_int64s(lua_State* L, int index)
     lua_rawgeti(L, index, (lua_Integer)i);
     if (lua_isinteger(L, -1))
       int64_array_append(array, (int64_t)(lua_tointeger(L, -1)));
-    else 
+    else
     {
       int64_array_free(array);
       array = NULL;
@@ -326,7 +326,7 @@ static void* array_from_uint64s(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
 
   uint64_array_t* array = uint64_array_new_with_capacity(len);
@@ -335,7 +335,7 @@ static void* array_from_uint64s(lua_State* L, int index)
     lua_rawgeti(L, index, (lua_Integer)i);
     if (lua_isinteger(L, -1))
       uint64_array_append(array, (uint64_t)(lua_tointeger(L, -1)));
-    else 
+    else
     {
       uint64_array_free(array);
       array = NULL;
@@ -351,7 +351,7 @@ static void* array_from_indices(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
 
   index_array_t* array = index_array_new_with_capacity(len);
@@ -360,7 +360,7 @@ static void* array_from_indices(lua_State* L, int index)
     lua_rawgeti(L, index, (lua_Integer)i);
     if (lua_isinteger(L, -1))
       index_array_append(array, (index_t)(lua_tointeger(L, -1)));
-    else 
+    else
     {
       index_array_free(array);
       array = NULL;
@@ -376,7 +376,7 @@ static void* array_from_reals(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
 
   real_array_t* array = real_array_new_with_capacity(len);
@@ -385,7 +385,7 @@ static void* array_from_reals(lua_State* L, int index)
     lua_rawgeti(L, index, (lua_Integer)i);
     if (lua_isnumber(L, -1))
       real_array_append(array, (real_t)(lua_tonumber(L, -1)));
-    else 
+    else
     {
       real_array_free(array);
       array = NULL;
@@ -401,7 +401,7 @@ static void* array_from_complexes(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
   bool is_complex_list = true;
   complex_array_t* complexes = complex_array_new_with_capacity(len);
@@ -412,7 +412,7 @@ static void* array_from_complexes(lua_State* L, int index)
     bool is_complex = lua_is_complex(L, -1);
     if (is_complex)
       z = lua_to_complex(L, -1);
-    else 
+    else
     {
       bool is_2_tuple = (lua_istable(L, -1) && (lua_rawlen(L, -1) == 2));
       if (!is_2_tuple)
@@ -467,7 +467,7 @@ static void* array_from_points(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
   bool is_point_list = true;
   point_array_t* points = point_array_new_with_capacity(len);
@@ -478,9 +478,9 @@ static void* array_from_points(lua_State* L, int index)
     bool is_point = lua_is_point(L, -1);
     if (is_point)
       p = *lua_to_point(L, -1);
-    else 
+    else
     {
-      bool is_3_tuple = (lua_istable(L, -1) && 
+      bool is_3_tuple = (lua_istable(L, -1) &&
           (lua_rawlen(L, -1) == 3));
       if (!is_3_tuple)
       {
@@ -544,7 +544,7 @@ static void* array_from_vectors(lua_State* L, int index)
 {
   ASSERT(lua_istable(L, index));
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
   bool is_vector_list = true;
   vector_array_t* vecs = vector_array_new_with_capacity(len);
@@ -555,9 +555,9 @@ static void* array_from_vectors(lua_State* L, int index)
     bool is_vec = lua_is_vector(L, -1);
     if (is_vec)
       v = *lua_to_vector(L, -1);
-    else 
+    else
     {
-      bool is_3_tuple = (lua_istable(L, -1) && 
+      bool is_3_tuple = (lua_istable(L, -1) &&
           (lua_rawlen(L, -1) == 3));
       if (!is_3_tuple)
       {
@@ -621,7 +621,7 @@ static void* array_from_tensor2s(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
   tensor2_array_t* tensors = tensor2_array_new_with_capacity(len);
   for (size_t i = 1; i <= len; ++i)
@@ -645,7 +645,7 @@ static void* array_from_symtensor2s(lua_State* L, int index)
   ASSERT(lua_istable(L, index));
 
   size_t len = lua_rawlen(L, index);
-  if (len == 0) 
+  if (len == 0)
     return NULL;
   symtensor2_array_t* tensors = symtensor2_array_new_with_capacity(len);
   for (size_t i = 1; i <= len; ++i)
@@ -973,21 +973,21 @@ lua_array_data_t lua_array_get_type(lua_State* L, const char* type_str, int inde
     return LUA_ARRAY_BYTE;
   else if (strcmp(type_str, "int") == 0)
     return LUA_ARRAY_INT;
-  else if (strcmp(type_str, "int64") == 0) 
+  else if (strcmp(type_str, "int64") == 0)
     return LUA_ARRAY_INT64;
-  else if (strcmp(type_str, "uint64") == 0) 
+  else if (strcmp(type_str, "uint64") == 0)
     return LUA_ARRAY_UINT64;
-  else if (strcmp(type_str, "index") == 0) 
+  else if (strcmp(type_str, "index") == 0)
     return LUA_ARRAY_INDEX;
-  else if (strcmp(type_str, "real") == 0) 
+  else if (strcmp(type_str, "real") == 0)
     return LUA_ARRAY_REAL;
-  else if (strcmp(type_str, "complex") == 0) 
+  else if (strcmp(type_str, "complex") == 0)
     return LUA_ARRAY_COMPLEX;
-  else if (strcmp(type_str, "point") == 0) 
+  else if (strcmp(type_str, "point") == 0)
     return LUA_ARRAY_POINT;
-  else if (strcmp(type_str, "vector") == 0) 
+  else if (strcmp(type_str, "vector") == 0)
     return LUA_ARRAY_VECTOR;
-  else if (strcmp(type_str, "tensor2") == 0) 
+  else if (strcmp(type_str, "tensor2") == 0)
     return LUA_ARRAY_TENSOR2;
   else if (strcmp(type_str, "symtensor2") == 0)
     return LUA_ARRAY_SYMTENSOR2;
@@ -1006,7 +1006,7 @@ static int array_new(lua_State* L)
     return luaL_error(L, "Arguments must be a table of data and a data type.");
   if (!lua_istable(L, 1))
     return luaL_error(L, "Argument 1 must be a table containing data.");
-  if (!lua_isstring(L, 2)) 
+  if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument 2 must be a data type.");
 
   const char* type_str = lua_tostring(L, 2);
@@ -1027,7 +1027,7 @@ static lua_module_function array_funcs[] = {
 void lua_register_array(lua_State* L);
 void lua_register_array(lua_State* L)
 {
-  lua_register_class(L, "array", 
+  lua_register_class(L, "array",
                      "A type-savvy array class.",
                      array_funcs,
                      NULL,

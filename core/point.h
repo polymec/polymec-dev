@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,7 +22,7 @@ typedef struct
   real_t x, y, z;
 } point_t;
 
-/// Allocates a new point on the heap with the given coordinates. Not 
+/// Allocates a new point on the heap with the given coordinates. Not
 /// necessary if you are allocating a point on the stack.
 /// \refcounted
 /// \memberof point
@@ -54,8 +54,8 @@ static inline real_t point_distance(point_t* x, point_t* y)
 /// Returns true if the two given points are within the given distance,
 /// false if not.
 /// \relates point
-static inline bool points_within_distance(point_t* x, 
-                                          point_t* y, 
+static inline bool points_within_distance(point_t* x,
+                                          point_t* y,
                                           real_t distance)
 {
   return reals_nearly_equal(point_square_distance(x, y), distance*distance, 0.0);
@@ -89,7 +89,7 @@ typedef struct
   real_t x, y, z;
 } vector_t;
 
-/// Allocates a new vector on the heap with the given components. Not 
+/// Allocates a new vector on the heap with the given components. Not
 /// necessary if you are allocating a vector on the stack.
 /// \refcounted
 /// \memberof vector
@@ -176,7 +176,7 @@ static inline void vector_scale(vector_t* v, real_t s)
   v->z *= s;
 }
 
-/// Returns true if points p1, p2, and p3 are (approximately) colinear, false 
+/// Returns true if points p1, p2, and p3 are (approximately) colinear, false
 /// otherwise.
 /// \relates point
 static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
@@ -190,12 +190,12 @@ static inline bool points_are_colinear(point_t* p1, point_t* p2, point_t* p3)
   return (vector_dot(&v3, &v3) < 1e-14);
 }
 
-/// Returns true if points p1, p2, p3, and p4 are exactly coplanar, false 
+/// Returns true if points p1, p2, p3, and p4 are exactly coplanar, false
 /// otherwise.
 /// \relates point
 bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4);
 
-/// Returns true if all the given points are exactly coplanar, false 
+/// Returns true if all the given points are exactly coplanar, false
 /// otherwise.
 /// \relates point
 bool all_points_are_coplanar(point_t* points, int num_points);
@@ -219,7 +219,7 @@ typedef struct
   real_t z2;
 } bbox_t;
 
-/// Allocates a bounding box with the given extents on the heap. 
+/// Allocates a bounding box with the given extents on the heap.
 /// \memberof bbox
 bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2);
 
@@ -258,7 +258,7 @@ static inline bool bbox_contains(bbox_t* bbox, point_t* p)
 
 /// Computes the nearest point to p within the box, storing it in nearest.
 /// \memberof bbox
-static inline void bbox_find_nearest_point(bbox_t* bbox, 
+static inline void bbox_find_nearest_point(bbox_t* bbox,
                                            point_t* p,
                                            point_t* nearest)
 {
@@ -277,7 +277,7 @@ static inline void bbox_find_nearest_point(bbox_t* bbox,
     nearest->z = bbox->z2;
 }
 
-/// Returns true if the first bounding box completely contains the 2nd box, 
+/// Returns true if the first bounding box completely contains the 2nd box,
 /// false otherwise.
 /// \memberof bbox
 static inline bool bbox_contains_bbox(bbox_t* bbox, bbox_t* box)
@@ -309,16 +309,16 @@ void bbox_make_empty_set(bbox_t* box);
 /// \memberof bbox
 void bbox_fprintf(bbox_t* box, FILE* stream);
 
-/// Returns an array containing the ranks of the processes on the given MPI 
+/// Returns an array containing the ranks of the processes on the given MPI
 /// communicator whose given bbox intersects the one on this process. num_procs
-/// will store the length of this array. If no processes supply bounding boxes 
+/// will store the length of this array. If no processes supply bounding boxes
 /// that intersect the one given here, *num_procs == 0 and NULL is returned.
 /// \memberof bbox
 /// \collective Collective on comm.
 int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs);
 
-/// Given a random number generator and a bounding box, generate random 
-/// coordinates for the given point within the bounding box. The random 
+/// Given a random number generator and a bounding box, generate random
+/// coordinates for the given point within the bounding box. The random
 /// number generator must generate an integer between 0 and RAND_MAX.
 /// \memberof point
 static inline void point_randomize(point_t* point, rng_t* rng, bbox_t* bounding_box)
@@ -329,7 +329,7 @@ static inline void point_randomize(point_t* point, rng_t* rng, bbox_t* bounding_
 }
 
 /// Given a random number generator, generate a vector with the given magnitude
-/// pointing in a random direction. The random number generator must generate 
+/// pointing in a random direction. The random number generator must generate
 /// an integer between 0 and RAND_MAX.
 /// \relates vector
 static inline void vector_randomize(vector_t* vector, rng_t* rng, real_t magnitude)
@@ -341,14 +341,14 @@ static inline void vector_randomize(vector_t* vector, rng_t* rng, real_t magnitu
   vector->z = magnitude * cos(phi);
 }
 
-/// Given a unit vector e1, compute unit vectors e2 and e3 such that 
+/// Given a unit vector e1, compute unit vectors e2 and e3 such that
 /// e1 x e2 = e3.
 /// \relates vector
 void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3);
 
 /// \enum normal_orient_t
-/// This type allows us to distinguish between normal vectors that are 
-/// "outward" or "inward". This is useful for creating implicit functions 
+/// This type allows us to distinguish between normal vectors that are
+/// "outward" or "inward". This is useful for creating implicit functions
 /// representing closed surfaces.
 typedef enum
 {

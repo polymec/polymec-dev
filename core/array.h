@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,8 +14,8 @@
 ///@{
 
 /// \def DEFINE_ARRAY(array_name, element)
-/// Defines an array for a given element type. An array is a 
-/// dynamically-resizable chunk of contiguous memory that stores a particular 
+/// Defines an array for a given element type. An array is a
+/// dynamically-resizable chunk of contiguous memory that stores a particular
 /// data type. It serves the same purpose as a C++ vector. The following
 /// interface is defined for an array with array_name `x_array`.
 /// * `x_array_t* x_array_new()` - Creates a new, empty array on the heap.
@@ -328,52 +328,52 @@ static inline void array_name##_release_data_and_free(array_name##_t* array) \
 
 // Define some basic array types.
 
-/// \class char_array 
+/// \class char_array
 /// An array of characters.
 DEFINE_ARRAY(char_array, char)
 
-/// \class byte_array 
+/// \class byte_array
 /// An array of (unsigned) bytes.
 DEFINE_ARRAY(byte_array, uint8_t)
 
-/// \class int_array 
+/// \class int_array
 /// An array of integers.
 DEFINE_ARRAY(int_array, int)
 
-/// \class int64_array 
+/// \class int64_array
 /// An array of 64-bit (signed) integers.
 DEFINE_ARRAY(int64_array, int64_t)
 
-/// \class uint64_array 
+/// \class uint64_array
 /// An array of 64-bit unsigned integers.
 DEFINE_ARRAY(uint64_array, uint64_t)
 
-/// \class size_t_array 
+/// \class size_t_array
 /// An array of size_ts.
 DEFINE_ARRAY(size_t_array, size_t)
 
-/// \class index_array 
+/// \class index_array
 /// An array of index values.
 DEFINE_ARRAY(index_array, index_t)
 
-/// \class real_array 
+/// \class real_array
 /// An array of real numbers.
 DEFINE_ARRAY(real_array, real_t)
 
-/// \class bool_array 
+/// \class bool_array
 /// An array of boolean values.
 DEFINE_ARRAY(bool_array, bool)
 
-/// \class string_array 
+/// \class string_array
 /// An array of strings (char*).
 DEFINE_ARRAY(string_array, char*)
 
-/// \class ptr_array 
+/// \class ptr_array
 /// An array of pointers.
 DEFINE_ARRAY(ptr_array, void*)
 
 #ifndef __cplusplus
-/// \class complex_array 
+/// \class complex_array
 /// An array of complex numbers.
 DEFINE_ARRAY(complex_array, complex_t)
 #endif

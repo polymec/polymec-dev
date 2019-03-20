@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,7 +15,7 @@
 ///@{
 
 /// \def DEFINE_DLIST(list_name, element)
-/// Defines a doubly-linked list for a given element type. The following 
+/// Defines a doubly-linked list for a given element type. The following
 /// interface is defined for a list with name `x_dlist`.
 /// * `x_dlist_t* x_dlist_new()` - Creates a new, empty dlist.
 /// * `void x_dlist_free(dlist_t* list)` - Destroys the list.

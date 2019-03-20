@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -43,11 +43,11 @@ void parse_path(const char *path, char *dirname, char *filename)
     strncpy(filename, path + index + 1, len - index - 1);
     filename[len - index - 1] = '\0';
   }
-} 
+}
 
 void join_paths(const char *dirname, const char *filename, char *path)
 {
-  // If the directory includes a separator at the end, we don't add another one. 
+  // If the directory includes a separator at the end, we don't add another one.
   if (dirname[strlen(dirname)-1] == SEPARATOR)
     snprintf(path, FILENAME_MAX, "%s%s", dirname, filename);
   else
@@ -103,7 +103,7 @@ string_slist_t* files_within_directory(const char* dirname)
   string_slist_t* files = string_slist_new();
   while ((p = readdir(dir)))
   {
-    int len = path_len + (int)strlen(p->d_name) + 2; 
+    int len = path_len + (int)strlen(p->d_name) + 2;
     char entry_name[FILENAME_MAX];
     snprintf(entry_name, len, "%s/%s", dirname, p->d_name);
     struct stat statbuf;
@@ -127,13 +127,13 @@ string_slist_t* directories_within_directory(const char* dirname)
   string_slist_t* dirs = string_slist_new();
   while ((p = readdir(dir)))
   {
-    int len = path_len + (int)strlen(p->d_name) + 2; 
+    int len = path_len + (int)strlen(p->d_name) + 2;
     char entry_name[FILENAME_MAX];
     snprintf(entry_name, len, "%s/%s", dirname, p->d_name);
     struct stat statbuf;
     if (stat(entry_name, &statbuf) == 0)
     {
-      if (S_ISDIR(statbuf.st_mode) && 
+      if (S_ISDIR(statbuf.st_mode) &&
           (strcmp(p->d_name, ".") != 0) &&
           (strcmp(p->d_name, "..") != 0))
         string_slist_append_with_dtor(dirs, string_dup(p->d_name), string_free);
@@ -156,7 +156,7 @@ static void remove_polymec_temp_dir()
   polymec_free(polymec_temp_dir);
 }
 
-// This helper creates the temporary directory for the present polymec 
+// This helper creates the temporary directory for the present polymec
 // process and then fills temp_dir with the name.
 static void make_polymec_temp_dir(char* temp_dir)
 {
@@ -234,7 +234,7 @@ bool remove_directory(const char* path)
       if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
         continue;
 
-      int len = path_len + (int)strlen(p->d_name) + 2; 
+      int len = path_len + (int)strlen(p->d_name) + 2;
       char buf[FILENAME_MAX];
       struct stat statbuf;
 

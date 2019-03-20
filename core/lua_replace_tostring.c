@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,7 +11,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-static void append_number_value(lua_State* L, 
+static void append_number_value(lua_State* L,
                                 int index,
                                 char_array_t* str)
 {
@@ -31,7 +31,7 @@ static void append_number_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
-static void append_boolean_value(lua_State* L, 
+static void append_boolean_value(lua_State* L,
                                  int index,
                                  char_array_t* str)
 {
@@ -46,7 +46,7 @@ static void append_boolean_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
-static void append_string_key(lua_State* L, 
+static void append_string_key(lua_State* L,
                               int index,
                               char_array_t* str)
 {
@@ -56,7 +56,7 @@ static void append_string_key(lua_State* L,
   memcpy(&str->data[str->size-val_len], val, sizeof(char)*val_len);
 }
 
-static void append_string_value(lua_State* L, 
+static void append_string_value(lua_State* L,
                                 int index,
                                 char_array_t* str)
 {
@@ -84,8 +84,8 @@ static bool has_tostring(lua_State* L,
   return has_tostring_mm;
 }
 
-static void append_value_using_tostring(lua_State* L, 
-                                        int index, 
+static void append_value_using_tostring(lua_State* L,
+                                        int index,
                                         char_array_t* str)
 {
   int top = lua_gettop(L);
@@ -105,8 +105,8 @@ static void append_value_using_tostring(lua_State* L,
   lua_pop(L, lua_gettop(L) - top);
 }
 
-static void append_function_value(lua_State* L, 
-                                  int index, 
+static void append_function_value(lua_State* L,
+                                  int index,
                                   char_array_t* str)
 {
   const char* val_str;
@@ -119,8 +119,8 @@ static void append_function_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
-static void append_lightuserdata_value(lua_State* L, 
-                                       int index, 
+static void append_lightuserdata_value(lua_State* L,
+                                       int index,
                                        char_array_t* str)
 {
   void* ptr = lua_touserdata(L, index);
@@ -131,8 +131,8 @@ static void append_lightuserdata_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
-static void append_userdata_value(lua_State* L, 
-                                  int index, 
+static void append_userdata_value(lua_State* L,
+                                  int index,
                                   char_array_t* str)
 {
   void* ptr = lua_touserdata(L, index);
@@ -143,8 +143,8 @@ static void append_userdata_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
-static void append_table_value(lua_State* L, 
-                               int table_index, 
+static void append_table_value(lua_State* L,
+                               int table_index,
                                char_array_t* str)
 {
   int top = lua_gettop(L);
@@ -164,7 +164,7 @@ static void append_table_value(lua_State* L,
   {
     ++num_items;
 
-    // If the key is a string and begins with two underscores, we 
+    // If the key is a string and begins with two underscores, we
     // skip writing out this field.
     if (!lua_isnumber(L, -2) && lua_isstring(L, -2))
     {
@@ -214,7 +214,7 @@ static void append_table_value(lua_State* L,
       else
       {
         // We don't know what this is, so skip it.
-        lua_pop(L, 1); 
+        lua_pop(L, 1);
         continue;
       }
 
@@ -267,7 +267,7 @@ static int lua_tostring_replacement(lua_State* L)
       char_array_append(str, '\0');
 
       // Push the string to the stack and get on with it.
-      lua_pushstring(L, str->data); 
+      lua_pushstring(L, str->data);
       char_array_free(str);
       return 1;
     }
@@ -278,7 +278,7 @@ static int lua_tostring_replacement(lua_State* L)
     }
   }
 
-  // Use the usual tostring() function. 
+  // Use the usual tostring() function.
   lua_getglobal(L, "_tostring");
   lua_pushvalue(L, -2);
   lua_call(L, 1, 1);

@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/hilbert.h"
 
-struct hilbert_t 
+struct hilbert_t
 {
   bbox_t bbox;
   real_t dx, dy, dz;
@@ -16,7 +16,7 @@ struct hilbert_t
 // Number of bits in the representation of a Hilbert axis.
 static const int num_bits = 16;
 
-// NOTE: a Hilbert index is 64 bits, so we use 3 16-bit integers to store 
+// NOTE: a Hilbert index is 64 bits, so we use 3 16-bit integers to store
 // NOTE: X, Y, and Z integer coordinates for the point positions.
 hilbert_t* hilbert_new(bbox_t* bbox)
 {
@@ -38,8 +38,8 @@ index_t hilbert_index(hilbert_t* curve, point_t* x)
   X[0] = (!reals_equal(curve->dx, 0.0)) ? (uint16_t)((x->x - curve->bbox.x1)/curve->dx) : 0;
   X[1] = (!reals_equal(curve->dy, 0.0)) ? (uint16_t)((x->y - curve->bbox.y1)/curve->dy) : 0;
   X[2] = (!reals_equal(curve->dz, 0.0)) ? (uint16_t)((x->z - curve->bbox.z1)/curve->dz) : 0;
-  
-  // Compute the Hilbert "transpose" (X[0], X[1], X[2]) corresponding to these 
+
+  // Compute the Hilbert "transpose" (X[0], X[1], X[2]) corresponding to these
   // discrete coordinates.
 
   // Inverse undo.
@@ -54,9 +54,9 @@ index_t hilbert_index(hilbert_t* curve, point_t* x)
       else
       {
         // exchange
-        uint16_t t = (X[0]^X[i]) & P; 
-        X[0] ^= t; 
-        X[i] ^= t; 
+        uint16_t t = (X[0]^X[i]) & P;
+        X[0] ^= t;
+        X[i] ^= t;
       }
     }
   }
@@ -119,7 +119,7 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x)
       {
         // exchange
         uint16_t t1 = (uint16_t)((X[0]^X[i]) & P);
-        X[0] ^= t1; 
+        X[0] ^= t1;
         X[i] ^= t1;
       }
     }
