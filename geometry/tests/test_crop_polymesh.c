@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -30,9 +30,9 @@ static void test_cylindrical_crop(void** state)
   {
     point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
     sd_func_t* cyl = cylinder_sd_func_new(&O, 0.5, INWARD_NORMAL);
-    vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
+    vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0};
     point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0 + dz};
-    vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0}; 
+    vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0};
     point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0 - dz};
     sd_func_t* ptop = plane_sd_func_new(&ntop, &xtop);
     sd_func_t* pbot = plane_sd_func_new(&nbot, &xbot);
@@ -42,13 +42,13 @@ static void test_cylindrical_crop(void** state)
     polymesh_free(mesh);
   }
 
-  // Projecting the nodes *almost* works like it should, but there are some 
+  // Projecting the nodes *almost* works like it should, but there are some
   // artifacts. We chop off the top and bottom now to get rid of these.
   polymesh_t* cropped_mesh;
   {
-    vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
+    vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0};
     point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0};
-    vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0}; 
+    vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0};
     point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0};
     sd_func_t* ptop = plane_sd_func_new(&ntop, &xtop);
     sd_func_t* pbot = plane_sd_func_new(&nbot, &xbot);
@@ -76,10 +76,10 @@ static void test_spherical_crop(void** state)
   polymesh_free(cropped_mesh);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_cylindrical_crop),
     cmocka_unit_test(test_spherical_crop)
