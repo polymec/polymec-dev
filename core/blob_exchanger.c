@@ -700,12 +700,13 @@ bool blob_exchanger_copy_out(blob_exchanger_t* ex,
     return false;
 }
 
-bool blob_exchanger_verify(blob_exchanger_t* ex,
-                           void (*handler)(const char* format, ...))
+bool blob_exchanger_is_valid(blob_exchanger_t* ex, char** reason)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   log_debug("blob_exchanger_verify: Checking connectivity.");
+
+  static char _reason[1025];
 
   // An exchanger is valid/consistent iff the number of blobs that
   // are exchanged between any two processors are agreed upon between those
@@ -741,12 +742,11 @@ bool blob_exchanger_verify(blob_exchanger_t* ex,
     if (num_im_sending != num_theyre_receiving)
     {
       polymec_free(neighbors_for_proc);
-      if (handler != NULL)
-      {
-        handler("blob_exchanger_verify: Proc %d is sending %d blobs to proc %d,"
-                " which is expecting %d blobs.",
-                ex->rank, num_im_sending, p, num_theyre_receiving);
-      }
+      snprintf(_reason, 1024, "Proc %d is sending %d blobs to proc %d,"
+               " which is expecting %d blobs.",
+               ex->rank, num_im_sending, p, num_theyre_receiving);
+      if (reason != NULL)
+        *reason = _reason;
       STOP_FUNCTION_TIMER();
       return false;
     }
@@ -756,12 +756,11 @@ bool blob_exchanger_verify(blob_exchanger_t* ex,
     if (num_im_receiving != num_theyre_sending)
     {
       polymec_free(neighbors_for_proc);
-      if (handler != NULL)
-      {
-        handler("blob_exchanger_verify: Proc %d is sending %d blobs to proc %d,"
-                " which is expecting %d blobs.", p, num_theyre_sending,
-                ex->rank, num_im_receiving);
-      }
+      snprintf(_reason, 1024, "Proc %d is sending %d blobs to proc %d,"
+              " which is expecting %d blobs.", p, num_theyre_sending,
+              ex->rank, num_im_receiving);
+      if (reason != NULL)
+        *reason = _reason;
       STOP_FUNCTION_TIMER();
       return false;
     }

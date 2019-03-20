@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -52,7 +52,7 @@ static void polymesh_storage_free(polymesh_storage_t* storage)
   polymec_free(storage);
 }
 
-polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
+polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
                          int num_faces, int num_nodes)
 {
   ASSERT(num_cells >= 0);
@@ -121,8 +121,8 @@ polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   return mesh;
 }
 
-polymesh_t* polymesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
-                                        int num_ghost_cells, int num_faces, 
+polymesh_t* polymesh_new_with_cell_type(MPI_Comm comm, int num_cells,
+                                        int num_ghost_cells, int num_faces,
                                         int num_nodes, int num_faces_per_cell,
                                         int num_nodes_per_face)
 {
@@ -174,16 +174,19 @@ void polymesh_free(polymesh_t* mesh)
   polymec_free(mesh);
 }
 
-bool polymesh_verify_topology(polymesh_t* mesh, 
-                              void (*handler)(const char* format, ...))
+bool polymesh_is_valid(polymesh_t* mesh, char** reason)
 {
+  static char _reason[1025]; // Reason string.
+
   // All cells must have at least 4 faces.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     if (polymesh_cell_num_faces(mesh, c) < 4)
     {
-      handler("polymesh_verify_topology: polyhedral cell %d has only %d faces.", 
-              c, polymesh_cell_num_faces(mesh, c));
+      snprintf(_reason, 1024, "Polyhedral cell %d has only %d faces.", c,
+               polymesh_cell_num_faces(mesh, c));
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
   }
@@ -194,12 +197,16 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     int ne = polymesh_face_num_edges(mesh, f);
     if (ne == 0)
     {
-      handler("polymesh_verify_topology: polygonal face %d has no edges!", f);
+      snprintf(_reason, 1024, "Polygonal face %d has no edges!", f);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
     if (ne < 3)
     {
-      handler("polymesh_verify_topology: polygonal face %d has only %d edges.", f, ne);
+      snprintf(_reason, 1024, "Polygonal face %d has only %d edges.", f, ne);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
   }
@@ -212,8 +219,11 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     {
       if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
       {
-        handler("polymesh_verify_topology: cell %d has face %d in its list of faces, but that "
-                "face does not have that cell in its list of cells.", c, f);
+        snprintf(_reason, 1024, "Cell %d has face "
+                 "%d in its list of faces, but that face does not have that "
+                 "cell in its list of cells.", c, f);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
     }
@@ -226,7 +236,7 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     bool found_face = false;
     while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
     {
-      if (ff == f) 
+      if (ff == f)
       {
         found_face = true;
         break;
@@ -234,8 +244,11 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     }
     if (!found_face)
     {
-      handler("polymesh_verify_topology: face %d has cell %d in its list of cells, but that cell "
-              "does not have that face in its list of faces.", f, mesh->face_cells[2*f]);
+      snprintf(_reason, 1024, "Face %d has cell %d "
+               "in its list of cells, but that cell does not have that face "
+               "in its list of faces.", f, mesh->face_cells[2*f]);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
 
@@ -246,7 +259,7 @@ bool polymesh_verify_topology(polymesh_t* mesh,
       found_face = false;
       while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f+1], &pos, &ff))
       {
-        if (ff == f) 
+        if (ff == f)
         {
           found_face = true;
           break;
@@ -254,8 +267,11 @@ bool polymesh_verify_topology(polymesh_t* mesh,
       }
       if (!found_face)
       {
-        handler("polymesh_verify_topology: face %d has cell %d in its list of cells, but that cell "
-                "does not have that face in its list of faces.", f, mesh->face_cells[2*f+1]);
+        snprintf(_reason, 1024, "Face %d has cell "
+                "%d in its list of cells, but that cell does not have that "
+                "face in its list of faces.", f, mesh->face_cells[2*f+1]);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
     }
@@ -340,7 +356,7 @@ void polymesh_compute_geometry(polymesh_t* mesh)
     // Make sure each cell has at least 4 faces.
     ASSERT((mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]) >= 4);
 
-    // Compute cell centers and face centers for the cell, 
+    // Compute cell centers and face centers for the cell,
     // knowing that it's convex.
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     int num_cell_nodes = 0, num_cell_faces = 0;
@@ -384,7 +400,7 @@ void polymesh_compute_geometry(polymesh_t* mesh)
     mesh->cell_centers[cell] = xc;
   }
 
-  // Use the preceding geometry to compute face areas and the 
+  // Use the preceding geometry to compute face areas and the
   // cell's volume.
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
@@ -400,8 +416,8 @@ void polymesh_compute_geometry(polymesh_t* mesh)
       {
         ASSERT(edge >= 0);
         ASSERT(edge < mesh->num_edges);
-        // Construct a tetrahedron whose vertices are the cell center, 
-        // the face center, and the two nodes of this edge. The volume 
+        // Construct a tetrahedron whose vertices are the cell center,
+        // the face center, and the two nodes of this edge. The volume
         // of this tetrahedron contributes to the cell volume.
         vector_t v1, v2, v3, v2xv3;
         point_t* xf = &(mesh->face_centers[actual_face]);
@@ -414,15 +430,15 @@ void polymesh_compute_geometry(polymesh_t* mesh)
         real_t tet_volume = ABS(vector_dot(&v1, &v2xv3))/6.0;
         mesh->cell_volumes[cell] += tet_volume;
 
-        // Now take the face of the tet whose vertices are the face center 
-        // and the two nodes. The area of this tet contributes to the 
+        // Now take the face of the tet whose vertices are the face center
+        // and the two nodes. The area of this tet contributes to the
         // face's area.
         real_t tri_area = 0.5*vector_mag(&v2xv3);
         face_area += tri_area;
         face_normal = v2xv3;
       }
 
-      // The cell that stores the face gets 
+      // The cell that stores the face gets
       // to take responsibility for the face normals/areas.
       if (cell == mesh->face_cells[2*actual_face])
       {
@@ -435,7 +451,7 @@ void polymesh_compute_geometry(polymesh_t* mesh)
         point_t* xf = &(mesh->face_centers[actual_face]);
         point_displacement(&(mesh->cell_centers[cell]), xf, &outward);
         real_t n_o_cf = vector_dot(&face_normal, &outward);
-        if (n_o_cf < 0.0) 
+        if (n_o_cf < 0.0)
         {
           if (face == actual_face)
             vector_scale(&face_normal, -1.0);
@@ -514,9 +530,9 @@ void polymesh_reserve_connectivity_storage(polymesh_t* mesh)
 {
   // Make sure metadata is in order.
   int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
-  ASSERT(num_cell_faces >= 4*mesh->num_cells); 
+  ASSERT(num_cell_faces >= 4*mesh->num_cells);
   int num_face_nodes = mesh->face_node_offsets[mesh->num_faces];
-  ASSERT(num_face_nodes >= 3*mesh->num_faces); 
+  ASSERT(num_face_nodes >= 3*mesh->num_faces);
 
   if (mesh->storage->cell_face_capacity <= num_cell_faces)
   {
@@ -535,23 +551,23 @@ void polymesh_reserve_connectivity_storage(polymesh_t* mesh)
 static size_t polymesh_byte_size(void* obj)
 {
   polymesh_t* mesh = obj;
-  
-  size_t basic_storage = 
+
+  size_t basic_storage =
     // cell stuff
-    2*sizeof(int) + (mesh->num_cells+1) * sizeof(int) + 
-    mesh->cell_face_offsets[mesh->num_cells] * sizeof(int) + 
+    2*sizeof(int) + (mesh->num_cells+1) * sizeof(int) +
+    mesh->cell_face_offsets[mesh->num_cells] * sizeof(int) +
     // face stuff
-    sizeof(int) + (mesh->num_faces+1) * sizeof(int) + 
-    mesh->face_node_offsets[mesh->num_faces] * sizeof(int) + 
-    2*mesh->num_faces * sizeof(int) + 
+    sizeof(int) + (mesh->num_faces+1) * sizeof(int) +
+    mesh->face_node_offsets[mesh->num_faces] * sizeof(int) +
+    2*mesh->num_faces * sizeof(int) +
     // node stuff
     sizeof(int) + mesh->num_nodes*sizeof(point_t);
-  
+
   // Tag-related storage.
   serializer_t* tag_s = tagger_serializer();
-  size_t tag_storage = serializer_size(tag_s, mesh->cell_tags) + 
-                       serializer_size(tag_s, mesh->face_tags) + 
-                       serializer_size(tag_s, mesh->edge_tags) + 
+  size_t tag_storage = serializer_size(tag_s, mesh->cell_tags) +
+                       serializer_size(tag_s, mesh->face_tags) +
+                       serializer_size(tag_s, mesh->edge_tags) +
                        serializer_size(tag_s, mesh->node_tags);
 
   // Exchanger-related storage.
@@ -686,7 +702,7 @@ static exchanger_t* create_face_exchanger(polymesh_t* mesh)
   while (exchanger_next_send(cell_ex, &pos, &proc, &s_indices, &s_size))
   {
     // Get the receive transaction corresponding to this send one.
-    int *r_indices, r_size; 
+    int *r_indices, r_size;
     bool have_it = exchanger_get_receive(cell_ex, proc, &r_indices, &r_size);
     if (!have_it)
       polymec_error("create_face_exchanger: Couldn't establish communication!");
@@ -743,10 +759,10 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
 
-  // The process that owns an edge is the process with minimum MPI rank 
+  // The process that owns an edge is the process with minimum MPI rank
   // associated with a node attached to the edge.
   // Traverse the nodes and associate them with their owning processes.
-  // NOTE: We abuse an exchanger_proc_map here to map node indices -> 
+  // NOTE: We abuse an exchanger_proc_map here to map node indices ->
   // lists of processes.
 #define elem_proc_map_t exchanger_proc_map_t
 #define elem_proc_map_new exchanger_proc_map_new
@@ -765,7 +781,7 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
     }
   }
 
-  // Now go over our edges and associate them with the processes on 
+  // Now go over our edges and associate them with the processes on
   // which the edge lives.
   elem_proc_map_t* edge_procs = elem_proc_map_new();
   int_array_t* edge_indices = int_array_new();
@@ -821,7 +837,7 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
     for (int i = 0; i < edge_centers->size; ++i)
       bbox_grow(&bbox, &(edge_centers->data[i]));
     hilbert_t* curve = hilbert_new(&bbox);
-    hilbert_sort_points(curve, edge_centers->data, edge_indices->data, 
+    hilbert_sort_points(curve, edge_centers->data, edge_indices->data,
                         edge_centers->size);
     release_ref(curve);
   }
@@ -860,10 +876,10 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
   int_array_free(edge_indices);
   elem_proc_map_free(edge_procs);
 #undef node_proc_map_t
-#undef node_proc_map_new 
-#undef node_proc_map_get 
-#undef node_proc_map_add_proc 
-#undef node_proc_map_free 
+#undef node_proc_map_new
+#undef node_proc_map_get
+#undef node_proc_map_add_proc
+#undef node_proc_map_free
 
 #endif
   return ex;
@@ -900,9 +916,9 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     int num_neighbors_of_neighbors[num_neighbors];
     for (int pp = 0; pp < num_neighbors; ++pp)
     {
-      MPI_Irecv(&num_neighbors_of_neighbors[pp], 1, MPI_INT, neighbors[pp], 0, 
+      MPI_Irecv(&num_neighbors_of_neighbors[pp], 1, MPI_INT, neighbors[pp], 0,
                 mesh->comm, &requests[pp]);
-      MPI_Isend(&num_neighbors, 1, MPI_INT, neighbors[pp], 0, 
+      MPI_Isend(&num_neighbors, 1, MPI_INT, neighbors[pp], 0,
           mesh->comm, &requests[pp + num_neighbors]);
     }
     MPI_Waitall(2 * num_neighbors, requests, statuses);
@@ -912,9 +928,9 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     for (int pp = 0; pp < num_neighbors; ++pp)
     {
       neighbors_of_neighbors[pp] = polymec_malloc(sizeof(int) * num_neighbors_of_neighbors[pp]);
-      MPI_Irecv(neighbors_of_neighbors[pp], num_neighbors_of_neighbors[pp], 
+      MPI_Irecv(neighbors_of_neighbors[pp], num_neighbors_of_neighbors[pp],
           MPI_INT, neighbors[pp], 0, mesh->comm, &requests[pp]);
-      MPI_Isend(neighbors, num_neighbors, MPI_INT, neighbors[pp], 0, 
+      MPI_Isend(neighbors, num_neighbors, MPI_INT, neighbors[pp], 0,
           mesh->comm, &requests[pp + num_neighbors]);
     }
     MPI_Waitall(2 * num_neighbors, requests, statuses);
@@ -928,7 +944,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
       {
         if (neighbors_of_neighbors[pp][ppp] != rank)
         {
-          int_unordered_set_insert(neighbor_neighbor_set, 
+          int_unordered_set_insert(neighbor_neighbor_set,
                                    neighbors_of_neighbors[pp][ppp]);
         }
       }
@@ -940,7 +956,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     int_unordered_set_free(neighbor_neighbor_set);
   }
 
-  // Make a list of all the nodes that can be communicated to neighboring 
+  // Make a list of all the nodes that can be communicated to neighboring
   // processes.
   int_array_t* my_node_indices = int_array_new();
   point_array_t* my_nodes = point_array_new();
@@ -974,13 +990,13 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     for (int i = 0; i < my_nodes->size; ++i)
       bbox_grow(&bbox, &(my_nodes->data[i]));
     hilbert_t* curve = hilbert_new(&bbox);
-    hilbert_sort_points(curve, my_nodes->data, my_node_indices->data, 
+    hilbert_sort_points(curve, my_nodes->data, my_node_indices->data,
                         my_nodes->size);
     release_ref(curve);
   }
 
-  // Now send/receive the positions of all nodes that can interact with 
-  // neighbors of our neighbors. 
+  // Now send/receive the positions of all nodes that can interact with
+  // neighbors of our neighbors.
   int num_neighbor_neighbors = (int)all_neighbors_of_neighbors->size;
   MPI_Request requests[2*num_neighbor_neighbors];
   MPI_Status statuses[2*num_neighbor_neighbors];
@@ -991,13 +1007,13 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Irecv(&num_neighbor_neighbor_nodes[p], 1, MPI_INT, proc, 0, 
+      MPI_Irecv(&num_neighbor_neighbor_nodes[p], 1, MPI_INT, proc, 0,
                 mesh->comm, &requests[p]);
     }
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Isend(&(my_nodes->size), 1, MPI_INT, proc, 0, 
+      MPI_Isend(&(my_nodes->size), 1, MPI_INT, proc, 0,
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
@@ -1009,7 +1025,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
       point_array_t* nn_nodes = point_array_new();
       point_array_resize(nn_nodes, num_neighbor_neighbor_nodes[p]);
       int_ptr_unordered_map_insert_with_v_dtor(neighbor_neighbor_nodes, proc, nn_nodes, DTOR(point_array_free));
-      MPI_Irecv(nn_nodes->data, 3*num_neighbor_neighbor_nodes[p], MPI_REAL_T, proc, 0, 
+      MPI_Irecv(nn_nodes->data, 3*num_neighbor_neighbor_nodes[p], MPI_REAL_T, proc, 0,
                 mesh->comm, &requests[p]);
     }
 
@@ -1017,15 +1033,15 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Isend(my_nodes->data, (int)(3*my_nodes->size), MPI_REAL_T, proc, 0, 
+      MPI_Isend(my_nodes->data, (int)(3*my_nodes->size), MPI_REAL_T, proc, 0,
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
   }
 
   // At this point, neighbor_neighbor_nodes maps the ranks of all processes
-  // we can possibly interact with to the positions of the nodes on those 
-  // processes. 
+  // we can possibly interact with to the positions of the nodes on those
+  // processes.
 
   // Now we cut out the nodes that don't match up.
   {
@@ -1034,12 +1050,12 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Irecv(&(num_culled_nodes[p]), 1, MPI_INT, proc, 0, 
+      MPI_Irecv(&(num_culled_nodes[p]), 1, MPI_INT, proc, 0,
                 mesh->comm, &requests[p]);
     }
 
     // Figure out which nodes we will cull and send the number.
-    // culled_nodes[p] contains a list of the nodes on neighbor p 
+    // culled_nodes[p] contains a list of the nodes on neighbor p
     // that DON'T correspond to any of my_nodes.
     int_array_t* culled_nodes[num_neighbor_neighbors];
     real_t tolerance = 1e-8; // FIXME: This is bad.
@@ -1065,7 +1081,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
           int_array_append(culled_nodes[p], i);
       }
       int_unordered_set_free(kept_nodes);
-      MPI_Isend(&culled_nodes[p]->size, 1, MPI_INT, proc, 0, 
+      MPI_Isend(&culled_nodes[p]->size, 1, MPI_INT, proc, 0,
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
@@ -1079,13 +1095,13 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
       my_culled_nodes[p] = int_array_new();
       int_array_resize(my_culled_nodes[p], num_culled_nodes[p]);
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Irecv(my_culled_nodes[p]->data, num_culled_nodes[p], MPI_INT, proc, 0, 
+      MPI_Irecv(my_culled_nodes[p]->data, num_culled_nodes[p], MPI_INT, proc, 0,
                 mesh->comm, &requests[p]);
     }
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Isend(culled_nodes[p]->data, (int)culled_nodes[p]->size, MPI_INT, proc, 0, 
+      MPI_Isend(culled_nodes[p]->data, (int)culled_nodes[p]->size, MPI_INT, proc, 0,
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
@@ -1147,7 +1163,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
         int j = sorted_indices[i];
         if (!int_unordered_set_contains(their_culled_node_sets[p], j))
         {
-          // Find the node in "their_nodes" that matches our local node and 
+          // Find the node in "their_nodes" that matches our local node and
           // add it to our list of receive nodes.
           int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
           exchanger_proc_map_add_index(receive_map, proc, node);
@@ -1230,17 +1246,17 @@ exchanger_t* polymesh_exchanger(polymesh_t* mesh,
   else if ((centering == POLYMESH_EDGE) &&
            (mesh->storage->exchangers[(int)centering] == NULL))
     mesh->storage->exchangers[(int)centering] = create_edge_exchanger(mesh);
-  else if ((centering == POLYMESH_NODE) && 
+  else if ((centering == POLYMESH_NODE) &&
            (mesh->storage->exchangers[(int)centering] == NULL))
     mesh->storage->exchangers[(int)centering] = create_node_exchanger(mesh);
   return mesh->storage->exchangers[(int)centering];
 }
 
-void polymesh_set_exchanger(polymesh_t* mesh, 
-                            polymesh_centering_t centering, 
+void polymesh_set_exchanger(polymesh_t* mesh,
+                            polymesh_centering_t centering,
                             exchanger_t* ex);
-void polymesh_set_exchanger(polymesh_t* mesh, 
-                            polymesh_centering_t centering, 
+void polymesh_set_exchanger(polymesh_t* mesh,
+                            polymesh_centering_t centering,
                             exchanger_t* ex)
 {
   ASSERT(ex != NULL);

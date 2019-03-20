@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -28,7 +28,7 @@ static void test_migrate_mesh_1_proc(void** state)
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  polymesh_verify_topology(mesh, polymec_error);
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   int64_t P[mesh->num_cells];
   memset(P, 0, sizeof(int64_t) * mesh->num_cells);
@@ -57,7 +57,7 @@ static void function_name(void** state) \
       function_name##_4_proc(state); \
       break; \
   } \
-} 
+}
 
 static void test_migrate_4x1x1_mesh_2_proc(void** state)
 {
@@ -67,7 +67,7 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  polymesh_verify_topology(mesh, polymec_error);
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   // We'll swap the cells on the processes.
   int rank;
@@ -95,7 +95,7 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  polymesh_verify_topology(mesh, polymec_error);
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   // Move one cell to the next process.
   int rank;
@@ -137,7 +137,7 @@ static void test_migrate_4x1x1_mesh_4_proc(void** state)
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  polymesh_verify_topology(mesh, polymec_error);
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   // Cycle our cell to the previous process.
   int rank;
@@ -167,7 +167,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
-  polymesh_verify_topology(mesh, polymec_error);
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   // Repartition it.
   assert_true(repartition_polymesh(&mesh, NULL, 0.05, NULL, 0));
@@ -190,7 +190,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   }
 
   // Check the resulting exchanger.
-  exchanger_verify(polymesh_exchanger(mesh, POLYMESH_CELL), polymec_error);
+  assert_true(exchanger_is_valid(polymesh_exchanger(mesh, POLYMESH_CELL), NULL));
 
   // Clean up.
   polymesh_free(mesh);
@@ -238,10 +238,10 @@ static void test_repartition_32x32x32_uniform_mesh(void** state)
 }
 #endif
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_migrate_4x1x1_mesh),
     cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,15 +17,15 @@
 ///@{
 
 /// \class exchanger
-/// This type implements an MPI transmitter/receiver for exchanging 
-/// data between processes in a point-to-point fashion. 
+/// This type implements an MPI transmitter/receiver for exchanging
+/// data between processes in a point-to-point fashion.
 /// \refcounted
 typedef struct exchanger_t exchanger_t;
 
 /// \class exchanger_reducer
-/// This represents an operator for reducing a set of numbers to a single 
-/// number in the context of parallel exchanges. Reducers are used to 
-/// handle exchanges in which several sources send values to a single 
+/// This represents an operator for reducing a set of numbers to a single
+/// number in the context of parallel exchanges. Reducers are used to
+/// handle exchanges in which several sources send values to a single
 /// destination.
 typedef struct exchanger_reducer_t exchanger_reducer_t;
 
@@ -56,7 +56,7 @@ extern exchanger_reducer_t* EXCHANGER_MIN_RANK;
 extern exchanger_reducer_t* EXCHANGER_MAX_RANK;
 
 /// \class exchanger_proc_map
-/// An unordered map that maps (integer) processes to (int_array_t*) 
+/// An unordered map that maps (integer) processes to (int_array_t*)
 /// arrays of indices.
 DEFINE_UNORDERED_MAP(exchanger_proc_map, int, int_array_t*, int_hash, int_equals)
 
@@ -97,7 +97,7 @@ MPI_Comm exchanger_comm(exchanger_t* ex);
 /// \memberof exchanger
 void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
 
-/// Begins an asynchronous data exchange. 
+/// Begins an asynchronous data exchange.
 /// \param [in] data An array of data for which values is exchanged with (sent and received to
 ///                  and from) other processes by this exchanger.
 /// \param [in] stride The stride (number of elements) of data exchanged at each index of the array.
@@ -121,17 +121,17 @@ int exchanger_max_send(exchanger_t* ex);
 /// \memberof exchanger
 int exchanger_max_receive(exchanger_t* ex);
 
-/// Enables deadlock detection, setting the threshold to the given number of 
+/// Enables deadlock detection, setting the threshold to the given number of
 /// seconds. Deadlocks will be reported to the given rank on the given stream.
-/// \param [in] threshold The number of seconds after which an exchanger transaction 
-///                       (a send or receive) is considered to have hung because of a 
+/// \param [in] threshold The number of seconds after which an exchanger transaction
+///                       (a send or receive) is considered to have hung because of a
 ///                       deadlock condition.
 /// \param [in] output_rank The MPI rank on which any diagnostic output is reported
 ///                         for a deadlock condition.
-/// \param [in] stream If non-NULL on the given output rank, specifies the stream to which 
+/// \param [in] stream If non-NULL on the given output rank, specifies the stream to which
 ///                    diagnostic output is written.
 /// \memberof exchanger
-void exchanger_enable_deadlock_detection(exchanger_t* ex, 
+void exchanger_enable_deadlock_detection(exchanger_t* ex,
                                          real_t threshold,
                                          int output_rank,
                                          FILE* stream);
@@ -152,32 +152,32 @@ void exchanger_fprintf(exchanger_t* ex, FILE* stream);
 /// \memberof exchanger
 serializer_t* exchanger_serializer(void);
 
-/// Establishes a communication pattern in which this exchanger sends data at 
-/// the given indices of an array to the given remote process. 
-/// \param [in] remote_process The rank of the process to which the data at the given indices is 
-///                            sent. 
+/// Establishes a communication pattern in which this exchanger sends data at
+/// the given indices of an array to the given remote process.
+/// \param [in] remote_process The rank of the process to which the data at the given indices is
+///                            sent.
 /// \param [in] indices The indices identifying locations in a data array to be sent to the remote process.
 /// \param [in] num_indices The number of indices in the indices array.
-/// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger 
+/// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger
 ///                          assumes ownership of the indices array passed to this function.
 /// \memberof exchanger
-void exchanger_set_send(exchanger_t* ex, 
-                        int remote_process, 
-                        int* indices, 
-                        int num_indices, 
+void exchanger_set_send(exchanger_t* ex,
+                        int remote_process,
+                        int* indices,
+                        int num_indices,
                         bool copy_indices);
 
-/// Establishes communications patterns in which this exchanger sends data at 
-/// the given indices of an array to various remote processes. 
-/// \param [in] send_map A mapping of remote process ranks to arrays of 
-///                      local indices identifying data to be sent. 
+/// Establishes communications patterns in which this exchanger sends data at
+/// the given indices of an array to various remote processes.
+/// \param [in] send_map A mapping of remote process ranks to arrays of
+///                      local indices identifying data to be sent.
 ///                      Consumed by this function.
 /// \memberof exchanger
 void exchanger_set_sends(exchanger_t* ex, exchanger_proc_map_t* send_map);
 
 /// Sets an offset for indices in data arrays that are sent to other processes.
-/// This can be used to allow multiple exchangers to exchange data correctly 
-/// in arrays that are aggregates of data associated with different distributed 
+/// This can be used to allow multiple exchangers to exchange data correctly
+/// in arrays that are aggregates of data associated with different distributed
 /// objects.
 /// \memberof exchanger
 void exchanger_set_send_offset(exchanger_t* ex, ssize_t offset);
@@ -186,7 +186,7 @@ void exchanger_set_send_offset(exchanger_t* ex, ssize_t offset);
 /// \memberof exchanger
 int exchanger_num_sends(exchanger_t* ex);
 
-/// Removes the given remote process from the set of processes to which this 
+/// Removes the given remote process from the set of processes to which this
 /// exchanger sends data.
 /// \memberof exchanger
 void exchanger_delete_send(exchanger_t* ex, int remote_process);
@@ -194,54 +194,54 @@ void exchanger_delete_send(exchanger_t* ex, int remote_process);
 /// Allows the traversal of the set of send indices for remote processes.
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] remote_process Stores the remote process in the next send transaction.
-/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data
 ///                      sent to the remote process.
 /// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if another send transaction is available in the exchanger, false otherwise.
 /// \memberof exchanger
-bool exchanger_next_send(exchanger_t* ex, 
-                         int* pos, 
-                         int* remote_process, 
-                         int** indices, 
+bool exchanger_next_send(exchanger_t* ex,
+                         int* pos,
+                         int* remote_process,
+                         int** indices,
                          int* num_indices);
 
-/// Retrieves the indices and number of indices for a send transaction 
+/// Retrieves the indices and number of indices for a send transaction
 /// with the given process.
 /// \param [in] remote_process The remote process in the specified send transaction.
-/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data
 ///                      sent to the remote process.
 /// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if such a transaction exists, false if not.
 /// \memberof exchanger
 bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
-/// Establishes a communication pattern in which this exchanger receives data at 
+/// Establishes a communication pattern in which this exchanger receives data at
 /// the given indices of an array from the given remote process.
-/// \param [in] remote_process The rank of the process from which the data at the given indices is 
-///                            received. 
-/// \param [in] indices The indices identifying locations in a data array to be received from the remote 
+/// \param [in] remote_process The rank of the process from which the data at the given indices is
+///                            received.
+/// \param [in] indices The indices identifying locations in a data array to be received from the remote
 ///                     process.
 /// \param [in] num_indices The number of indices in the indices array.
-/// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger 
+/// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger
 ///                          assumes ownership of the indices array passed to this function.
 /// \memberof exchanger
-void exchanger_set_receive(exchanger_t* ex, 
-                           int remote_process, 
-                           int* indices, 
-                           int num_indices, 
+void exchanger_set_receive(exchanger_t* ex,
+                           int remote_process,
+                           int* indices,
+                           int num_indices,
                            bool copy_indices);
 
-/// Establishes communications patterns in which this exchanger receives data at 
-/// the given indices of an array from various remote processes. 
+/// Establishes communications patterns in which this exchanger receives data at
+/// the given indices of an array from various remote processes.
 /// \param [in] recv_map A mapping of remote process ranks to arrays of
-///                      local indices identifying data to be received. 
+///                      local indices identifying data to be received.
 ///                      Consumed by this function.
 /// \memberof exchanger
 void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map);
 
-/// Sets an offset for indices in data arrays that are received from other 
-/// processes. This can be used to allow multiple exchangers to exchange data 
-/// correctly in arrays that are aggregates of data associated with different 
+/// Sets an offset for indices in data arrays that are received from other
+/// processes. This can be used to allow multiple exchangers to exchange data
+/// correctly in arrays that are aggregates of data associated with different
 /// distributed objects.
 /// \memberof exchanger
 void exchanger_set_receive_offset(exchanger_t* ex, ssize_t offset);
@@ -250,58 +250,58 @@ void exchanger_set_receive_offset(exchanger_t* ex, ssize_t offset);
 /// \memberof exchanger
 int exchanger_num_receives(exchanger_t* ex);
 
-/// Removes the given remote process from the set of processes from which this 
+/// Removes the given remote process from the set of processes from which this
 /// exchanger receives data.
 void exchanger_delete_receive(exchanger_t* ex, int remote_process);
 
 /// Allows the traversal of the set of receive indices for remote processes.
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
 /// \param [out] remote_process Stores the remote process in the next receive transaction.
-/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data
 ///                      received from the remote process.
 /// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if another receive transaction is available in the exchanger, false otherwise.
 /// \memberof exchanger
-bool exchanger_next_receive(exchanger_t* ex, 
-                            int* pos, 
-                            int* remote_process, 
-                            int** indices, 
+bool exchanger_next_receive(exchanger_t* ex,
+                            int* pos,
+                            int* remote_process,
+                            int** indices,
                             int* num_indices);
 
-/// Retrieves the indices and number of indices for a receive transaction 
-/// with the given process. 
+/// Retrieves the indices and number of indices for a receive transaction
+/// with the given process.
 /// \param [in] remote_process The remote process in the specified receive transaction.
-/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data
 ///                      sent to the remote process.
 /// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if such a transaction exists, false if not.
 /// \memberof exchanger
 bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
-/// Verifies the consistency of the exchanger.
-/// This function is expensive and involves parallel communication. It must be called 
-/// by all processes on the communicator for the exchanger. 
-/// \param [in] handler A function that accepts a formatted string. If non-NULL, 
-/// this function is called with a string describing any errors encountered. 
-/// \returns true if the verification succeeds, false if not. 
+/// Returns true if the exchanger is internally consistent, false if not.
+/// This function is expensive and involves parallel communication. It must be
+/// called by all processes on the communicator for the exchanger.
+/// \param [out] reason If non-NULL, stores a pointer to an internal string
+///                     explaining any reason for an inconsistency in the
+///                     exchanger. Not used if the exchanger is valid.
 /// \memberof exchanger
 /// \collective Collective on the exchanger's communicator.
-bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
+bool exchanger_is_valid(exchanger_t* ex, char** reason);
 
-/// Returns true if this exchanger receives data to an index from more than 
-/// one source, false otherwise. If an exchanger aggregates data, you must 
-/// use \ref exchanger_set_reducer to define a reduction operator before 
+/// Returns true if this exchanger receives data to an index from more than
+/// one source, false otherwise. If an exchanger aggregates data, you must
+/// use \ref exchanger_set_reducer to define a reduction operator before
 /// performing an exchange.
 bool exchanger_aggregates_data(exchanger_t* ex);
 
 /// Sets the reduction operator to use when values are accumulated to a
 /// given index in an array from several sources.
-/// \param [in] reducer A reduction operator that aggregates each set 
-///                     of values inbound to a local index to a single value. 
-///                     Available reducers are \ref EXCHANGER_SUM, 
-///                     \ref EXCHANGER_PRODUCT, \ref EXCHANGER_MIN, 
-///                     \ref EXCHANGER_MAX, \ref EXCHANGER_MIN_RANK, 
-///                     \ref EXCHANGER_MAX_RANK. Can be set to NULL to disable 
+/// \param [in] reducer A reduction operator that aggregates each set
+///                     of values inbound to a local index to a single value.
+///                     Available reducers are \ref EXCHANGER_SUM,
+///                     \ref EXCHANGER_PRODUCT, \ref EXCHANGER_MIN,
+///                     \ref EXCHANGER_MAX, \ref EXCHANGER_MIN_RANK,
+///                     \ref EXCHANGER_MAX_RANK. Can be set to NULL to disable
 ///                     reduction.
 void exchanger_set_reducer(exchanger_t* ex,
                            exchanger_reducer_t* reducer);

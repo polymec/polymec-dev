@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,7 +16,7 @@
 #include "core/partitioning.h"
 
 // This creates tags for a submesh whose elements belong to the given set.
-static void create_submesh_tags(tagger_t* tagger, 
+static void create_submesh_tags(tagger_t* tagger,
                                 int_int_unordered_map_t* element_map)
 {
   int pos = 0, *indices;
@@ -41,12 +41,12 @@ static void create_submesh_tags(tagger_t* tagger,
 }
 
 // This helper constructs and returns a mesh from the cells with the given
-// indices in the given mesh. The submesh is valid with the following 
+// indices in the given mesh. The submesh is valid with the following
 // exception:
-// The indices of ghost cells referenced in submesh->face_cells are 
+// The indices of ghost cells referenced in submesh->face_cells are
 // replaced with destination process ranks.
-static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh, 
-                                  int64_t* partition, index_t* vtx_dist, 
+static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
+                                  int64_t* partition, index_t* vtx_dist,
                                   int* indices, size_t num_indices)
 {
   START_FUNCTION_TIMER();
@@ -91,7 +91,7 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
 
   // Create the submesh container.
   int num_faces = face_indices->size, num_nodes = node_indices->size;
-  log_debug("create_submesh: Creating polymesh (%d cells, %d faces, %d nodes)", 
+  log_debug("create_submesh: Creating polymesh (%d cells, %d faces, %d nodes)",
             num_cells, num_faces, num_nodes);
   polymesh_t* submesh = polymesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
@@ -162,7 +162,7 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
   }
 
   // Create a mapping of parallel boundary faces to global "ghost" cells.
-  // We will use this to create an annotated "parallel_boundary_faces" tag 
+  // We will use this to create an annotated "parallel_boundary_faces" tag
   // in the submesh.
   int_int_unordered_map_t* parallel_bface_map = int_int_unordered_map_new();
 
@@ -183,7 +183,7 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
     else
     {
       // One of the cells attached to this face is a ghost cell, at least as far as this
-      // submesh is concerned. Record the index of the "ghost cell" in the 
+      // submesh is concerned. Record the index of the "ghost cell" in the
       // original mesh.
       int ghost_cell;
       if (cell_p != NULL)
@@ -197,9 +197,9 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
         ghost_cell = mesh->face_cells[2*orig_mesh_face];
       }
 
-      // We encode the destination process rank in the ghost cell and stash 
-      // the original ghost index in our parallel boundary face map. The 
-      // destination rank of the ghost cell is stored in its corresponding 
+      // We encode the destination process rank in the ghost cell and stash
+      // the original ghost index in our parallel boundary face map. The
+      // destination rank of the ghost cell is stored in its corresponding
       // entry within our partition vector.
       if (ghost_cell != -1)
       {
@@ -222,7 +222,7 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
 
   // Create a tag for boundary faces.
   {
-    int* pbf_tag = polymesh_create_tag(submesh->face_tags, "parallel_boundary_faces", 
+    int* pbf_tag = polymesh_create_tag(submesh->face_tags, "parallel_boundary_faces",
                                        parallel_bface_map->size);
     int_array_t* pbf_ghost_cells = int_array_new();
     int pos = 0, face, gcell, i = 0;
@@ -234,13 +234,13 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
     }
 
     // Stash the ghost cell indices in another tag.
-    int* gci_tag = polymesh_create_tag(submesh->cell_tags, "ghost_cell_indices", 
+    int* gci_tag = polymesh_create_tag(submesh->cell_tags, "ghost_cell_indices",
                                        pbf_ghost_cells->size);
     memcpy(gci_tag, pbf_ghost_cells->data, sizeof(int) * pbf_ghost_cells->size);
     int_array_free(pbf_ghost_cells);
 
     // Also set up a copy of the array of global cell indices.
-    gci_tag = polymesh_create_tag(submesh->cell_tags, "global_cell_indices", 
+    gci_tag = polymesh_create_tag(submesh->cell_tags, "global_cell_indices",
                                   num_indices);
     memcpy(gci_tag, indices, sizeof(int) * num_indices);
   }
@@ -295,7 +295,7 @@ static void sort_global_cell_pairs(int* indices, int num_pairs)
       data[3*i+2] = 0;
     }
   }
-  // We can sort using the ordinary integer pair comparator, since the 
+  // We can sort using the ordinary integer pair comparator, since the
   // swapped flag doesn't affect the ordering.
   qsort(data, (size_t)num_pairs, 3*sizeof(int), int_pair_bsearch_comp);
   for (int i = 0; i < num_pairs; ++i)
@@ -314,11 +314,11 @@ static void sort_global_cell_pairs(int* indices, int num_pairs)
   STOP_FUNCTION_TIMER();
 }
 
-// This helper creates an array containing an index map that removes "holes" 
-// left by mapped duplicates as mapped in dup_map. The range [0, num_indices) 
-// is mapped. This is used to remap faces and nodes in the fuse_submeshes() 
+// This helper creates an array containing an index map that removes "holes"
+// left by mapped duplicates as mapped in dup_map. The range [0, num_indices)
+// is mapped. This is used to remap faces and nodes in the fuse_submeshes()
 // helper below. A newly-allocated array of length num_indices is returned.
-static int* create_index_map_with_dups_removed(int num_indices, 
+static int* create_index_map_with_dups_removed(int num_indices,
                                                int_int_unordered_map_t* dup_map)
 {
   START_FUNCTION_TIMER();
@@ -359,10 +359,10 @@ static int* create_index_map_with_dups_removed(int num_indices,
   return map;
 }
 
-// This helper takes an array of submeshes and stitches them all together into 
-// one single mesh (contiguous or not) on the current domain. The submeshes are 
+// This helper takes an array of submeshes and stitches them all together into
+// one single mesh (contiguous or not) on the current domain. The submeshes are
 // consumed in the process.
-static polymesh_t* fuse_submeshes(polymesh_t** submeshes, 
+static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
                                   size_t num_submeshes)
 {
   START_FUNCTION_TIMER();
@@ -372,10 +372,10 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nprocs);
 
-  // First we traverse each of the submeshes and count up all the internal 
+  // First we traverse each of the submeshes and count up all the internal
   // and ghost cells, faces, nodes.
-  int num_cells = 0, num_ghost_cells = 0, num_faces = 0, num_nodes = 0, 
-      submesh_cell_offsets[num_submeshes+1], submesh_face_offsets[num_submeshes+1], 
+  int num_cells = 0, num_ghost_cells = 0, num_faces = 0, num_nodes = 0,
+      submesh_cell_offsets[num_submeshes+1], submesh_face_offsets[num_submeshes+1],
       submesh_node_offsets[num_submeshes+1];
   submesh_cell_offsets[0] = submesh_face_offsets[0] = submesh_node_offsets[0] = 0;
   for (int m = 0; m < num_submeshes; ++m)
@@ -390,9 +390,9 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     submesh_node_offsets[m+1] = num_nodes;
   }
 
-  // Next, we traverse these submeshes and construct sets of all the 
-  // faces/nodes that make up the "seams" of the fused mesh--those whose 
-  // would-be-ghost cells belong to other submeshes on this process. 
+  // Next, we traverse these submeshes and construct sets of all the
+  // faces/nodes that make up the "seams" of the fused mesh--those whose
+  // would-be-ghost cells belong to other submeshes on this process.
   int_unordered_set_t* seam_faces = int_unordered_set_new();
   int_unordered_set_t* seam_nodes = int_unordered_set_new();
   for (int m = 0; m < num_submeshes; ++m)
@@ -421,7 +421,7 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
   ASSERT((seam_faces->size % 2) == 0); // Seam faces always come in pairs!
   num_ghost_cells -= seam_faces->size;
 
-  // Construct mappings to remove duplicate faces by mapping redundant 
+  // Construct mappings to remove duplicate faces by mapping redundant
   // ones to "originals."
   int_int_unordered_map_t* dup_face_map = int_int_unordered_map_new();
   if (seam_faces->size > 0)
@@ -450,8 +450,8 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     kd_tree_t* face_tree = kd_tree_new(xf, seam_faces->size);
 
     // Now examine each seam face and find the 2 nearest faces to it.
-    // One will be the face itself, and the other will be a duplicate. 
-    // Map the one with the higher index to the lower index. Note that 
+    // One will be the face itself, and the other will be a duplicate.
+    // Map the one with the higher index to the lower index. Note that
     // the indices of the points in the kd-tree should correspond to those
     // in the seam face array.
     for (int i = 0; i < seam_faces->size; ++i)
@@ -464,7 +464,7 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
       int f = j - submesh_face_offsets[m];
       point_t* x = &submeshes[m]->face_centers[f];
 
-      // Find the 2 nearest faces, one of which is j itself, and the other 
+      // Find the 2 nearest faces, one of which is j itself, and the other
       // which ostensibly lies on top of it.
       kd_tree_nearest_n(face_tree, x, 2, nearest);
       int index0 = seam_face_array[nearest[0]];
@@ -476,11 +476,11 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
       ASSERT(point_distance(&xf[nearest[0]], &xf[nearest[1]]) < epsilon);
 #endif
 
-      // Merge the faces by mapping the one with the higher index to the 
-      // lower index. 
+      // Merge the faces by mapping the one with the higher index to the
+      // lower index.
       int_int_unordered_map_insert(dup_face_map, MAX(index0, index1), MIN(index0, index1));
 
-      // ALSO: Alter the submesh so that its interior ghost cells actually 
+      // ALSO: Alter the submesh so that its interior ghost cells actually
       // refer to the correct (flattened) interior cells. This may seem strange,
       // but it helps us to get the face->cell connectivity right later on.
       int j1 = (j == index0) ? index1 : index0;
@@ -495,7 +495,7 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     // Clean up.
     kd_tree_free(face_tree);
   }
-  int* face_map = create_index_map_with_dups_removed(num_faces, dup_face_map); 
+  int* face_map = create_index_map_with_dups_removed(num_faces, dup_face_map);
 
   // Do the same for duplicate nodes.
   int_int_unordered_map_t* dup_node_map = int_int_unordered_map_new();
@@ -523,8 +523,8 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     }
     kd_tree_t* node_tree = kd_tree_new(xn, seam_nodes->size);
 
-    // Now examine each seam node and find ALL NODES that appear to be 
-    // the same. NOTE: for now, we find all the nodes within a distance 
+    // Now examine each seam node and find ALL NODES that appear to be
+    // the same. NOTE: for now, we find all the nodes within a distance
     // of epsilon, which is KNOWN NOT TO BE A ROBUST METHOD OF FUSING NODES.
     // It might be good enough for now, though...
     for (int i = 0; i < seam_nodes->size; ++i)
@@ -538,16 +538,16 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
       point_t* x = &submeshes[m]->nodes[n];
 
       // Find all the nodes within epsilon of this one.
-      // Note that not all "seam nodes" will be merged with others, since we 
+      // Note that not all "seam nodes" will be merged with others, since we
       // identify seam node candidates from a broader class of nodes including
-      // nodes on the problem boundary that don't necessary belong to a seam 
+      // nodes on the problem boundary that don't necessary belong to a seam
       // face.
       static const real_t epsilon = 1e-12;
       int_array_t* same_nodes = kd_tree_within_radius(node_tree, x, epsilon);
 
       if (same_nodes->size > 1)
       {
-        // Merge the nodes by mapping all those with higher indices to the 
+        // Merge the nodes by mapping all those with higher indices to the
         // lowest index. Recall that we have to map the "seam index" of the point
         // (which the kd tree uses) to the actual node index.
         int min_index = INT_MAX;
@@ -572,9 +572,9 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     // Clean up.
     kd_tree_free(node_tree);
   }
-  int* node_map = create_index_map_with_dups_removed(num_nodes, dup_node_map); 
+  int* node_map = create_index_map_with_dups_removed(num_nodes, dup_node_map);
 
-  // Reduce the number of faces and nodes in the fused mesh by the ones that 
+  // Reduce the number of faces and nodes in the fused mesh by the ones that
   // have been merged to others.
   num_faces -= dup_face_map->size;
   num_nodes -= dup_node_map->size;
@@ -670,8 +670,8 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
       ASSERT(fused_mesh->face_cells[2*face] != -1);
       if (fused_mesh->face_cells[2*face+1] == -1)
       {
-        // If the second cell is a ghost cell (< -1), it has its owning 
-        // process encoded. If so, we simply copy it into place and 
+        // If the second cell is a ghost cell (< -1), it has its owning
+        // process encoded. If so, we simply copy it into place and
         // deal with it later.
         if (submesh->face_cells[2*f+1] < -1)
           fused_mesh->face_cells[2*face+1] = submesh->face_cells[2*f+1];
@@ -715,8 +715,8 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     polymesh_free(submeshes[m]);
 
   // Now fill the exchanger for the fused mesh with data.
-  exchanger_proc_map_t* send_map = exchanger_proc_map_new(); 
-  exchanger_proc_map_t* recv_map = exchanger_proc_map_new(); 
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* recv_map = exchanger_proc_map_new();
   int ghost_cell = fused_mesh->num_cells;
   for (int f = 0; f < fused_mesh->num_faces; ++f)
   {
@@ -742,9 +742,11 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
   exchanger_set_sends(fused_ex, send_map);
   exchanger_set_receives(fused_ex, recv_map);
 
-  // Now that we've corrected all of our face->cell connections, we can verify the 
+  // Now that we've corrected all of our face->cell connections, we can verify the
   // topological correctness of the fused mesh.
-  ASSERT(polymesh_verify_topology(fused_mesh, polymec_error));
+  char* reason;
+  if (!polymesh_is_valid(fused_mesh, &reason))
+    polymec_error("fuse_submeshes: %s", reason);
 
   // Return the final fused mesh.
   STOP_FUNCTION_TIMER();
@@ -753,9 +755,9 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
 
 #endif
 
-bool partition_polymesh(polymesh_t** mesh, 
-                        MPI_Comm comm, 
-                        int* weights, 
+bool partition_polymesh(polymesh_t** mesh,
+                        MPI_Comm comm,
+                        int* weights,
                         real_t imbalance_tol,
                         polymesh_field_t** fields,
                         size_t num_fields)
@@ -772,7 +774,7 @@ bool partition_polymesh(polymesh_t** mesh,
   ASSERT((rank != 0) || (*mesh != NULL));
 
   // On a single process, partitioning has no meaning, but we do replace the communicator
-  // if needed. NOTE: the migrator will still have its original communicator, but this 
+  // if needed. NOTE: the migrator will still have its original communicator, but this
   // shouldn't matter in any practical sense.
   if (nprocs == 1)
   {
@@ -789,7 +791,7 @@ bool partition_polymesh(polymesh_t** mesh,
   if ((rank != 0) && (m != NULL))
   {
     polymesh_free(m);
-    *mesh = m = NULL; 
+    *mesh = m = NULL;
   }
 
   // Generate a global adjacency graph for the mesh.
@@ -830,9 +832,9 @@ bool partition_polymesh(polymesh_t** mesh,
 #endif
 }
 
-int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh, 
-                                        MPI_Comm comm, 
-                                        int* weights, 
+int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
+                                        MPI_Comm comm,
+                                        int* weights,
                                         real_t imbalance_tol,
                                         bool broadcast)
 {
@@ -883,7 +885,7 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
 #endif
 }
 
-void distribute_polymesh(polymesh_t** mesh, 
+void distribute_polymesh(polymesh_t** mesh,
                          MPI_Comm comm,
                          int64_t* global_partition,
                          polymesh_field_t** fields,
@@ -907,7 +909,7 @@ void distribute_polymesh(polymesh_t** mesh,
   // Make sure we're all here.
   MPI_Barrier(comm);
 
-  // We use the int_array serializer, so we need to make sure it's 
+  // We use the int_array serializer, so we need to make sure it's
   // registered on all processes. See serializer.h for details.
   {
     serializer_t* s = int_array_serializer();
@@ -988,7 +990,7 @@ void distribute_polymesh(polymesh_t** mesh,
     serializer_t* ser = polymesh_serializer();
     size_t offset = 0;
     local_mesh = serializer_read(ser, bytes, &offset);
-    
+
     byte_array_free(bytes);
   }
 
@@ -1063,13 +1065,13 @@ void distribute_polymesh(polymesh_t** mesh,
       ASSERT((indices->size > 0) && ((indices->size % 2) == 0));
       int num_pairs = (int)indices->size/2;
 
-      // Sort the indices array lexicographically by pairs so that all of the 
-      // exchanger send/receive transactions have the same order across 
-      // processes. This requires a specialized sort, since we have to 
-      // arrange the integers within the pairs in ascending order, sort 
+      // Sort the indices array lexicographically by pairs so that all of the
+      // exchanger send/receive transactions have the same order across
+      // processes. This requires a specialized sort, since we have to
+      // arrange the integers within the pairs in ascending order, sort
       // them, and then switch them back.
       sort_global_cell_pairs(indices->data, num_pairs);
-      
+
       int send_indices[num_pairs], recv_indices[num_pairs];
       for (int i = 0; i < num_pairs; ++i)
       {
@@ -1156,10 +1158,10 @@ void distribute_polymesh(polymesh_t** mesh,
 //------------------------------------------------------------------------
 
 #if POLYMEC_HAVE_MPI
-static void redistribute_polymesh_with_graph(polymesh_t** mesh, 
-                                             int64_t* local_partition, 
-                                             adj_graph_t* local_graph, 
-                                             polymesh_field_t** fields, 
+static void redistribute_polymesh_with_graph(polymesh_t** mesh,
+                                             int64_t* local_partition,
+                                             adj_graph_t* local_graph,
+                                             polymesh_field_t** fields,
                                              size_t num_fields)
 {
 #ifndef NDEBUG
@@ -1189,8 +1191,8 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
   // Get redistribution data from the local partition vector.
-  redistribution_t* redist = redistribution_from_partition((*mesh)->comm, 
-                                                           local_partition, 
+  redistribution_t* redist = redistribution_from_partition((*mesh)->comm,
+                                                           local_partition,
                                                            (*mesh)->num_cells);
 
   // Make a parallel-aware version of our partition vector.
@@ -1229,9 +1231,9 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
 
     // Create the mesh to send. Recall that the submesh encodes the destination
     // process rank in the ghost cells referenced in submesh->face_cells.
-    polymesh_t* submesh = create_submesh(m->comm, m, partition, vtx_dist, 
+    polymesh_t* submesh = create_submesh(m->comm, m, partition, vtx_dist,
                                          indices->data, indices->size);
-    log_debug("redistribute_polymesh: Redistributing %d cells to process %d.", 
+    log_debug("redistribute_polymesh: Redistributing %d cells to process %d.",
               submesh->num_cells, proc);
 
     // Serialize the submesh.
@@ -1268,14 +1270,14 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
   {
     receive_buffers[i] = byte_array_new();
     byte_array_resize(receive_buffers[i], receive_buffer_sizes[i]);
-    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, 
+    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE,
               redist->receive_procs->data[i], 0, m->comm, &requests[i]);
   }
 
   // Send the actual meshes and wait for receipt.
   for (size_t i = 0; i < num_sends; ++i)
   {
-    MPI_Isend(send_buffers[i]->data, (int)send_buffers[i]->size, MPI_BYTE, 
+    MPI_Isend(send_buffers[i]->data, (int)send_buffers[i]->size, MPI_BYTE,
               redist->send_procs->data[i], 0, m->comm, &requests[num_receives + i]);
   }
   MPI_Waitall((int)(num_receives + num_sends), requests, statuses);
@@ -1289,7 +1291,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
     submeshes[i+1] = serializer_read(ser, receive_buffers[i], &receive_offsets[i]);
   }
 
-  // Clean up the send buffers and the serializer. We still need the 
+  // Clean up the send buffers and the serializer. We still need the
   // receive buffer.
   for (size_t i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
@@ -1304,7 +1306,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
     if (!int_unordered_set_contains(sent_cells, (int)i))
       local_cells[j++] = (int)i;
   }
-  submeshes[0] = create_submesh(m->comm, m, partition, vtx_dist, 
+  submeshes[0] = create_submesh(m->comm, m, partition, vtx_dist,
                                 local_cells, num_local_cells);
 
   // Fuse all the submeshes into a single mesh.
@@ -1347,8 +1349,8 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
 }
 #endif
 
-bool repartition_polymesh(polymesh_t** mesh, 
-                          int* weights, 
+bool repartition_polymesh(polymesh_t** mesh,
+                          int* weights,
                           real_t imbalance_tol,
                           polymesh_field_t** fields,
                           size_t num_fields)
@@ -1379,7 +1381,7 @@ bool repartition_polymesh(polymesh_t** mesh,
   ASSERT(total_num_cells >= nprocs);
 #endif
 
-  log_debug("repartition_mesh: Repartitioning polymesh (%d cells) and %d fields on %d domains...", 
+  log_debug("repartition_mesh: Repartitioning polymesh (%d cells) and %d fields on %d domains...",
             m->num_cells, (int)num_fields, nprocs);
 
   // Get the exchanger for the mesh.
@@ -1404,9 +1406,9 @@ bool repartition_polymesh(polymesh_t** mesh,
 #endif
 }
 
-void redistribute_polymesh(polymesh_t** mesh, 
-                           int64_t* local_partition, 
-                           polymesh_field_t** fields, 
+void redistribute_polymesh(polymesh_t** mesh,
+                           int64_t* local_partition,
+                           polymesh_field_t** fields,
                            size_t num_fields)
 {
 #if POLYMEC_HAVE_MPI

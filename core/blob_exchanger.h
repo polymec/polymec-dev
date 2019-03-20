@@ -198,17 +198,15 @@ bool blob_exchanger_copy_out(blob_exchanger_t* ex,
                              int blob_index,
                              void* blob);
 
-/// Verifies the consistency of the blob exchanger.
+/// Returns true if the blob exchanger is internally consist, false if not.
 /// This function is expensive and involves parallel communication. It must be
 /// called by all processes on the communicator for the exchanger.
-/// \param [in] handler A function that accepts a formatted string. If non-NULL,
-///                     this function is called with a string describing any
-///                     errors encountered.
-/// \returns true if the verification succeeds, false if not.
+/// \param [out] reason If non-NULL, stores a pointer to an internal string
+///                     explaining any inconsistency. Only used if the function
+///                     returns false.
 /// \memberof blob_exchanger
 /// \collective Collective on the blob exchanger's communicator.
-bool blob_exchanger_verify(blob_exchanger_t* ex,
-                           void (*handler)(const char* format, ...));
+bool blob_exchanger_is_valid(blob_exchanger_t* ex, char** reason);
 
 /// Enables deadlock detection, setting the threshold to the given number of
 /// seconds. Deadlocks will be reported to the given rank on the given stream.

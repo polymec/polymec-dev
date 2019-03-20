@@ -19,7 +19,7 @@ static void test_create_uniform_mesh(void** state)
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
 
   // Verify the mesh's topology.
-  assert_true(polymesh_verify_topology(mesh, polymec_error));
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   // Now check its connectivity.
   int nproc;
@@ -58,7 +58,7 @@ static void test_create_uniform_mesh_on_rank(void** state)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
   {
-    assert_true(polymesh_verify_topology(mesh, polymec_error));
+    assert_true(polymesh_is_valid(mesh, NULL));
     polymesh_free(mesh);
   }
   else

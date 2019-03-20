@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,7 +22,7 @@ static void test_create_rectilinear_mesh(void** state)
   polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
 
   // Verify the mesh's topology.
-  assert_true(polymesh_verify_topology(mesh, polymec_error));
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   // Test the connectivity of the mesh.
   int nproc;
@@ -72,7 +72,7 @@ static void test_create_rectilinear_mesh_on_rank(void** state)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
   {
-    assert_true(polymesh_verify_topology(mesh, polymec_error));
+    assert_true(polymesh_is_valid(mesh, NULL));
     polymesh_free(mesh);
   }
   else
@@ -81,11 +81,11 @@ static void test_create_rectilinear_mesh_on_rank(void** state)
   }
 }
 
-static void check_cell_face_connectivity(void** state, 
+static void check_cell_face_connectivity(void** state,
                                          polymesh_t* mesh,
-                                         index_t* global_cell_indices, 
-                                         index_t global_cell_index, 
-                                         int cell_face_index, 
+                                         index_t* global_cell_indices,
+                                         index_t global_cell_index,
+                                         int cell_face_index,
                                          index_t global_opp_cell_index)
 {
   ASSERT(cell_face_index >= 0);
@@ -97,24 +97,24 @@ static void check_cell_face_connectivity(void** state,
   assert_true(cell_p != NULL);
   int cell = (int)(cell_p - global_cell_indices);
   int face = mesh->cell_faces[6*cell + cell_face_index];
-  if (face < 0) 
+  if (face < 0)
     face = ~face;
   int opp_cell = polymesh_face_opp_cell(mesh, face, cell);
   if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
     assert_int_equal(global_opp_cell_index, opp_cell);
   else
-    assert_int_equal(global_opp_cell_index, global_cell_indices[opp_cell]); 
+    assert_int_equal(global_opp_cell_index, global_cell_indices[opp_cell]);
 }
 
 static void test_3proc_4x4x1_mesh(void** state)
 {
-  // Create a 4x4x1 rectilinear mesh, which isn't a big deal in and of itself, 
+  // Create a 4x4x1 rectilinear mesh, which isn't a big deal in and of itself,
   // but does seem to exhibit problems on certain numbers of processes.
   real_t xs[] = {0.0, 1.0, 2.0, 3.0, 4.0};
   real_t ys[] = {0.0, 1.0, 2.0, 3.0, 4.0};
   real_t zs[] = {0.0, 1.0};
   polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
-  assert_true(polymesh_verify_topology(mesh, polymec_error));
+  assert_true(polymesh_is_valid(mesh, NULL));
 
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
@@ -157,7 +157,7 @@ static void test_3proc_4x4x1_mesh(void** state)
     assert_int_equal(5, mesh->num_cells);
     assert_int_equal(5, mesh->num_ghost_cells);
 
-    // Check that cell->face and face->cell connectivity are 
+    // Check that cell->face and face->cell connectivity are
     // correctly and consistently done.
     check_cell_face_connectivity(state, mesh, G, 0, 0, -1);
     check_cell_face_connectivity(state, mesh, G, 0, 1,  1);
@@ -199,7 +199,7 @@ static void test_3proc_4x4x1_mesh(void** state)
     assert_int_equal(5, mesh->num_cells);
     assert_int_equal(10, mesh->num_ghost_cells);
 
-    // Check that cell->face and face->cell connectivity are 
+    // Check that cell->face and face->cell connectivity are
     // correctly and consistently done.
     check_cell_face_connectivity(state, mesh, G, 5, 0,  4);
     check_cell_face_connectivity(state, mesh, G, 5, 1,  6);
@@ -241,7 +241,7 @@ static void test_3proc_4x4x1_mesh(void** state)
     assert_int_equal(6, mesh->num_cells);
     assert_int_equal(5, mesh->num_ghost_cells);
 
-    // Check that cell->face and face->cell connectivity are 
+    // Check that cell->face and face->cell connectivity are
     // correctly and consistently done.
     check_cell_face_connectivity(state, mesh, G, 10, 0,  9);
     check_cell_face_connectivity(state, mesh, G, 10, 1, 11);
@@ -294,10 +294,10 @@ static void test_problematic_meshes(void** state)
   }
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_create_rectilinear_mesh),
     cmocka_unit_test(test_create_rectilinear_mesh_on_rank),

@@ -182,7 +182,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
     {
       snprintf(_reason, 1024, "First block's nodes don't correspond to a "
                               "block boundary.");
-      *reason = _reason;
+      if (reason != NULL)
+        *reason = _reason;
     }
     return false;
   }
@@ -194,7 +195,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
     {
       snprintf(_reason, 1024, "Second block's nodes don't correspond to a "
                               "block boundary.");
-      *reason = _reason;
+      if (reason != NULL)
+        *reason = _reason;
     }
     return false;
   }
@@ -207,7 +209,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
     {
       snprintf(_reason, 1024, "A block can't connect to itself via a single "
                               "boundary (%s).", boundary_names[b1]);
-      *reason = _reason;
+      if (reason != NULL)
+        *reason = _reason;
     }
     return false;
   }
@@ -227,7 +230,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
     {
       snprintf(_reason, 1024, "Block boundaries aren't connected in a valid "
                               "way.");
-      *reason = _reason;
+      if (reason != NULL)
+        *reason = _reason;
     }
     return false;
   }
@@ -296,7 +300,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
                               "for %s boundary (%d and %d)",
                boundary_names[b2], NP2_1, NP2_2, boundary_names[b1], NP1_1,
                NP1_2);
-      *reason = _reason;
+      if (reason != NULL)
+        *reason = _reason;
     }
     return false;
   }
@@ -310,7 +315,8 @@ bool blockmesh_can_connect_blocks(blockmesh_t* mesh,
                               "for %s boundary (%d and %d)",
                boundary_names[b2], NP2_2, NP2_1, boundary_names[b1], NP1_1,
                NP1_2);
-      *reason = _reason;
+      if (reason != NULL)
+        *reason = _reason;
     }
     return false;
   }

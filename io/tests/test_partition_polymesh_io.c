@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -61,7 +61,7 @@ static void test_partition_linear_mesh(void** state)
     if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, volume_tolerance))
     {
       cell_volumes_are_ok = 0;
-      break; 
+      break;
     }
   }
   int face_areas_are_ok = 1;
@@ -70,7 +70,7 @@ static void test_partition_linear_mesh(void** state)
     if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, area_tolerance))
     {
       face_areas_are_ok = 0;
-      break; 
+      break;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
@@ -79,7 +79,7 @@ static void test_partition_linear_mesh(void** state)
   assert_true(face_areas_are_ok);
 
   // Check the resulting exchanger.
-  exchanger_verify(polymesh_exchanger(mesh, POLYMESH_CELL), polymec_error);
+  assert_true(exchanger_is_valid(polymesh_exchanger(mesh, POLYMESH_CELL), NULL));
 
   // Plot it.
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0.0);
@@ -126,7 +126,7 @@ static void test_partition_slab_mesh(void** state)
     if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, volume_tolerance))
     {
       cell_volumes_are_ok = 0;
-      break; 
+      break;
     }
   }
   int face_areas_are_ok = 1;
@@ -135,7 +135,7 @@ static void test_partition_slab_mesh(void** state)
     if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, area_tolerance))
     {
       face_areas_are_ok = 0;
-      break; 
+      break;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
@@ -188,7 +188,7 @@ static void test_partition_box_mesh(void** state)
     if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, volume_tolerance))
     {
       cell_volumes_are_ok = 0;
-      break; 
+      break;
     }
   }
   int face_areas_are_ok = 1;
@@ -197,7 +197,7 @@ static void test_partition_box_mesh(void** state)
     if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, area_tolerance))
     {
       face_areas_are_ok = 0;
-      break; 
+      break;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
@@ -231,10 +231,10 @@ static void test_partition_box_mesh(void** state)
   assert_int_equal(nprocs, num_procs);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_partition_linear_mesh),
     cmocka_unit_test(test_partition_slab_mesh),

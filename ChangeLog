@@ -28,6 +28,9 @@ TO-BE-FILLED-IN Jeffrey Johnson <jeffjohnson@pobox.com>
       - Loggers no longer close system file descriptors.
       - Dynamic load libraries are now sought in the installation path by
         default.
+      - xxx_verify_yyy() functions have been replaced with xxx_is_valid()
+        functions that return internal strings explaining issues, instead of
+        relying on handler functions.
     * Maintenance and tech debt
       - Bumped third-party libraries to their latest versions, with the
         exception of Sundials 4.1, which requires a rewrite of the solvers

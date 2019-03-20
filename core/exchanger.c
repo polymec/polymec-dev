@@ -718,11 +718,13 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
   }
 }
 
-bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
+bool exchanger_is_valid(exchanger_t* ex, char** reason)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
-  log_debug("exchanger_verify: Checking connectivity.");
+  log_debug("exchanger_is_valid: Checking connectivity.");
+
+  static char _reason[1025];
 
   // An exchanger is valid/consistent iff the number of elements that
   // are exchanged between any two processors are agreed upon between those
@@ -757,9 +759,11 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
       if (num_im_sending != num_theyre_receiving)
       {
         polymec_free(neighbors_for_proc);
-        if (handler != NULL)
-          handler("exchanger_verify: Proc %d is sending %d elements to proc %d, which is expecting %d elements.",
-              ex->rank, num_im_sending, p, num_theyre_receiving);
+        snprintf(_reason, 1024, "Proc %d is sending %d elements to proc %d, "
+                 "which is expecting %d elements.", ex->rank, num_im_sending,
+                 p, num_theyre_receiving);
+        if (reason != NULL)
+          *reason = _reason;
         STOP_FUNCTION_TIMER();
         return false;
       }
@@ -769,16 +773,18 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
       if (num_im_receiving != num_theyre_sending)
       {
         polymec_free(neighbors_for_proc);
-        if (handler != NULL)
-          handler("exchanger_verify: Proc %d is sending %d elements to proc %d, which is expecting %d elements.",
-              p, num_theyre_sending, ex->rank, num_im_receiving);
+        snprintf(_reason, 1024, "Proc %d is sending %d elements to proc %d, "
+                 "which is expecting %d elements.", p, num_theyre_sending, 
+                 ex->rank, num_im_receiving);
+        if (reason != NULL)
+          *reason = _reason;
         STOP_FUNCTION_TIMER();
         return false;
       }
     }
   }
   polymec_free(neighbors_for_proc);
-  log_debug("exchanger_verify: Connectivity verified successfully.");
+  log_debug("exchanger_is_valid: Connectivity verified successfully.");
   STOP_FUNCTION_TIMER();
 #endif
   return true;

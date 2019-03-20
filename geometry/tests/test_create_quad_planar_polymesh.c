@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -27,7 +27,7 @@ static void test_create_quad_planar_polymesh(void** state)
   assert_int_equal(11*11, mesh->num_nodes);
 
   // Verify its topology.
-  assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
+  assert_true(planar_polymesh_is_valid(mesh, NULL));
 
   // Write a Python/Matplotlib script to plot the mesh.
   write_plot_planar_polymesh_py(mesh, "plot_planar_quadmesh.py");
@@ -35,10 +35,10 @@ static void test_create_quad_planar_polymesh(void** state)
   planar_polymesh_free(mesh);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_create_quad_planar_polymesh)
   };

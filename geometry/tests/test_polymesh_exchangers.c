@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -32,7 +32,7 @@ static void test_node_exchanger_on_line(void** state)
   for (int n = 0; n < mesh->num_nodes; ++n)
     assert_true(node_owners[n] <= rank);
   exchanger_fprintf(ex, stdout);
-  exchanger_verify(ex, polymec_error);
+  assert_true(exchanger_is_valid(ex, NULL));
 
   if (nprocs == 2)
   {
@@ -74,7 +74,7 @@ static void test_node_exchanger_in_plane(void** state)
   for (int n = 0; n < mesh->num_nodes; ++n)
     assert_true(node_owners[n] <= rank);
   exchanger_fprintf(ex, stdout);
-  exchanger_verify(ex, polymec_error);
+  assert_true(exchanger_is_valid(ex, NULL));
   polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -98,7 +98,7 @@ static void test_node_exchanger_in_cube(void** state)
   for (int n = 0; n < mesh->num_nodes; ++n)
     assert_true(node_owners[n] <= rank);
   exchanger_fprintf(ex, stdout);
-  exchanger_verify(ex, polymec_error);
+  assert_true(exchanger_is_valid(ex, NULL));
   polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -122,7 +122,7 @@ static void test_edge_exchanger_on_line(void** state)
   exchanger_exchange(ex, edge_owners, 1, 0, MPI_INT);
   for (int n = 0; n < mesh->num_edges; ++n)
     assert_true(edge_owners[n] <= rank);
-  exchanger_verify(ex, polymec_error);
+  assert_true(exchanger_is_valid(ex, NULL));
 
   if (nprocs == 2)
   {
@@ -164,7 +164,7 @@ static void test_edge_exchanger_in_plane(void** state)
   for (int n = 0; n < mesh->num_edges; ++n)
     assert_true(edge_owners[n] <= rank);
   exchanger_fprintf(ex, stdout);
-  exchanger_verify(ex, polymec_error);
+  assert_true(exchanger_is_valid(ex, NULL));
   polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -188,16 +188,16 @@ static void test_edge_exchanger_in_cube(void** state)
   for (int n = 0; n < mesh->num_edges; ++n)
     assert_true(edge_owners[n] <= rank);
   exchanger_fprintf(ex, stdout);
-  exchanger_verify(ex, polymec_error);
+  assert_true(exchanger_is_valid(ex, NULL));
   polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_node_exchanger_on_line),
     cmocka_unit_test(test_node_exchanger_in_plane),

@@ -70,7 +70,7 @@ static void test_exchanger_construct_and_delete(void** state)
   release_ref(ex);
 }
 
-static void test_exchanger_verify_and_dl_detection(void** state)
+static void test_exchanger_is_valid_and_dl_detection(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int nproc, rank;
@@ -79,8 +79,8 @@ static void test_exchanger_verify_and_dl_detection(void** state)
 
   real_t grace_period = 0.2;
 
-  // First we put together a bad exchanger and check that verify tells us
-  // it's bad, and that deadlock detection captures the deadlock.
+  // First we put together a bad exchanger and check that exchanger_is_valid
+  // tells us it's bad, and that deadlock detection captures the deadlock.
   exchanger_t* ex = exchanger_new(comm);
   exchanger_enable_deadlock_detection(ex, grace_period, 0, stdout);
   assert_true(exchanger_deadlock_detection_enabled(ex));
@@ -93,9 +93,11 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     exchanger_set_receive(ex, (rank+1) % nproc, receive_indices, 100, true);
 
     // Verify that it's a bad exchanger.
-    bool result = exchanger_verify(ex, polymec_warn);
+    char* reason;
+    bool result = exchanger_is_valid(ex, &reason);
     assert_false(result);
-    result = exchanger_verify(ex, NULL);
+    log_debug("Exchanger is invalid (expected): %s", reason);
+    result = exchanger_is_valid(ex, NULL);
     assert_false(result);
 
     // Now try to exchange data.
@@ -103,11 +105,9 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     for (int i = 0; i < 100; ++i)
       data[i] = (long)rank;
     exchanger_exchange(ex, data, 1, 0, MPI_LONG);
-//printf("%d %d\n", (int)data[0], rank);
-//    assert_true(data[0] == (long)rank); // FIXME
   }
 
-  // Next, we put together a good exchanger and check that verify/deadlock
+  // Next, we put together a good exchanger and check that is_valid/deadlock
   // detection give it a pass.
   release_ref(ex);
   ex = exchanger_new(comm);
@@ -128,9 +128,10 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     exchanger_set_send(ex, send_proc, send_indices, 100, true);
 
     // Verify that it's a good exchanger.
-    bool result = exchanger_verify(ex, polymec_warn);
+    char* reason;
+    bool result = exchanger_is_valid(ex, &reason);
     assert_true(result);
-    result = exchanger_verify(ex, NULL);
+    result = exchanger_is_valid(ex, NULL);
     assert_true(result);
 
     // Now try to exchange data.
@@ -173,7 +174,7 @@ static void test_exchanger_local_copy(void** state)
   exchanger_set_receive(ex, 0, receive_indices, 100, true);
 
   // Verify that it's a good exchanger.
-  bool result = exchanger_verify(ex, polymec_warn);
+  bool result = exchanger_is_valid(ex, NULL);
   assert_true(result);
 
   // Now try to exchange data.
@@ -216,7 +217,7 @@ static void test_exchanger_reduce(void** state)
   assert_true(exchanger_aggregates_data(ex) || (nproc == 1));
 
   // Verify that it's a good exchanger.
-  bool result = exchanger_verify(ex, polymec_warn);
+  bool result = exchanger_is_valid(ex, NULL);
   assert_true(result);
 
   // Now try to exchange data.
@@ -271,7 +272,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_exchanger_new),
     cmocka_unit_test(test_exchanger_construct),
     cmocka_unit_test(test_exchanger_construct_and_delete),
-    cmocka_unit_test(test_exchanger_verify_and_dl_detection),
+    cmocka_unit_test(test_exchanger_is_valid_and_dl_detection),
     cmocka_unit_test(test_exchanger_local_copy),
     cmocka_unit_test(test_exchanger_reduce)
   };

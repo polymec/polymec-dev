@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -46,7 +46,7 @@ void colmesh_fragment_map_add(colmesh_fragment_map_t* map,
 }
 
 // Chunk xy data. Shared across all "stacked" chunks.
-typedef struct 
+typedef struct
 {
   int num_columns;
   int num_ghost_columns;
@@ -85,10 +85,10 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
   int rank;
   MPI_Comm_rank(comm, &rank);
 
-  // Make a list of polygonal cells (which become columns in our chunks) that 
+  // Make a list of polygonal cells (which become columns in our chunks) that
   // correspond to the given xy chunk index.
   int_array_t* local_cells = int_array_new(); // maps columns to planar mesh cells
-  int_int_unordered_map_t* cell_to_col_map = 
+  int_int_unordered_map_t* cell_to_col_map =
     int_int_unordered_map_new(); // maps planar mesh cells to columns in our chunk
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
@@ -106,13 +106,13 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
   for (int c = 0; c < xy_data->num_columns; ++c)
   {
     int cell = local_cells->data[c];
-    xy_data->column_xy_face_offsets[c+1] = xy_data->column_xy_face_offsets[c] + 
+    xy_data->column_xy_face_offsets[c+1] = xy_data->column_xy_face_offsets[c] +
                                            planar_polymesh_cell_num_edges(mesh, cell);
   }
   xy_data->column_xy_faces = polymec_malloc(sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
 
   // Here we map planar mesh nodes to chunk nodes.
-  int_int_unordered_map_t* node_map = int_int_unordered_map_new(); 
+  int_int_unordered_map_t* node_map = int_int_unordered_map_new();
 
   // Now determine the connectivity in a single pass.
   int_array_t* face_cols = int_array_new();
@@ -129,20 +129,20 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
       // The locally present column is column 1, by definition.
       int col1;
       bool cols_reversed = false;
-      if (col1_p != NULL) 
-        col1 = *col1_p; 
+      if (col1_p != NULL)
+        col1 = *col1_p;
       else
-      { 
+      {
         col1 = *col2_p;
         cols_reversed = true;
       }
       int col2 = ((col1_p != NULL) && (col2_p != NULL)) ? *col2_p : -1;
-      if (col2 == -1) 
+      if (col2 == -1)
       {
-        // This column isn't mapped to this chunk, so either col1 is a 
+        // This column isn't mapped to this chunk, so either col1 is a
         // boundary column, or col2 is a ghost column (stored on another chunk).
         if (cell2 != -1) // this column is stored on another chunk
-          col2 = (int)(xy_data->num_columns + xy_data->receive_map->size); 
+          col2 = (int)(xy_data->num_columns + xy_data->receive_map->size);
       }
 
       // For the interior columns we identify which face this edge corresponds to.
@@ -151,7 +151,7 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
       int f2 = -1;
       {
         int cell = (cols_reversed) ? cell2 : cell1;
-        while ((mesh->cell_edges[mesh->cell_edge_offsets[cell]+f1] != edge) && 
+        while ((mesh->cell_edges[mesh->cell_edge_offsets[cell]+f1] != edge) &&
                (mesh->cell_edges[mesh->cell_edge_offsets[cell]+f1] != ~edge))
           ++f1;
         ASSERT(mesh->cell_edge_offsets[cell+1] > (mesh->cell_edge_offsets[cell] + f1));
@@ -161,7 +161,7 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
         f2 = 0;
         int cell = (cols_reversed) ? cell1 : cell2;
         while ((mesh->cell_edges[mesh->cell_edge_offsets[cell]+f2] != edge) &&
-               (mesh->cell_edges[mesh->cell_edge_offsets[cell]+f2] != ~edge)) 
+               (mesh->cell_edges[mesh->cell_edge_offsets[cell]+f2] != ~edge))
           ++f2;
         ASSERT(mesh->cell_edge_offsets[cell+1] > (mesh->cell_edge_offsets[cell] + f2));
       }
@@ -178,7 +178,7 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
         ++xy_data->num_ghost_columns;
       }
 
-      // Create a new xy face for this edge, and hook it up to columns 
+      // Create a new xy face for this edge, and hook it up to columns
       // corresponding to the edge's adjacent planar cells.
       xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col1]+f1] = face;
       int_array_append(face_cols, col1);
@@ -187,7 +187,7 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
       int_array_append(face_cols, col2);
       ++xy_data->num_xy_faces;
 
-      // Read off the 2 nodes connecting the edge for the planar cell and 
+      // Read off the 2 nodes connecting the edge for the planar cell and
       // see if we've already added them.
       int n1 = mesh->edge_nodes[2*edge];
       int n2 = mesh->edge_nodes[2*edge+1];
@@ -331,7 +331,7 @@ static void free_chunk(colmesh_chunk_t* chunk)
 
 DEFINE_UNORDERED_MAP(chunk_map, int, colmesh_chunk_t*, int_hash, int_equals)
 
-struct colmesh_t 
+struct colmesh_t
 {
   MPI_Comm comm;
   int nproc, rank;
@@ -389,7 +389,7 @@ static void colmesh_create_chunk_graph(colmesh_t* mesh)
           num_z_neighbors = 0;
         else if ((z_index == 0) || (z_index == (mesh->num_z_chunks-1)))
           num_z_neighbors = 1;
-        else 
+        else
           num_z_neighbors = 2;
         adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
 
@@ -412,7 +412,7 @@ static void colmesh_create_chunk_graph(colmesh_t* mesh)
   }
 }
 
-colmesh_t* create_empty_colmesh(MPI_Comm comm, 
+colmesh_t* create_empty_colmesh(MPI_Comm comm,
                                 planar_polymesh_t* columns,
                                 real_t z1, real_t z2,
                                 int num_xy_chunks, int num_z_chunks,
@@ -468,12 +468,12 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   release_ref(poly);
 #endif
 
-  // Create xy data for chunks. 
+  // Create xy data for chunks.
   mesh->chunk_xy_data = chunk_xy_data_array_new();
   for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
   {
     chunk_xy_data_t* xy_data = chunk_xy_data_from_partition(comm, columns, P, xy_index);
-    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
+    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data,
                                          chunk_xy_data_free);
   }
   polymec_free(P);
@@ -487,9 +487,9 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
 colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
                                                colmesh_fragment_map_t* local_fragments,
                                                real_t z1, real_t z2,
-                                               int num_xy_chunks, 
-                                               int num_z_chunks, 
-                                               int nz_per_chunk, 
+                                               int num_xy_chunks,
+                                               int num_z_chunks,
+                                               int nz_per_chunk,
                                                bool periodic_in_z)
 {
   ASSERT(local_fragments != NULL);
@@ -528,7 +528,7 @@ colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
   {
     chunk_xy_data_t* xy_data = chunk_xy_data_from_fragment(fragment);
     chunk_xy_data_array_resize(mesh->chunk_xy_data, MAX(mesh->chunk_xy_data->size, xy+1));
-    chunk_xy_data_array_assign_with_dtor(mesh->chunk_xy_data, xy, 
+    chunk_xy_data_array_assign_with_dtor(mesh->chunk_xy_data, xy,
                                          xy_data, chunk_xy_data_free);
   }
 
@@ -596,10 +596,10 @@ static int64_t* source_vector(colmesh_t* mesh)
   // Gather the numbers of chunks owned by each process.
   int num_my_chunks = (int)my_chunks->size;
   int num_chunks_for_proc[mesh->nproc];
-  MPI_Allgather(&num_my_chunks, 1, MPI_INT, 
+  MPI_Allgather(&num_my_chunks, 1, MPI_INT,
                 num_chunks_for_proc, 1, MPI_INT, mesh->comm);
 
-  // Arrange for the storage of the chunk indices for the patches stored 
+  // Arrange for the storage of the chunk indices for the patches stored
   // on each process.
   int proc_offsets[mesh->nproc+1];
   proc_offsets[0] = 0;
@@ -613,7 +613,7 @@ static int64_t* source_vector(colmesh_t* mesh)
   ASSERT(num_all_chunks == proc_offsets[mesh->nproc]);
 
   int* all_chunks = polymec_malloc(sizeof(int) * num_all_chunks);
-  MPI_Allgatherv(my_chunks->data, num_my_chunks, MPI_INT, 
+  MPI_Allgatherv(my_chunks->data, num_my_chunks, MPI_INT,
                  all_chunks, num_chunks_for_proc, proc_offsets,
                  MPI_INT, mesh->comm);
 
@@ -634,7 +634,7 @@ static int64_t* source_vector(colmesh_t* mesh)
 #endif
 
 DEFINE_UNORDERED_MAP(proc_point_map, int, point_array_t*, int_hash, int_equals)
-static void proc_point_map_add(proc_point_map_t* map, 
+static void proc_point_map_add(proc_point_map_t* map,
                                int process, point_t* x)
 {
   point_array_t** points_p = proc_point_map_get(map, process);
@@ -649,7 +649,7 @@ static void proc_point_map_add(proc_point_map_t* map,
   point_array_append(points, *x);
 }
 
-static void find_chunk_offsets(colmesh_t* mesh, 
+static void find_chunk_offsets(colmesh_t* mesh,
                                colmesh_centering_t centering,
                                int* chunk_offsets)
 {
@@ -664,36 +664,36 @@ static void find_chunk_offsets(colmesh_t* mesh,
     int nxy, nz;
     switch (centering)
     {
-      case COLMESH_CELL:   
+      case COLMESH_CELL:
         nxy = chunk->num_columns + chunk->num_ghost_columns;
-        nz  = chunk->num_z_cells + 2; 
+        nz  = chunk->num_z_cells + 2;
         break;
-      case COLMESH_XYFACE: 
+      case COLMESH_XYFACE:
         nxy = chunk->num_xy_faces;
-        nz = chunk->num_z_cells; 
+        nz = chunk->num_z_cells;
         break;
-      case COLMESH_ZFACE:  
+      case COLMESH_ZFACE:
         nxy = chunk->num_columns;
-        nz = chunk->num_z_cells + 1; 
+        nz = chunk->num_z_cells + 1;
         break;
-      case COLMESH_XYEDGE: 
+      case COLMESH_XYEDGE:
         nxy = chunk->num_xy_faces;
-        nz = chunk->num_z_cells + 1; 
+        nz = chunk->num_z_cells + 1;
         break;
-      case COLMESH_ZEDGE:  
+      case COLMESH_ZEDGE:
         nxy = chunk->num_xy_nodes;
-        nz = chunk->num_z_cells; 
+        nz = chunk->num_z_cells;
         break;
-      case COLMESH_NODE:   
+      case COLMESH_NODE:
         nxy = chunk->num_xy_nodes;
-        nz = chunk->num_z_cells + 1; 
+        nz = chunk->num_z_cells + 1;
     }
     chunk_offsets[k+1] = chunk_offsets[k] + nxy * nz;
     ++k;
   }
 }
 
-// This function sorts the indices in the given exchanger_proc_map according to 
+// This function sorts the indices in the given exchanger_proc_map according to
 // their spatial positions as reflected in the point map.
 static void sort_indices(proc_point_map_t* point_map,
                          exchanger_proc_map_t* index_map)
@@ -733,10 +733,10 @@ static void create_cell_ex(colmesh_t* mesh)
   int chunk_offsets[mesh->chunks->size+1];
   find_chunk_offsets(mesh, COLMESH_CELL, chunk_offsets);
 
-  // Assemble exchangers by traversing the locally stored chunks, assembling 
+  // Assemble exchangers by traversing the locally stored chunks, assembling
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. For cell exchangers, we sort the indices by the 
-  // location of the faces separating send and receive cells. 
+  // of their underlying elements. For cell exchangers, we sort the indices by the
+  // location of the faces separating send and receive cells.
 
   // Set up send cells.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
@@ -769,9 +769,9 @@ static void create_cell_ex(colmesh_t* mesh)
         // Get the x and y coordinates for the send cell's face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
         point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
-        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
-                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
-                     .z = 0.0}; 
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x),
+                     .y = 0.5 * (nodes[0].y + nodes[1].y),
+                     .z = 0.0};
 
         // Traverse the column and add send indices/points.
         for (int zz = 1; zz <= chunk->num_z_cells; ++zz)
@@ -817,9 +817,9 @@ static void create_cell_ex(colmesh_t* mesh)
         // Get the x and y coordinates for the receive cell's face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
         point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
-        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
-                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
-                     .z = 0.0}; 
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x),
+                     .y = 0.5 * (nodes[0].y + nodes[1].y),
+                     .z = 0.0};
 
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
@@ -853,7 +853,7 @@ static void create_cell_ex(colmesh_t* mesh)
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
-        int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
+        int ch1_index = ((z == 0) && mesh->periodic_in_z) ?
                         chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
         int proc = (int)(owners[ch1_index]);
         int z1 = 1;
@@ -869,7 +869,7 @@ static void create_cell_ex(colmesh_t* mesh)
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
-        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
+        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ?
                         chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
         int proc = (int)(owners[ch1_index]);
         int z1 = chunk->num_z_cells;
@@ -905,9 +905,9 @@ static void create_xy_face_ex(colmesh_t* mesh)
   int chunk_offsets[mesh->chunks->size+1];
   find_chunk_offsets(mesh, COLMESH_XYFACE, chunk_offsets);
 
-  // Assemble exchangers by traversing the locally stored chunks, assembling 
+  // Assemble exchangers by traversing the locally stored chunks, assembling
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. 
+  // of their underlying elements.
 
   // Set up send faces.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
@@ -941,9 +941,9 @@ static void create_xy_face_ex(colmesh_t* mesh)
         // Get the x and y coordinates for the send face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
         point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
-        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
-                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
-                     .z = 0.0}; 
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x),
+                     .y = 0.5 * (nodes[0].y + nodes[1].y),
+                     .z = 0.0};
 
         // Traverse the column and add send indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
@@ -1003,9 +1003,9 @@ static void create_xy_face_ex(colmesh_t* mesh)
         // Get the x and y coordinates for the receive face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
         point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
-        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
-                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
-                     .z = 0.0}; 
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x),
+                     .y = 0.5 * (nodes[0].y + nodes[1].y),
+                     .z = 0.0};
 
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
@@ -1080,7 +1080,7 @@ static void create_z_face_ex(colmesh_t* mesh)
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
-        int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
+        int ch1_index = ((z == 0) && mesh->periodic_in_z) ?
                         chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
         int proc = (int)(owners[ch1_index]);
         int z1 = 0;
@@ -1104,7 +1104,7 @@ static void create_z_face_ex(colmesh_t* mesh)
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
-        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
+        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ?
                         chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
         int proc = (int)(owners[ch1_index]);
         int z1 = chunk->num_z_cells;
@@ -1147,9 +1147,9 @@ static void create_xy_edge_ex(colmesh_t* mesh)
   int chunk_offsets[mesh->chunks->size+1];
   find_chunk_offsets(mesh, COLMESH_XYEDGE, chunk_offsets);
 
-  // Assemble exchangers by traversing the locally stored chunks, assembling 
+  // Assemble exchangers by traversing the locally stored chunks, assembling
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. 
+  // of their underlying elements.
 
   // Set up send edges.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
@@ -1183,9 +1183,9 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         // Get the x and y coordinates for the send edge.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
         point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
-        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
-                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
-                     .z = 0.0}; 
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x),
+                     .y = 0.5 * (nodes[0].y + nodes[1].y),
+                     .z = 0.0};
 
         // Traverse the column and add send indices/points.
         for (int zz = 0; zz <= chunk->num_z_cells; ++zz)
@@ -1244,9 +1244,9 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         // Get the x and y coordinates for the receive cell's face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
         point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
-        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
-                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
-                     .z = 0.0}; 
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x),
+                     .y = 0.5 * (nodes[0].y + nodes[1].y),
+                     .z = 0.0};
 
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz <= chunk->num_z_cells; ++zz)
@@ -1338,7 +1338,7 @@ static void create_z_edge_ex(colmesh_t* mesh)
 
         // Process each one of the nodes attached to this edge, if we haven't
         // already.
-        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*xy_edge], 
+        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*xy_edge],
                                   xy_data->xy_edge_nodes[2*xy_edge+1]};
         for (int n = 0; n < 2; ++n)
         {
@@ -1410,7 +1410,7 @@ static void create_z_edge_ex(colmesh_t* mesh)
 
         // Process each one of the nodes attached to this edge, if we haven't
         // already.
-        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*xy_edge], 
+        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*xy_edge],
                                   xy_data->xy_edge_nodes[2*xy_edge+1]};
         for (int n = 0; n < 2; ++n)
         {
@@ -1481,9 +1481,9 @@ static void create_node_ex(colmesh_t* mesh)
   int chunk_offsets[mesh->chunks->size+1];
   find_chunk_offsets(mesh, COLMESH_NODE, chunk_offsets);
 
-  // Assemble exchangers by traversing the locally stored chunks, assembling 
+  // Assemble exchangers by traversing the locally stored chunks, assembling
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. 
+  // of their underlying elements.
 
   // Set up send nodes.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
@@ -1519,7 +1519,7 @@ static void create_node_ex(colmesh_t* mesh)
 
         // Process each one of the nodes attached to this edge, if we haven't
         // already.
-        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*edge], 
+        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*edge],
                                   xy_data->xy_edge_nodes[2*edge+1]};
         for (int n = 0; n < 2; ++n)
         {
@@ -1591,7 +1591,7 @@ static void create_node_ex(colmesh_t* mesh)
 
         // Process each one of the nodes attached to this edge, if we haven't
         // already.
-        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*edge], 
+        int xy_node_indices[2] = {xy_data->xy_edge_nodes[2*edge],
                                   xy_data->xy_edge_nodes[2*edge+1]};
         for (int n = 0; n < 2; ++n)
         {
@@ -1687,7 +1687,7 @@ void colmesh_finalize(colmesh_t* mesh)
     // Prune xy data for this xy_index if we don't have any chunks here.
     if ((num_z_chunks == 0) && (mesh->chunk_xy_data->data[i] != NULL))
     {
-      // Punch out this data on this process, and clear the corresponding 
+      // Punch out this data on this process, and clear the corresponding
       // destructor so it doesn't get double-freed.
       if (i < mesh->chunk_xy_data->size)
       {
@@ -1714,7 +1714,7 @@ colmesh_t* colmesh_new(MPI_Comm comm,
                        int nz, bool periodic_in_z)
 {
   int num_xy_chunks = 1;
-  int num_z_chunks = 1; 
+  int num_z_chunks = 1;
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
@@ -1722,17 +1722,17 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   {
     // We minimize (nz*nz - nxy) subject to the constraint
     // (Nz/nz)*(Nxy/nxy) = num_z_chunks * num_xy_chunks = nproc, where
-    //  nz is the number of z cells in a chunk, 
+    //  nz is the number of z cells in a chunk,
     //  nxy is the number of xy cells in a chunk,
-    //  Nz is the number of z cells in the mesh, and 
-    //  Nxy is the number of xy cells in the entire xy plane. 
+    //  Nz is the number of z cells in the mesh, and
+    //  Nxy is the number of xy cells in the entire xy plane.
     int Nz = (int)nz;
     int Nxy = (int)columns->num_cells;
 
-    // Some simple algebra tell us num_z_chunks should be the integer closest 
+    // Some simple algebra tell us num_z_chunks should be the integer closest
     // to the value pow(nproc*Nz*Nz/Nxy, 1.0/3.0).
     num_z_chunks = MAX(1, (int)(pow(nproc*Nz*Nz/Nxy, 1.0/3.0)));
-    
+
     // Adjust num_z_chunks so it evenly divides nproc.
     int remainder = (int)(nproc % num_z_chunks);
     if (remainder < nproc/2)
@@ -1745,14 +1745,14 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   }
   ASSERT(num_xy_chunks * num_z_chunks == nproc);
 
-  // Now create an empty colmesh with the desired numbers of chunks, and 
-  // insert all the chunks on each process. We do a "naive" placement of 
-  // the chunks by allocating them sequentially to processes in a flattened 
+  // Now create an empty colmesh with the desired numbers of chunks, and
+  // insert all the chunks on each process. We do a "naive" placement of
+  // the chunks by allocating them sequentially to processes in a flattened
   // index space I(xy_index, z_index) = num_z_chunks * xy_index + z_index.
   // This is definitely not ideal, but it's the easiest way to get a start.
   int nz_per_chunk = nz / num_z_chunks;
-  colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2, 
-                                         num_xy_chunks, num_z_chunks, 
+  colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2,
+                                         num_xy_chunks, num_z_chunks,
                                          nz_per_chunk, periodic_in_z);
   int tot_num_chunks = num_xy_chunks * num_z_chunks;
   int chunks_per_proc = tot_num_chunks / nproc;
@@ -1798,7 +1798,7 @@ void colmesh_free(colmesh_t* mesh)
   polymec_free(mesh);
 }
 
-void colmesh_get_chunk_info(colmesh_t* mesh, 
+void colmesh_get_chunk_info(colmesh_t* mesh,
                             int* num_xy_chunks,
                             int* num_z_chunks,
                             int* nz_per_chunk)
@@ -1808,7 +1808,7 @@ void colmesh_get_chunk_info(colmesh_t* mesh,
   *nz_per_chunk = mesh->nz_per_chunk;
 }
 
-void colmesh_get_z_info(colmesh_t* mesh, 
+void colmesh_get_z_info(colmesh_t* mesh,
                         real_t* z1,
                         real_t* z2,
                         bool* periodic)
@@ -1818,8 +1818,7 @@ void colmesh_get_z_info(colmesh_t* mesh,
   *periodic = mesh->periodic_in_z;
 }
 
-bool colmesh_verify_topology(colmesh_t* mesh, 
-                             void (*handler)(const char* format, ...))
+bool colmesh_is_valid(colmesh_t* mesh, char** reason)
 {
   // Verify the topology of each chunk.
   bool good = true;
@@ -1827,7 +1826,7 @@ bool colmesh_verify_topology(colmesh_t* mesh,
   int pos = 0, xy_index, z_index;
   while (colmesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
   {
-    bool result = colmesh_chunk_verify_topology(chunk, handler);
+    bool result = colmesh_chunk_is_valid(chunk, reason);
     if (!result)
     {
       good = false;
@@ -1837,16 +1836,19 @@ bool colmesh_verify_topology(colmesh_t* mesh,
   return good;
 }
 
-bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
-                                   void (*handler)(const char* format, ...))
+bool colmesh_chunk_is_valid(colmesh_chunk_t* chunk, char** reason)
 {
+  static char _reason[1025];
+
   // All cells are prisms and must have at least 5 faces (3 xy faces + 2 z faces).
   for (int c = 0; c < chunk->num_columns; ++c)
   {
     if (colmesh_chunk_column_num_xy_faces(chunk, c) < 3)
     {
-      handler("polymesh_verify_topology: column %d has only %d faces per cell.", 
+      snprintf(_reason, 1024, "Column %d has only %d faces per cell.",
               (int)c, colmesh_chunk_column_num_xy_faces(chunk, c) + 2);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
   }
@@ -1858,12 +1860,17 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
     int nn = colmesh_chunk_z_face_num_nodes(chunk, f);
     if (nn == 0)
     {
-      handler("colmesh_verify_topology: column %d has a polygonal z face with no edges!", f);
+      snprintf(_reason, 1024, "Column %d has a polygonal z face with no edges!", f);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
     if (nn < 3)
     {
-      handler("colmesh_verify_topology: column %d has a polygonal face %d with only %d nodes.", f, nn);
+      snprintf(_reason, 1024, "column %d has a polygonal face %d with only %d "
+               "nodes.", f, nn);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
   }
@@ -1877,11 +1884,14 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
     for (int f = 0; f < num_xy_faces; ++f)
     {
       int face = xy_faces[f];
-      if ((chunk->xy_face_columns[2*face] != c) && 
+      if ((chunk->xy_face_columns[2*face] != c) &&
           (chunk->xy_face_columns[2*face+1] != c))
       {
-        handler("colmesh_verify_topology: column %d has xy face %d in its list "
-                "of faces, but that face does not have that column in its list.", c, xy_faces[f]);
+        snprintf(_reason, 1024, "Column %d has xy face %d in its list "
+                "of faces, but that face does not have that column in its "
+                "list.", c, xy_faces[f]);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
     }
@@ -1897,7 +1907,7 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
     bool found_face = false;
     for (int ff = 0; ff < num_xy_faces; ++ff)
     {
-      if (xy_faces[ff] == f) 
+      if (xy_faces[ff] == f)
       {
         found_face = true;
         break;
@@ -1905,8 +1915,11 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
     }
     if (!found_face)
     {
-      handler("colmesh_verify_topology: xy face %d has column %d in its list of columns, but "
-              "that column does not have that face in its list.", f, chunk->xy_face_columns[2*f]);
+      snprintf(_reason, 1024, "xy face %d has column %d in its list of "
+               "columns, but that column does not have that face in its list.",
+               f, chunk->xy_face_columns[2*f]);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
 
@@ -1919,7 +1932,7 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
       colmesh_chunk_column_get_xy_faces(chunk, other_col, xy_faces);
       for (int ff = 0; ff < num_xy_faces; ++ff)
       {
-        if (xy_faces[ff] == f) 
+        if (xy_faces[ff] == f)
         {
           found_face = true;
           break;
@@ -1927,8 +1940,11 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
       }
       if (!found_face)
       {
-        handler("colmesh_verify_topology: xy face %d has column %d in its list of columns, "
-                "but that column does not have that xy face in its list of faces.", f, other_col);
+        snprintf(_reason, 1024, "xy face %d has column %d in its list of "
+                 "columns, but that column does not have that xy face in its "
+                 "list of faces.", f, other_col);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
     }
@@ -1971,7 +1987,7 @@ polygon_t* colmesh_chunk_polygon(colmesh_chunk_t* chunk, int column)
   return polygon_new(vertices, num_nodes);
 }
 
-bool colmesh_next_chunk(colmesh_t* mesh, int* pos, 
+bool colmesh_next_chunk(colmesh_t* mesh, int* pos,
                         int* xy_index, int* z_index,
                         colmesh_chunk_t** chunk)
 {
@@ -1994,7 +2010,7 @@ bool colmesh_next_chunk(colmesh_t* mesh, int* pos,
   }
 }
 
-void colmesh_chunk_get_node(colmesh_chunk_t* chunk, 
+void colmesh_chunk_get_node(colmesh_chunk_t* chunk,
                             int xy_index, int z_index,
                             point_t* node_pos)
 {
@@ -2013,11 +2029,11 @@ void colmesh_chunk_get_node(colmesh_chunk_t* chunk,
 static size_t xy_data_byte_size(void* obj)
 {
   chunk_xy_data_t* xy_data = obj;
-  size_t size = 5 * sizeof(int) + 
-                (xy_data->num_columns+1) * sizeof(int) + 
-                xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int) + 
+  size_t size = 5 * sizeof(int) +
+                (xy_data->num_columns+1) * sizeof(int) +
+                xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int) +
                 2 * xy_data->num_xy_faces * sizeof(int) +
-                2 * xy_data->num_xy_edges * sizeof(int) + 
+                2 * xy_data->num_xy_edges * sizeof(int) +
                 xy_data->num_xy_nodes * sizeof(point2_t);
   serializer_t* ser = exchanger_proc_map_serializer();
   size += serializer_size(ser, xy_data->send_map);
@@ -2072,7 +2088,7 @@ static serializer_t* chunk_xy_data_serializer()
   return serializer_new("chunk_xy_data", xy_data_byte_size, xy_data_byte_read, xy_data_byte_write, NULL);
 }
 
-// This helper inserts an integer into an array in sorted order if it isn't 
+// This helper inserts an integer into an array in sorted order if it isn't
 // already in the array. If it's already there, this function has no effect.
 static void insert_unique_sorted(int_array_t* array, int value)
 {
@@ -2186,7 +2202,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
       {
         // Fetch the buffer for this process.
         size_t index = int_lower_bound(source_procs->data, source_procs->size, (int)(source_vector[i]));
-        byte_array_t* buffer = receive_buffers[index]; 
+        byte_array_t* buffer = receive_buffers[index];
 
         // Extract the next xy data thingy from the buffer.
         xy_data = serializer_read(ser, buffer, &(offsets[index]));
@@ -2208,7 +2224,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   return all_xy_data;
 }
 
-static void redistribute_colmesh(colmesh_t** mesh, 
+static void redistribute_colmesh(colmesh_t** mesh,
                                  int64_t* partition,
                                  int64_t* sources)
 {
@@ -2260,7 +2276,7 @@ static void redistribute_colmesh(colmesh_t** mesh,
   STOP_FUNCTION_TIMER();
 }
 
-static void redistribute_colmesh_field(colmesh_field_t** field, 
+static void redistribute_colmesh_field(colmesh_field_t** field,
                                        int64_t* partition,
                                        int64_t* sources,
                                        colmesh_t* new_mesh)
@@ -2333,7 +2349,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
 }
 #endif // POLYMEC_HAVE_MPI
 
-void repartition_colmesh(colmesh_t** mesh, 
+void repartition_colmesh(colmesh_t** mesh,
                          int* weights,
                          real_t imbalance_tol,
                          colmesh_field_t** fields,
@@ -2346,22 +2362,22 @@ void repartition_colmesh(colmesh_t** mesh,
 
   // On a single process, repartitioning has no meaning.
   colmesh_t* old_mesh = *mesh;
-  if (old_mesh->nproc == 1) 
+  if (old_mesh->nproc == 1)
     return;
 
   START_FUNCTION_TIMER();
   // Map the mesh's graph to the new domains, producing a partition vector.
-  // We need the partition vector on all processes in the communicator, so we 
+  // We need the partition vector on all processes in the communicator, so we
   // scatter it from rank 0.
   log_debug("repartition_colmesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
-  int64_t* P = partition_graph(old_mesh->chunk_graph, old_mesh->comm, 
+  int64_t* P = partition_graph(old_mesh->chunk_graph, old_mesh->comm,
                                weights, imbalance_tol, true);
 
-  // Build a sources vector whose ith component is the rank that used to own 
+  // Build a sources vector whose ith component is the rank that used to own
   // the ith patch.
   int64_t* sources = source_vector(old_mesh);
 
-  // Redistribute the mesh. 
+  // Redistribute the mesh.
   log_debug("repartition_prismmesh: Redistributing mesh.");
   redistribute_colmesh(mesh, P, sources);
 
@@ -2391,35 +2407,35 @@ exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
   exchanger_t* ex = NULL;
   switch (centering)
   {
-    case COLMESH_CELL: 
+    case COLMESH_CELL:
       if (mesh->cell_ex == NULL)
         create_cell_ex(mesh);
-      ex = mesh->cell_ex; 
+      ex = mesh->cell_ex;
       break;
-    case COLMESH_XYFACE: 
+    case COLMESH_XYFACE:
       if (mesh->xy_face_ex == NULL)
         create_xy_face_ex(mesh);
-      ex = mesh->xy_face_ex; 
+      ex = mesh->xy_face_ex;
       break;
-    case COLMESH_ZFACE: 
+    case COLMESH_ZFACE:
       if (mesh->z_face_ex == NULL)
         create_z_face_ex(mesh);
-      ex = mesh->z_face_ex; 
+      ex = mesh->z_face_ex;
       break;
-    case COLMESH_XYEDGE: 
+    case COLMESH_XYEDGE:
       if (mesh->xy_edge_ex == NULL)
         create_xy_edge_ex(mesh);
-      ex = mesh->xy_edge_ex; 
+      ex = mesh->xy_edge_ex;
       break;
-    case COLMESH_ZEDGE: 
+    case COLMESH_ZEDGE:
       if (mesh->z_edge_ex == NULL)
         create_z_edge_ex(mesh);
-      ex = mesh->z_edge_ex; 
+      ex = mesh->z_edge_ex;
       break;
-    case COLMESH_NODE: 
+    case COLMESH_NODE:
       if (mesh->node_ex == NULL)
         create_node_ex(mesh);
-      ex = mesh->node_ex; 
+      ex = mesh->node_ex;
       break;
   }
   return ex;
@@ -2429,7 +2445,7 @@ void colmesh_chunk_z_face_get_nodes(colmesh_chunk_t* chunk,
                                     int z_face,
                                     int* nodes)
 {
-  // To gather nodes, we traverse the xy edges of this z face, which is 
+  // To gather nodes, we traverse the xy edges of this z face, which is
   // the same as traversing the xy faces of the column for the z face.
   int nfaces = colmesh_chunk_column_num_xy_faces(chunk, z_face);
   int faces[nfaces];

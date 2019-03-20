@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -51,9 +51,9 @@ planar_polymesh_t* planar_polymesh_new(int num_cells, int num_edges, int num_nod
   return mesh;
 }
 
-planar_polymesh_t* planar_polymesh_new_with_cell_type(int num_cells, 
-                                                      int num_edges, 
-                                                      int num_nodes, 
+planar_polymesh_t* planar_polymesh_new_with_cell_type(int num_cells,
+                                                      int num_edges,
+                                                      int num_nodes,
                                                       int num_edges_per_cell)
 {
   planar_polymesh_t* mesh = planar_polymesh_new(num_cells, num_edges, num_nodes);
@@ -87,16 +87,19 @@ void planar_polymesh_free(planar_polymesh_t* mesh)
   polymec_free(mesh);
 }
 
-bool planar_polymesh_verify_topology(planar_polymesh_t* mesh, 
-                                     void (*handler)(const char* format, ...))
+bool planar_polymesh_is_valid(planar_polymesh_t* mesh, char** reason)
 {
+  static char _reason[1025];
+
   // All cells must have at least 3 edges.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     if (planar_polymesh_cell_num_edges(mesh, c) < 3)
     {
-      handler("planar_polymesh_verify_topology: polygonal cell %d has only %d edges.", 
-              c, planar_polymesh_cell_num_edges(mesh, c));
+      snprintf(_reason, 1024, "Polygonal cell %d has only %d edges.",
+               c, planar_polymesh_cell_num_edges(mesh, c));
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
   }
@@ -109,13 +112,18 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     {
       if (e >= mesh->num_edges)
       {
-        handler("planar_polymesh_verify_topology: cell %d has invalid edge %d (mesh has only %d edges).", c, e, mesh->num_edges);
+        snprintf(_reason, 1024, "Cell %d has invalid edge %d (mesh has only "
+                 "%d edges).", c, e, mesh->num_edges);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
       if ((mesh->edge_cells[2*e] != c) && (mesh->edge_cells[2*e+1] != c))
       {
-        handler("planar_polymesh_verify_topology: cell %d has edge %d in its list "
-                "of edges, but that edge does not have that cell in its list.", c, e);
+        snprintf(_reason, 1024, "Cell %d has edge %d in its list of edges, "
+                 "but that edge does not have that cell in its list.", c, e);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
     }
@@ -125,12 +133,17 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     int cell1 = mesh->edge_cells[2*e];
     if (cell1 == -1)
     {
-      handler("planar_polymesh_verify_topology: edge %d has no cells in its list.", e);
+      snprintf(_reason, 1024, "Edge %d has no cells in its list.", e);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
     if (cell1 >= mesh->num_cells)
     {
-      handler("planar_polymesh_verify_topology: edge %d has invalid cell %d (mesh has only %d cells).", e, cell1, mesh->num_cells);
+      snprintf(_reason, 1024, "Edge %d has invalid cell %d (mesh has only %d "
+               "cells).", e, cell1, mesh->num_cells);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
 
@@ -138,7 +151,7 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     bool found_edge = false;
     while (planar_polymesh_cell_next_edge(mesh, cell1, &pos, &ee))
     {
-      if (ee == e) 
+      if (ee == e)
       {
         found_edge = true;
         break;
@@ -146,8 +159,10 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     }
     if (!found_edge)
     {
-      handler("planar_polymesh_verify_topology: edge %d has cell %d in its list of cells, but "
+      snprintf(_reason, 1024, "Edge %d has cell %d in its list of cells, but "
               "that cell does not have that edge in its list.", e, cell1);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
 
@@ -156,7 +171,10 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     {
       if (cell2 >= mesh->num_cells)
       {
-        handler("planar_polymesh_verify_topology: edge %d has invalid cell %d (mesh has only %d cells).", e, cell2, mesh->num_cells);
+        snprintf(_reason, 1024, "Edge %d has invalid cell %d (mesh has only "
+                 "%d cells).", e, cell2, mesh->num_cells);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
 
@@ -164,7 +182,7 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
       found_edge = false;
       while (planar_polymesh_cell_next_edge(mesh, cell2, &pos, &ee))
       {
-        if (ee == e) 
+        if (ee == e)
         {
           found_edge = true;
           break;
@@ -172,8 +190,10 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
       }
       if (!found_edge)
       {
-        handler("planar_polymesh_verify_topology: edge %d has cell %d in its list of cells, but "
+        snprintf(_reason, 1024, "Edge %d has cell %d in its list of cells, but "
                 "that cell does not have that edge in its list.", e, cell2);
+        if (reason != NULL)
+          *reason = _reason;
         return false;
       }
     }
@@ -186,17 +206,26 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     int n2 = mesh->edge_nodes[2*e+1];
     if (n1 == n2)
     {
-      handler("planar_polymesh_verify_topology: edge %d has the same node (%d) at both ends!", e, n1);
+      snprintf(_reason, 1024, "Edge %d has the same node (%d) at both ends!",
+               e, n1);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
     else if ((n1 < 0) || (n1 >= mesh->num_nodes))
     {
-      handler("planar_polymesh_verify_topology: edge %d has invalid first node %d (mesh has only %d nodes).", e, n1, mesh->num_nodes);
+      snprintf(_reason, 1024, "Edge %d has invalid first node %d (mesh has "
+               "only %d nodes).", e, n1, mesh->num_nodes);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
     else if ((n2 < 0) || (n2 >= mesh->num_nodes))
     {
-      handler("planar_polymesh_verify_topology: edge %d has invalid second node %d (mesh has only %d nodes).", e, n2, mesh->num_nodes);
+      snprintf(_reason, 1024, "Edge %d has invalid second node %d (mesh has "
+               "only %d nodes).", e, n2, mesh->num_nodes);
+      if (reason != NULL)
+        *reason = _reason;
       return false;
     }
   }
@@ -206,8 +235,8 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
 
 planar_polymesh_t* planar_polymesh_clone(planar_polymesh_t* mesh)
 {
-  planar_polymesh_t* clone = planar_polymesh_new(mesh->num_cells, 
-                                                 mesh->num_edges, 
+  planar_polymesh_t* clone = planar_polymesh_new(mesh->num_cells,
+                                                 mesh->num_edges,
                                                  mesh->num_nodes);
 
   // Connectivity metadata.
@@ -230,7 +259,7 @@ void planar_polymesh_reserve_connectivity_storage(planar_polymesh_t* mesh)
 {
   // Make sure metadata is in order.
   int num_cell_edges = mesh->cell_edge_offsets[mesh->num_cells];
-  ASSERT(num_cell_edges >= 3*mesh->num_cells); 
+  ASSERT(num_cell_edges >= 3*mesh->num_cells);
 
   if (mesh->cell_edge_cap <= num_cell_edges)
   {
@@ -240,8 +269,8 @@ void planar_polymesh_reserve_connectivity_storage(planar_polymesh_t* mesh)
   }
 }
 
-void planar_polymesh_cell_get_nodes(planar_polymesh_t* mesh, 
-                                    int cell, 
+void planar_polymesh_cell_get_nodes(planar_polymesh_t* mesh,
+                                    int cell,
                                     int* nodes)
 {
   ASSERT(cell >= 0);
@@ -261,7 +290,7 @@ polygon_t* planar_polymesh_cell_polygon(planar_polymesh_t* mesh, int cell)
 {
   ASSERT(cell >= 0);
   ASSERT(cell < mesh->num_cells);
-  size_t num_vertices = mesh->cell_edge_offsets[cell+1] - 
+  size_t num_vertices = mesh->cell_edge_offsets[cell+1] -
                         mesh->cell_edge_offsets[cell];
   int nodes[num_vertices];
   planar_polymesh_cell_get_nodes(mesh, cell, nodes);
@@ -271,13 +300,13 @@ polygon_t* planar_polymesh_cell_polygon(planar_polymesh_t* mesh, int cell)
   return polygon_new(vertices, num_vertices);
 }
 
-void planar_polymesh_cell_get_polygon(planar_polymesh_t* mesh, 
+void planar_polymesh_cell_get_polygon(planar_polymesh_t* mesh,
                                       int cell,
                                       polygon_t* polygon)
 {
   ASSERT(cell >= 0);
   ASSERT(cell < mesh->num_cells);
-  size_t num_vertices = mesh->cell_edge_offsets[cell+1] - 
+  size_t num_vertices = mesh->cell_edge_offsets[cell+1] -
                         mesh->cell_edge_offsets[cell];
   int nodes[num_vertices];
   planar_polymesh_cell_get_nodes(mesh, cell, nodes);

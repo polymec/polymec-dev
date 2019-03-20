@@ -182,7 +182,7 @@ static blob_exchanger_t* bad_exchanger(void** state)
   return blob_exchanger_new(comm, send_map, recv_map, size_map);
 }
 
-static void test_blob_exchanger_verify_and_dl_detection(void** state)
+static void test_blob_exchanger_is_valid_and_dl_detection(void** state)
 {
   // We skip this for single process runs.
   int nproc;
@@ -199,9 +199,11 @@ static void test_blob_exchanger_verify_and_dl_detection(void** state)
   assert_true(blob_exchanger_deadlock_detection_enabled(ex));
 
   // Verify that it's a bad exchanger.
-  bool result = blob_exchanger_verify(ex, polymec_warn);
+  char* reason;
+  bool result = blob_exchanger_is_valid(ex, &reason);
   assert_false(result);
-  result = blob_exchanger_verify(ex, NULL);
+  log_debug("Invalid blob_exchanger: %s", reason);
+  result = blob_exchanger_is_valid(ex, NULL);
   assert_false(result);
 
   // Now try to exchange data.
@@ -217,7 +219,7 @@ static void test_blob_exchanger_verify_and_dl_detection(void** state)
   blob_buffer_free(buffer);
   release_ref(ex);
 
-  // Next, we put together a good exchanger and check that verify/deadlock
+  // Next, we put together a good exchanger and check that is_valid/deadlock
   // detection give it a pass.
   ex = ring_exchanger(state);
   blob_exchanger_enable_deadlock_detection(ex, grace_period, 0, stdout);
@@ -241,7 +243,7 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_blob_exchanger_construct),
     cmocka_unit_test(test_blob_exchanger_exchange),
-    cmocka_unit_test(test_blob_exchanger_verify_and_dl_detection),
+    cmocka_unit_test(test_blob_exchanger_is_valid_and_dl_detection),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

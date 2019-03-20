@@ -31,7 +31,7 @@ static void test_create_quad_colmesh(void** state)
   assert_true(colmesh_comm(mesh) == comm);
 
   // Verify the mesh's topology.
-  assert_true(colmesh_verify_topology(mesh, polymec_error));
+  assert_true(colmesh_is_valid(mesh, NULL));
 
   // Now check its connectivity.
   int local_num_cells = 0, local_num_faces = 0, 
@@ -90,7 +90,7 @@ static void test_create_hex_colmesh(void** state)
   assert_true(colmesh_comm(mesh) == comm);
 
   // Verify the mesh's topology.
-  assert_true(colmesh_verify_topology(mesh, polymec_error));
+  assert_true(colmesh_is_valid(mesh, NULL));
 
   // Now check its connectivity.
   int local_num_cells = 0, local_num_faces = 0, 

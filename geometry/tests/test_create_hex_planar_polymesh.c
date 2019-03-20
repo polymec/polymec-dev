@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -35,7 +35,7 @@ static void test_create_hex_planar_polymesh(void** state,
   write_plot_planar_polymesh_py(mesh, script);
 
   // Verify its topology.
-  assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
+  assert_true(planar_polymesh_is_valid(mesh, NULL));
 
   planar_polymesh_free(mesh);
 }
@@ -55,10 +55,10 @@ static void test_create_r5_hex_planar_polymesh(void** state)
   test_create_hex_planar_polymesh(state, 5, 91, 306, 232);
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
-  const struct CMUnitTest tests[] = 
+  const struct CMUnitTest tests[] =
   {
     cmocka_unit_test(test_create_single_cell_hex_planar_polymesh),
     cmocka_unit_test(test_create_r1_hex_planar_polymesh),
