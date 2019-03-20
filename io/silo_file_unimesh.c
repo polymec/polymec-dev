@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -23,7 +23,7 @@
 #define SILO_FLOAT_TYPE DB_FLOAT
 #endif
 
-// These functions are implemented in io/silo_file.c and used 
+// These functions are implemented in io/silo_file.c and used
 // here, even though they are not part of polymec's API.
 extern MPI_Comm silo_file_comm(silo_file_t* file);
 extern DBfile* silo_file_dbfile(silo_file_t* file);
@@ -61,7 +61,7 @@ static void write_unimesh_patch_grid(silo_file_t* file,
   real_t* y_node = polymec_malloc(sizeof(real_t) * N);
   real_t* z_node = polymec_malloc(sizeof(real_t) * N);
   int dimensions[3] = {nx+1, ny+1, nz+1};
-  real_t dx = (bbox->x2 - bbox->x1) / nx, 
+  real_t dx = (bbox->x2 - bbox->x1) / nx,
          dy = (bbox->y2 - bbox->y1) / ny,
          dz = (bbox->z2 - bbox->z1) / nz;
   int coord_type;
@@ -105,10 +105,10 @@ static void write_unimesh_patch_grid(silo_file_t* file,
   coords[2] = z_node;
 
   // Write the patch grid.
-  DBoptlist* optlist = DBMakeOptlist(1); 
+  DBoptlist* optlist = DBMakeOptlist(1);
   int one = 1;
   DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
-  DBPutQuadmesh(dbfile, patch_grid_name, coord_names, coords, dimensions, 3, 
+  DBPutQuadmesh(dbfile, patch_grid_name, coord_names, coords, dimensions, 3,
                 SILO_FLOAT_TYPE, coord_type, optlist);
   DBFreeOptlist(optlist);
   polymec_free(x_node);
@@ -118,7 +118,7 @@ static void write_unimesh_patch_grid(silo_file_t* file,
   silo_file_pop_dir(file);
 }
 
-void silo_file_write_unimesh(silo_file_t* file, 
+void silo_file_write_unimesh(silo_file_t* file,
                              const char* mesh_name,
                              unimesh_t* mesh,
                              coord_mapping_t* mapping)
@@ -129,7 +129,7 @@ void silo_file_write_unimesh(silo_file_t* file,
 
   DBfile* dbfile = silo_file_dbfile(file);
 
-  // This mesh is really just a grouping of patches, as far as SILO is 
+  // This mesh is really just a grouping of patches, as far as SILO is
   // concerned.
   DBSetDir(dbfile, "/");
   int num_local_patches = unimesh_num_patches(mesh);
@@ -166,14 +166,14 @@ void silo_file_write_unimesh(silo_file_t* file,
   int pos = 0, i, j, k, l = 0;
   int_array_t* patch_indices = int_array_new();
   bbox_t bbox;
-  while (unimesh_next_patch(mesh, &pos, &i, &j, &k, &bbox)) 
+  while (unimesh_next_patch(mesh, &pos, &i, &j, &k, &bbox))
   {
     // Write out the grid for the patch itself.
     char patch_grid_name[FILENAME_MAX+1];
     snprintf(patch_grid_name, FILENAME_MAX, "%s_%d_%d_%d", mesh_name, i, j, k);
     patch_grid_names[l] = string_dup(patch_grid_name);
     patch_grid_types[l] = DB_QUAD_RECT;
-    write_unimesh_patch_grid(file, patch_grid_names[l], nx, ny, nz, 
+    write_unimesh_patch_grid(file, patch_grid_names[l], nx, ny, nz,
                              &bbox, mapping);
 
     // Jot down this (i, j, k) triple.
@@ -219,8 +219,8 @@ static void read_unimesh_extent_and_patch_size(silo_file_t* file,
   int* extents = silo_file_read_int_array(file, array_name, &size);
   if (size != 3)
     polymec_error("silo_file_read_unimesh: Invalid extent data.");
-  *npx = extents[0]; 
-  *npy = extents[1]; 
+  *npx = extents[0];
+  *npy = extents[1];
   *npz = extents[2];
   polymec_free(extents);
 
@@ -229,7 +229,7 @@ static void read_unimesh_extent_and_patch_size(silo_file_t* file,
   if (size != 3)
     polymec_error("silo_file_read_unimesh: Invalid patch size data.");
   *nx = patch_sizes[0];
-  *ny = patch_sizes[1]; 
+  *ny = patch_sizes[1];
   *nz = patch_sizes[2];
   polymec_free(patch_sizes);
 }
@@ -277,7 +277,7 @@ static void read_unimesh_patch_indices(silo_file_t* file,
   polymec_free(indices);
 }
 
-unimesh_t* silo_file_read_unimesh(silo_file_t* file, 
+unimesh_t* silo_file_read_unimesh(silo_file_t* file,
                                   const char* mesh_name)
 {
   START_FUNCTION_TIMER();
@@ -307,8 +307,8 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
 #else
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
-  unimesh_t* mesh = create_empty_unimesh(comm, &bbox, 
-                                         npx, npy, npz, 
+  unimesh_t* mesh = create_empty_unimesh(comm, &bbox,
+                                         npx, npy, npz,
                                          nx, ny, nz,
                                          x_periodic, y_periodic, z_periodic);
 
@@ -331,19 +331,19 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
   return mesh;
 }
 
-bool silo_file_contains_unimesh(silo_file_t* file, 
+bool silo_file_contains_unimesh(silo_file_t* file,
                                 const char* mesh_name)
 {
   silo_file_push_domain_dir(file);
   DBfile* dbfile = silo_file_dbfile(file);
-  bool exists = (DBInqVarExists(dbfile, mesh_name) && 
+  bool exists = (DBInqVarExists(dbfile, mesh_name) &&
                  (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
   if (exists)
   {
-    static const char* data_fields[4] = 
-      {"bbox_real_array", 
-       "extents_int_array", 
-       "patch_sizes_int_array", 
+    static const char* data_fields[4] =
+      {"bbox_real_array",
+       "extents_int_array",
+       "patch_sizes_int_array",
        "patch_indices_int_array"};
     for (int i = 0; i < 4; ++i)
     {
@@ -387,7 +387,7 @@ static void copy_out_unimesh_node_component(unimesh_patch_t* patch,
                                             coord_mapping_t* mapping,
                                             real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -398,8 +398,8 @@ static void copy_out_unimesh_node_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     int l = 0;
@@ -447,7 +447,7 @@ static void copy_out_unimesh_xedge_component(unimesh_patch_t* patch,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -459,8 +459,8 @@ static void copy_out_unimesh_xedge_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     point_t x;
@@ -506,7 +506,7 @@ static void copy_out_unimesh_yedge_component(unimesh_patch_t* patch,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -518,8 +518,8 @@ static void copy_out_unimesh_yedge_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     point_t x;
@@ -565,7 +565,7 @@ static void copy_out_unimesh_zedge_component(unimesh_patch_t* patch,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -577,8 +577,8 @@ static void copy_out_unimesh_zedge_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     point_t x;
@@ -624,7 +624,7 @@ static void copy_out_unimesh_xface_component(unimesh_patch_t* patch,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -636,8 +636,8 @@ static void copy_out_unimesh_xface_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     point_t x;
@@ -683,7 +683,7 @@ static void copy_out_unimesh_yface_component(unimesh_patch_t* patch,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -695,8 +695,8 @@ static void copy_out_unimesh_yface_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     point_t x;
@@ -742,7 +742,7 @@ static void copy_out_unimesh_zface_component(unimesh_patch_t* patch,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -754,8 +754,8 @@ static void copy_out_unimesh_zface_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     point_t x;
@@ -801,7 +801,7 @@ static void copy_out_unimesh_cell_component(unimesh_patch_t* patch,
                                             coord_mapping_t* mapping,
                                             real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[patch->nc];
   int first_vector_comp;
@@ -812,8 +812,8 @@ static void copy_out_unimesh_cell_component(unimesh_patch_t* patch,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     int l = 0;
@@ -854,10 +854,10 @@ static void copy_out_unimesh_cell_component(unimesh_patch_t* patch,
   }
 }
 
-// This guy copies out the other centerings in an edge- or face-centered field, 
-// based on the centering in the given patch, and sets the ready_to_write 
+// This guy copies out the other centerings in an edge- or face-centered field,
+// based on the centering in the given patch, and sets the ready_to_write
 // flag based on whether all centerings (x, y, and z) will be in the data
-// array after the patch's data is copied to it. This is very delicate logic 
+// array after the patch's data is copied to it. This is very delicate logic
 // and so I've stuffed it all into this function for concentrated head scratching.
 static void copy_out_other_centerings(silo_file_t* file,
                                       unimesh_patch_t* patch,
@@ -875,7 +875,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       (patch->centering == UNIMESH_YEDGE) ||
       (patch->centering == UNIMESH_ZEDGE))
   {
-    // First we try to copy the centerings other than the one in the 
+    // First we try to copy the centerings other than the one in the
     // patch.
     if (patch->centering != UNIMESH_XEDGE)
     {
@@ -911,7 +911,7 @@ static void copy_out_other_centerings(silo_file_t* file,
         *ready_to_write = false;
     }
 
-    // Write the patch data to scratch if we're not going to write it 
+    // Write the patch data to scratch if we're not going to write it
     // immediately to the file.
     if (!(*ready_to_write))
     {
@@ -949,7 +949,7 @@ static void copy_out_other_centerings(silo_file_t* file,
             for (int k = 0; k < patch->nz; ++k, ++l)
               this_one[l] = a[i][j][k][c];
       }
-      string_ptr_unordered_map_insert_with_kv_dtors(scratch, 
+      string_ptr_unordered_map_insert_with_kv_dtors(scratch,
                                                     string_dup(scratch_name),
                                                     this_one,
                                                     string_free,
@@ -962,7 +962,7 @@ static void copy_out_other_centerings(silo_file_t* file,
            (patch->centering == UNIMESH_YFACE) ||
            (patch->centering == UNIMESH_ZFACE))
   {
-    // First we try to copy the centerings other than the one in the 
+    // First we try to copy the centerings other than the one in the
     // patch.
     if (patch->centering != UNIMESH_XFACE)
     {
@@ -998,7 +998,7 @@ static void copy_out_other_centerings(silo_file_t* file,
         *ready_to_write = false;
     }
 
-    // Write the patch data to scratch if we're not going to write it 
+    // Write the patch data to scratch if we're not going to write it
     // immediately to the file.
     if (!(*ready_to_write))
     {
@@ -1036,7 +1036,7 @@ static void copy_out_other_centerings(silo_file_t* file,
             for (int k = 0; k <= patch->nz; ++k, ++l)
               this_one[l] = a[i][j][k][c];
       }
-      string_ptr_unordered_map_insert_with_kv_dtors(scratch, 
+      string_ptr_unordered_map_insert_with_kv_dtors(scratch,
                                                     string_dup(scratch_name),
                                                     this_one,
                                                     string_free,
@@ -1077,7 +1077,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
   size_t data_size;
   if ((patch->centering == UNIMESH_CELL) || (patch->centering == UNIMESH_NODE))
     data_size = dimensions[0] * dimensions[1] * dimensions[2];
-  else 
+  else
     data_size = 3 * dimensions[0] * dimensions[1] * dimensions[2];
   real_t* data = polymec_calloc(data_size, sizeof(real_t));
   int centering;
@@ -1090,13 +1090,13 @@ static void write_unimesh_patch_data(silo_file_t* file,
     int one = 1;
     DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
     bool ready_to_write = false;
-    if (patch->centering == UNIMESH_NODE) 
+    if (patch->centering == UNIMESH_NODE)
     {
       centering = DB_NODECENT;
       copy_out_unimesh_node_component(patch, md, c, bbox, mapping, data);
       ready_to_write = true;
     }
-    else if ((patch->centering == UNIMESH_XEDGE) || 
+    else if ((patch->centering == UNIMESH_XEDGE) ||
              (patch->centering == UNIMESH_YEDGE) ||
              (patch->centering == UNIMESH_ZEDGE))
     {
@@ -1109,7 +1109,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
       else
         copy_out_unimesh_zedge_component(patch, md, c, bbox, mapping, data);
     }
-    else if ((patch->centering == UNIMESH_XFACE) || 
+    else if ((patch->centering == UNIMESH_XFACE) ||
              (patch->centering == UNIMESH_YFACE) ||
              (patch->centering == UNIMESH_ZFACE))
     {
@@ -1129,7 +1129,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
       copy_out_unimesh_cell_component(patch, md, c, bbox, mapping, data);
       ready_to_write = true;
     }
-    
+
     // Write the component to the file if it's ready.
     if (ready_to_write)
     {
@@ -1143,7 +1143,7 @@ static void write_unimesh_patch_data(silo_file_t* file,
   polymec_free(data);
 }
 
-void silo_file_write_unimesh_field(silo_file_t* file, 
+void silo_file_write_unimesh_field(silo_file_t* file,
                                    const char* field_name,
                                    const char* mesh_name,
                                    unimesh_field_t* field,
@@ -1185,7 +1185,7 @@ void silo_file_write_unimesh_field(silo_file_t* file,
     }
     char patch_grid_name[FILENAME_MAX+1];
     snprintf(patch_grid_name, FILENAME_MAX, "%s_%d_%d_%d", mesh_name, i, j, k);
-    write_unimesh_patch_data(file, (const char**)field_names, patch_grid_name,  
+    write_unimesh_patch_data(file, (const char**)field_names, patch_grid_name,
                              patch, md, &bbox, mapping);
     multi_field_types[l] = DB_QUADVAR;
     ++l;
@@ -1221,8 +1221,8 @@ void silo_file_write_unimesh_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-static void copy_in_unimesh_node_component(DBquadvar* var, 
-                                           int c, 
+static void copy_in_unimesh_node_component(DBquadvar* var,
+                                           int c,
                                            unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1237,8 +1237,8 @@ static void copy_in_unimesh_node_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_xedge_component(DBquadvar* var, 
-                                            int c, 
+static void copy_in_unimesh_xedge_component(DBquadvar* var,
+                                            int c,
                                             unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1253,8 +1253,8 @@ static void copy_in_unimesh_xedge_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_yedge_component(DBquadvar* var, 
-                                            int c, 
+static void copy_in_unimesh_yedge_component(DBquadvar* var,
+                                            int c,
                                             unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1269,8 +1269,8 @@ static void copy_in_unimesh_yedge_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_zedge_component(DBquadvar* var, 
-                                            int c, 
+static void copy_in_unimesh_zedge_component(DBquadvar* var,
+                                            int c,
                                             unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1285,8 +1285,8 @@ static void copy_in_unimesh_zedge_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_xface_component(DBquadvar* var, 
-                                            int c, 
+static void copy_in_unimesh_xface_component(DBquadvar* var,
+                                            int c,
                                             unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1301,8 +1301,8 @@ static void copy_in_unimesh_xface_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_yface_component(DBquadvar* var, 
-                                            int c, 
+static void copy_in_unimesh_yface_component(DBquadvar* var,
+                                            int c,
                                             unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1317,8 +1317,8 @@ static void copy_in_unimesh_yface_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_zface_component(DBquadvar* var, 
-                                            int c, 
+static void copy_in_unimesh_zface_component(DBquadvar* var,
+                                            int c,
                                             unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx + 1);
@@ -1333,8 +1333,8 @@ static void copy_in_unimesh_zface_component(DBquadvar* var,
         a[i][j][k][c] = data[l];
 }
 
-static void copy_in_unimesh_cell_component(DBquadvar* var, 
-                                           int c, 
+static void copy_in_unimesh_cell_component(DBquadvar* var,
+                                           int c,
                                            unimesh_patch_t* patch)
 {
   ASSERT(var->dims[0] == patch->nx);
@@ -1365,10 +1365,10 @@ static void read_unimesh_patch_data(silo_file_t* file,
     ASSERT(var != NULL);
     ASSERT(var->datatype == SILO_FLOAT_TYPE);
     ASSERT(var->nvals == 1);
-    switch (patch->centering) 
+    switch (patch->centering)
     {
       // Copy the data in the component into our array.
-      case UNIMESH_NODE: 
+      case UNIMESH_NODE:
         copy_in_unimesh_node_component(var, c, patch);
         break;
       case UNIMESH_XEDGE:
@@ -1403,7 +1403,7 @@ static void read_unimesh_patch_data(silo_file_t* file,
   }
 }
 
-void silo_file_read_unimesh_field(silo_file_t* file, 
+void silo_file_read_unimesh_field(silo_file_t* file,
                                   const char* field_name,
                                   const char* mesh_name,
                                   unimesh_field_t* field)
@@ -1427,7 +1427,7 @@ void silo_file_read_unimesh_field(silo_file_t* file,
       snprintf(field_comp_name, FILENAME_MAX, "%s_%d_%d_%d_%d", field_name, c, i, j, k);
       field_names[c] = string_dup(field_comp_name);
     }
-    read_unimesh_patch_data(file, (const char**)field_names, mesh_name, 
+    read_unimesh_patch_data(file, (const char**)field_names, mesh_name,
                             patch->nc, patch, md);
     for (int c = 0; c < patch->nc; ++c)
       string_free(field_names[c]);
@@ -1436,7 +1436,7 @@ void silo_file_read_unimesh_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-bool silo_file_contains_unimesh_field(silo_file_t* file, 
+bool silo_file_contains_unimesh_field(silo_file_t* file,
                                       const char* field_name,
                                       const char* mesh_name,
                                       unimesh_centering_t centering)

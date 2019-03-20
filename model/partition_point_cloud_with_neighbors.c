@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -41,8 +41,8 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
     for (int p = 0; p < nprocs; ++p)
       vtx_dist[p+1] = vtx_dist[p] + num_indices_p[p];
 
-    // Now we create representations of pairings for each process. Since the 
-    // ordering of nodes (i, j) within a pair is unpredictable, we construct 
+    // Now we create representations of pairings for each process. Since the
+    // ordering of nodes (i, j) within a pair is unpredictable, we construct
     // them all simultaneously.
     log_debug("neighbor_pairing_distribute: creating pair representations on rank 0.");
     int num_pairs[nprocs];
@@ -119,9 +119,9 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
       if (receives[p] != NULL)
         exchanger_set_receives(ex, receives[p]);
 
-      // NOTE: The neighbor pairings consume the array data we've generated, 
-      // NOTE: so we call *_array_release_data_and_free() below to give it to 
-      // NOTE: them. 
+      // NOTE: The neighbor pairings consume the array data we've generated,
+      // NOTE: so we call *_array_release_data_and_free() below to give it to
+      // NOTE: them.
       neighbor_pairing_t* p_pairing = neighbor_pairing_new(global_pairing->name, num_pairs[p],
                                                            pairs[p]->data, ex);
       int_array_release_data_and_free(pairs[p]);
@@ -167,7 +167,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
     serializer_t* ser = neighbor_pairing_serializer();
     size_t offset = 0;
     local_pairing = serializer_read(ser, bytes, &offset);
-    
+
     byte_array_free(bytes);
     ser = NULL;
   }
@@ -181,10 +181,10 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
 }
 #endif
 
-bool partition_point_cloud_with_neighbors(point_cloud_t** points, 
-                                          neighbor_pairing_t** neighbors, 
-                                          MPI_Comm comm, 
-                                          int* weights, 
+bool partition_point_cloud_with_neighbors(point_cloud_t** points,
+                                          neighbor_pairing_t** neighbors,
+                                          MPI_Comm comm,
+                                          int* weights,
                                           real_t imbalance_tol,
                                           point_cloud_field_t** fields,
                                           size_t num_fields)
@@ -210,7 +210,7 @@ bool partition_point_cloud_with_neighbors(point_cloud_t** points,
   if ((rank != 0) && (cloud != NULL))
   {
     point_cloud_free(cloud);
-    *points = cloud = NULL; 
+    *points = cloud = NULL;
   }
 
   // Generate a global adjacency graph for the point cloud.
@@ -227,7 +227,7 @@ bool partition_point_cloud_with_neighbors(point_cloud_t** points,
 
   // Map the graph to the different domains, producing a local partition vector.
   int64_t* global_partition = NULL;
-  if (rank == 0) 
+  if (rank == 0)
     log_debug("partition_point_cloud_with_neighbors: partitioning graph on rank 0.");
 
   global_partition = partition_graph(global_graph, comm, weights, imbalance_tol, true);
@@ -235,7 +235,7 @@ bool partition_point_cloud_with_neighbors(point_cloud_t** points,
     return false;
 
   // Break the neighbor pairing into chunks and send them to the other processes.
-  neighbor_pairing_distribute(neighbors, comm, global_partition, 
+  neighbor_pairing_distribute(neighbors, comm, global_partition,
                               (*points != NULL) ? (*points)->num_points : 0);
 
   // Distribute the point cloud.

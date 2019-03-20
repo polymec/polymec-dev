@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -21,7 +21,7 @@
 #define SILO_FLOAT_TYPE DB_FLOAT
 #endif
 
-// These functions are implemented in io/silo_file.c and used 
+// These functions are implemented in io/silo_file.c and used
 // here, even though they are not part of polymec's API.
 extern MPI_Comm silo_file_comm(silo_file_t* file);
 extern DBfile* silo_file_dbfile(silo_file_t* file);
@@ -51,7 +51,7 @@ static void write_colmesh_chunk_grid(silo_file_t* file,
                                      coord_mapping_t* mapping)
 {
   colmesh_chunk_t* chunk = colmesh_chunk(mesh, xy_index, z_index);
-  // Construct a planar polymesh fragment representing the top face of the chunk, 
+  // Construct a planar polymesh fragment representing the top face of the chunk,
   // and write it out.
   planar_polymesh_t* fragment = planar_polymesh_new(chunk->num_columns,
                                                     chunk->num_xy_faces,
@@ -90,7 +90,7 @@ static void write_colmesh_chunk_grid(silo_file_t* file,
   silo_file_write_real_array(file, array_name, endpts, 2);
 }
 
-void silo_file_write_colmesh(silo_file_t* file, 
+void silo_file_write_colmesh(silo_file_t* file,
                              const char* mesh_name,
                              colmesh_t* mesh,
                              coord_mapping_t* mapping)
@@ -116,7 +116,7 @@ void silo_file_write_colmesh(silo_file_t* file,
   int pos = 0, xy, z;
   colmesh_chunk_t* chunk;
   int_array_t* chunk_indices = int_array_new();
-  while (colmesh_next_chunk(mesh, &pos, &xy, &z, &chunk)) 
+  while (colmesh_next_chunk(mesh, &pos, &xy, &z, &chunk))
   {
     // Write out the grid for the chunk itself.
     char chunk_grid_name[FILENAME_MAX+1];
@@ -153,7 +153,7 @@ void silo_file_write_colmesh(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-colmesh_t* silo_file_read_colmesh(silo_file_t* file, 
+colmesh_t* silo_file_read_colmesh(silo_file_t* file,
                                   const char* mesh_name)
 {
   START_FUNCTION_TIMER();
@@ -180,7 +180,7 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
   {
     char array_name[FILENAME_MAX+1];
     snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
-    chunk_indices = silo_file_read_int_array(file, array_name, 
+    chunk_indices = silo_file_read_int_array(file, array_name,
                                              &num_chunk_indices);
   }
 
@@ -240,8 +240,8 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
 #else
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
-  colmesh_t* mesh = create_empty_colmesh_from_fragments(comm, fragments, z1, z2, 
-                                                        num_xy_chunks, num_z_chunks, 
+  colmesh_t* mesh = create_empty_colmesh_from_fragments(comm, fragments, z1, z2,
+                                                        num_xy_chunks, num_z_chunks,
                                                         nz_per_chunk, periodic);
 
   // Insert our local chunks.
@@ -261,7 +261,7 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
   return mesh;
 }
 
-bool silo_file_contains_colmesh(silo_file_t* file, 
+bool silo_file_contains_colmesh(silo_file_t* file,
                                 const char* mesh_name)
 {
   silo_file_push_domain_dir(file);
@@ -273,7 +273,7 @@ bool silo_file_contains_colmesh(silo_file_t* file,
   {
     char array_name[FILENAME_MAX+1];
     snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
-    chunk_indices = silo_file_read_int_array(file, array_name, 
+    chunk_indices = silo_file_read_int_array(file, array_name,
                                              &num_chunk_indices);
   }
   bool exists = (chunk_indices != NULL);
@@ -323,7 +323,7 @@ static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
                                             coord_mapping_t* mapping,
                                             real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
@@ -335,8 +335,8 @@ static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
   {
     // We need to map this vector field before we write it out.
     colmesh_chunk_t* chunk = chunk_data->chunk;
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     int l = 0;
@@ -377,7 +377,7 @@ static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
                                               coord_mapping_t* mapping,
                                               real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
@@ -390,8 +390,8 @@ static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
   {
     // We need to map this vector field before we write it out.
     colmesh_chunk_t* chunk = chunk_data->chunk;
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
@@ -432,7 +432,7 @@ static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
@@ -445,8 +445,8 @@ static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
@@ -485,7 +485,7 @@ static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
                                               coord_mapping_t* mapping,
                                               real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
@@ -498,16 +498,16 @@ static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
   {
     // We need to map this vector field before we write it out.
     colmesh_chunk_t* chunk = chunk_data->chunk;
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
     for (int xy = 0; xy < chunk_data->xy_size; ++xy)
     {
       // The face's xy coordinates are an average of the attached nodes' xy coordinates.
-      // Recall that an xy face shares an index with its corresponding xy edge, for 
-      // a fixed z position. So we can use the same technique we use for computing 
+      // Recall that an xy face shares an index with its corresponding xy edge, for
+      // a fixed z position. So we can use the same technique we use for computing
       // an "edge center" for the x and y coordinates.
       point_t x;
       int n1 = chunk->xy_edge_nodes[2*xy];
@@ -544,7 +544,7 @@ static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
@@ -557,14 +557,14 @@ static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
     for (int xy = 0; xy < chunk_data->xy_size; ++xy)
     {
-      // The xy coordinates of the z face are those for the cell, which are the 
+      // The xy coordinates of the z face are those for the cell, which are the
       // geometric average of its node positions.
       point_t x = {.x = 0.0, .y = 0.0, .z = 0.0};
       int num_nodes = colmesh_chunk_z_face_num_nodes(chunk, xy);
@@ -608,7 +608,7 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
                                             coord_mapping_t* mapping,
                                             real_t* data)
 {
-  // If we're given a mapping and there are vector fields, we need to treat 
+  // If we're given a mapping and there are vector fields, we need to treat
   // them specially.
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
@@ -620,8 +620,8 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
-    int c1 = first_vector_comp, 
-        c2 = first_vector_comp+1, 
+    int c1 = first_vector_comp,
+        c2 = first_vector_comp+1,
         c3 = first_vector_comp+2;
     int which_component = c - c1;
     int l = 0;
@@ -666,10 +666,10 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
   }
 }
 
-// This guy copies out the other centerings in an edge- or face-centered field, 
-// based on the centering in the given chunk, and sets the ready_to_write 
+// This guy copies out the other centerings in an edge- or face-centered field,
+// based on the centering in the given chunk, and sets the ready_to_write
 // flag based on whether both centerings (xy and z) will be in the data
-// array after the chunk's data is copied to it. This is very delicate logic 
+// array after the chunk's data is copied to it. This is very delicate logic
 // and so I've stuffed it all into this function for concentrated head scratching.
 static void copy_out_other_centerings(silo_file_t* file,
                                       colmesh_chunk_data_t* chunk_data,
@@ -687,7 +687,7 @@ static void copy_out_other_centerings(silo_file_t* file,
   if ((chunk_data->centering == COLMESH_XYEDGE) ||
       (chunk_data->centering == COLMESH_ZEDGE))
   {
-    // First we try to copy the centerings other than the one in the 
+    // First we try to copy the centerings other than the one in the
     // chunk.
     if (chunk_data->centering != COLMESH_XYEDGE)
     {
@@ -711,7 +711,7 @@ static void copy_out_other_centerings(silo_file_t* file,
         *ready_to_write = false;
     }
 
-    // Write the chunk data to scratch if we're not going to write it 
+    // Write the chunk data to scratch if we're not going to write it
     // immediately to the file.
     if (!(*ready_to_write))
     {
@@ -734,7 +734,7 @@ static void copy_out_other_centerings(silo_file_t* file,
           for (int z = 0; z < chunk_data->z_size; ++z, ++l)
             this_one[l] = a[xy][z][c];
       }
-      string_ptr_unordered_map_insert_with_kv_dtors(scratch, 
+      string_ptr_unordered_map_insert_with_kv_dtors(scratch,
                                                     string_dup(scratch_name),
                                                     this_one,
                                                     string_free,
@@ -746,7 +746,7 @@ static void copy_out_other_centerings(silo_file_t* file,
   else if ((chunk_data->centering == COLMESH_XYFACE) ||
            (chunk_data->centering == COLMESH_ZFACE))
   {
-    // First we try to copy the centerings other than the one in the 
+    // First we try to copy the centerings other than the one in the
     // chunk.
     if (chunk_data->centering != COLMESH_XYFACE)
     {
@@ -770,7 +770,7 @@ static void copy_out_other_centerings(silo_file_t* file,
         *ready_to_write = false;
     }
 
-    // Write the chunk data to scratch if we're not going to write it 
+    // Write the chunk data to scratch if we're not going to write it
     // immediately to the file.
     if (!(*ready_to_write))
     {
@@ -793,7 +793,7 @@ static void copy_out_other_centerings(silo_file_t* file,
           for (int z = 0; z < chunk_data->z_size; ++z, ++l)
             this_one[l] = a[xy][z][c];
       }
-      string_ptr_unordered_map_insert_with_kv_dtors(scratch, 
+      string_ptr_unordered_map_insert_with_kv_dtors(scratch,
                                                     string_dup(scratch_name),
                                                     this_one,
                                                     string_free,
@@ -822,18 +822,18 @@ static void write_colmesh_chunk_data(silo_file_t* file,
   // we're really just dumping a bunch of data into an array.
   size_t data_size;
   colmesh_chunk_t* chunk = chunk_data->chunk;
-  if ((chunk_data->centering == COLMESH_CELL) || 
+  if ((chunk_data->centering == COLMESH_CELL) ||
       (chunk_data->centering == COLMESH_NODE))
     data_size = chunk_data->xy_size * chunk_data->z_size;
-  else if ((chunk_data->centering == COLMESH_XYFACE) || 
+  else if ((chunk_data->centering == COLMESH_XYFACE) ||
            (chunk_data->centering == COLMESH_ZFACE))
   {
-    data_size = chunk->num_xy_faces * chunk->num_z_cells + 
+    data_size = chunk->num_xy_faces * chunk->num_z_cells +
                 chunk->num_columns * (chunk->num_z_cells+1);
   }
   else // edge centerings
   {
-    data_size = chunk->num_xy_edges * (chunk->num_z_cells+1) + 
+    data_size = chunk->num_xy_edges * (chunk->num_z_cells+1) +
                 chunk->num_xy_nodes * chunk->num_z_cells;
   }
   real_t* data = polymec_calloc(data_size, sizeof(real_t));
@@ -843,12 +843,12 @@ static void write_colmesh_chunk_data(silo_file_t* file,
   {
     // Copy the data in the component into our array.
     bool ready_to_write = false;
-    if (chunk_data->centering == COLMESH_NODE) 
+    if (chunk_data->centering == COLMESH_NODE)
     {
       copy_out_colmesh_node_component(chunk_data, md, c, mapping, data);
       ready_to_write = true;
     }
-    else if ((chunk_data->centering == COLMESH_XYEDGE) || 
+    else if ((chunk_data->centering == COLMESH_XYEDGE) ||
              (chunk_data->centering == COLMESH_ZEDGE))
     {
       copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
@@ -857,7 +857,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
       else // (data->centering == COLMESH_ZEDGE)
         copy_out_colmesh_zedge_component(chunk_data, md, c, mapping, data);
     }
-    else if ((chunk_data->centering == COLMESH_XYFACE) || 
+    else if ((chunk_data->centering == COLMESH_XYFACE) ||
              (chunk_data->centering == COLMESH_ZFACE))
     {
       copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
@@ -872,7 +872,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
       copy_out_colmesh_cell_component(chunk_data, md, c, mapping, data);
       ready_to_write = true;
     }
-    
+
     // Write the component to the file if it's ready.
     if (ready_to_write)
     {
@@ -886,7 +886,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
   polymec_free(data);
 }
 
-void silo_file_write_colmesh_field(silo_file_t* file, 
+void silo_file_write_colmesh_field(silo_file_t* file,
                                    const char* field_name,
                                    const char* mesh_name,
                                    colmesh_field_t* field,
@@ -917,7 +917,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
 
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
-    write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
+    write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,
                              data, md, mapping);
     ++l;
 
@@ -931,8 +931,8 @@ void silo_file_write_colmesh_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-static void copy_in_colmesh_node_component(real_t* data, 
-                                           int c, 
+static void copy_in_colmesh_node_component(real_t* data,
+                                           int c,
                                            colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
@@ -942,8 +942,8 @@ static void copy_in_colmesh_node_component(real_t* data,
       a[xy][z][c] = data[l];
 }
 
-static void copy_in_colmesh_xyedge_component(real_t* data, 
-                                             int c, 
+static void copy_in_colmesh_xyedge_component(real_t* data,
+                                             int c,
                                              colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
@@ -953,8 +953,8 @@ static void copy_in_colmesh_xyedge_component(real_t* data,
       a[xy][z][c] = data[l];
 }
 
-static void copy_in_colmesh_zedge_component(real_t* data, 
-                                            int c, 
+static void copy_in_colmesh_zedge_component(real_t* data,
+                                            int c,
                                             colmesh_chunk_data_t* chunk_data)
 {
   size_t l = chunk_data->chunk->num_xy_edges * (chunk_data->chunk->num_z_cells+1);
@@ -964,8 +964,8 @@ static void copy_in_colmesh_zedge_component(real_t* data,
       a[xy][z][c] = data[l];
 }
 
-static void copy_in_colmesh_xyface_component(real_t* data, 
-                                             int c, 
+static void copy_in_colmesh_xyface_component(real_t* data,
+                                             int c,
                                              colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
@@ -975,8 +975,8 @@ static void copy_in_colmesh_xyface_component(real_t* data,
       a[xy][z][c] = data[l];
 }
 
-static void copy_in_colmesh_zface_component(real_t* data, 
-                                            int c, 
+static void copy_in_colmesh_zface_component(real_t* data,
+                                            int c,
                                             colmesh_chunk_data_t* chunk_data)
 {
   size_t l = chunk_data->chunk->num_xy_faces * chunk_data->chunk->num_z_cells;
@@ -986,8 +986,8 @@ static void copy_in_colmesh_zface_component(real_t* data,
       a[xy][z][c] = data[l];
 }
 
-static void copy_in_colmesh_cell_component(real_t* data, 
-                                           int c, 
+static void copy_in_colmesh_cell_component(real_t* data,
+                                           int c,
                                            colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
@@ -1011,10 +1011,10 @@ static void read_colmesh_chunk_data(silo_file_t* file,
     size_t data_size;
     real_t* data = silo_file_read_real_array(file, data_name, &data_size);
     ASSERT(data != NULL);
-    switch (chunk_data->centering) 
+    switch (chunk_data->centering)
     {
       // Copy the data in the component into our array.
-      case COLMESH_NODE: 
+      case COLMESH_NODE:
         copy_in_colmesh_node_component(data, c, chunk_data);
         break;
       case COLMESH_XYEDGE:
@@ -1036,7 +1036,7 @@ static void read_colmesh_chunk_data(silo_file_t* file,
   }
 }
 
-void silo_file_read_colmesh_field(silo_file_t* file, 
+void silo_file_read_colmesh_field(silo_file_t* file,
                                   const char* field_name,
                                   const char* mesh_name,
                                   colmesh_field_t* field)
@@ -1063,7 +1063,7 @@ void silo_file_read_colmesh_field(silo_file_t* file,
     }
     char chunk_grid_name[FILENAME_MAX+1];
     snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
-    read_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name, 
+    read_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,
                             data->num_components, data);
 
     for (int c = 0; c < num_components; ++c)
@@ -1074,7 +1074,7 @@ void silo_file_read_colmesh_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-bool silo_file_contains_colmesh_field(silo_file_t* file, 
+bool silo_file_contains_colmesh_field(silo_file_t* file,
                                       const char* field_name,
                                       const char* mesh_name,
                                       colmesh_centering_t centering)

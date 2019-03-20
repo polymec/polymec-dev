@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 #include "core/kd_tree.h"
 #include "model/polymesh_stencils.h"
 
-static stencil_t* stencil_from_cells(const char* name, 
+static stencil_t* stencil_from_cells(const char* name,
                                      int_array_t** stencil_cells,
                                      int num_cells,
                                      int num_ghost_cells,
@@ -40,12 +40,12 @@ stencil_t* cell_star_stencil_new(polymesh_t* mesh, int radius)
   if (radius > 1)
     polymec_not_implemented("cell_star_stencil_new (radius > 1)");
 
-  // First, we'll exchange the mesh cell centers to make sure they're 
+  // First, we'll exchange the mesh cell centers to make sure they're
   // consistent.
   exchanger_t* cell_ex = polymesh_exchanger(mesh, POLYMESH_CELL);
   exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
 
-  // First we will make a mapping from each cell to its list of 
+  // First we will make a mapping from each cell to its list of
   // neighboring cells.
   int_array_t** stencil_cells = polymec_malloc(sizeof(int_array_t*) * mesh->num_cells);
   for (int cell = 0; cell < mesh->num_cells; ++cell)
@@ -83,8 +83,8 @@ noreturn stencil_t* cell_halo_stencil_new(polymesh_t* mesh)
   // Construct a 2-deep star stencil to start from.
   stencil_t* star = cell_star_stencil_new(mesh, 1);
 
-  // Now find the extra cells. The additional cells of a cell i are the 
-  // neighbors of the neighbors of i that are 
+  // Now find the extra cells. The additional cells of a cell i are the
+  // neighbors of the neighbors of i that are
   // (1) not connected to i
   // (2) connected to at least two of the neighbors of i.
 
@@ -98,12 +98,12 @@ noreturn stencil_t* cell_halo_stencil_new(polymesh_t* mesh)
     while (stencil_next(star, i, &posj, &j, NULL))
       int_unordered_set_insert(neighbors_of_i, j);
 
-    // Now traverse the neighbors of neighbors of i looking for extra halo 
+    // Now traverse the neighbors of neighbors of i looking for extra halo
     // neighbors.
     posj = 0;
     while (stencil_next(star, i, &posj, &j, NULL))
     {
-      // Populate the conn array with numbers of connections of each neighbor 
+      // Populate the conn array with numbers of connections of each neighbor
       // of i's neighbors to neighbors of i (to evaluate (2) above).
       int num_n_o_n = stencil_size(star, j);
       int n_o_n[num_n_o_n];
@@ -124,7 +124,7 @@ noreturn stencil_t* cell_halo_stencil_new(polymesh_t* mesh)
         }
       }
 
-      // Now record all the neighbors of neighbors of i that are connected 
+      // Now record all the neighbors of neighbors of i that are connected
       // to 2 or more neighbors of i. (2)
       for (int kk = 0; kk < num_n_o_n; ++kk)
       {
@@ -149,21 +149,21 @@ noreturn stencil_t* cell_halo_stencil_new(polymesh_t* mesh)
     int_unordered_set_clear(neighbors_of_i);
   }
 
-  // Make sure that these extra neighbors are communicated between parallel 
-  // domains. First we traverse all send cells and make lists of extra send 
-  // cells to add. Then we communicate the numbers of additional sent cells 
-  // to the receiving processes. Finally we count up the additional number of 
+  // Make sure that these extra neighbors are communicated between parallel
+  // domains. First we traverse all send cells and make lists of extra send
+  // cells to add. Then we communicate the numbers of additional sent cells
+  // to the receiving processes. Finally we count up the additional number of
   // ghost cells and make sure they are reflected in our exchanger.
 
-  // Traverse the send cells of the star stencil's exchanger and make lists 
+  // Traverse the send cells of the star stencil's exchanger and make lists
   // of extra send cells to add.
 
-  // Communicate the numbers of additional sent cells to our neighboring 
+  // Communicate the numbers of additional sent cells to our neighboring
   // processes.
   int** send_data = (int**)exchanger_create_metadata_send_arrays(star->ex, MPI_INT, 1);
   int** receive_data = (int**)exchanger_create_metadata_send_arrays(star->ex, MPI_INT, 1);
 
-  // Count up the needed ghost cells and make sure they are reflected in our 
+  // Count up the needed ghost cells and make sure they are reflected in our
   // exchanger.
   int num_halo_ghosts = stencil_num_ghosts(star);
   // FIXME
@@ -174,9 +174,9 @@ noreturn stencil_t* cell_halo_stencil_new(polymesh_t* mesh)
   exchanger_t* halo_ex = exchanger_new(exchanger_comm(star->ex));
 
   // Create the halo stencil.
-  stencil_t* halo = stencil_new("cell halo stencil", 
+  stencil_t* halo = stencil_new("cell halo stencil",
                                 star->num_indices,
-                                halo_offsets, halo_indices, 
+                                halo_offsets, halo_indices,
                                 num_halo_ghosts, halo_ex);
 
   // Clean up.

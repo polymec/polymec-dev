@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -64,11 +64,11 @@ struct probe_t
   acq_callback_array_t* callbacks;
 };
 
-probe_t* probe_new(const char* name, 
+probe_t* probe_new(const char* name,
                    const char* data_name,
                    int rank,
                    size_t* shape,
-                   void* context, 
+                   void* context,
                    probe_vtable vtable)
 {
   ASSERT(rank >= 0);
@@ -148,8 +148,8 @@ void probe_postprocess(probe_t* probe, real_array_t* times, probe_data_array_t* 
     probe->vtable.postprocess(probe->context, times, data);
 }
 
-void probe_on_acquire(probe_t* probe, 
-                      void* context, 
+void probe_on_acquire(probe_t* probe,
+                      void* context,
                       void (*function)(void* context, real_t t, probe_data_t* data),
                       void (*dtor)(void* context))
 {

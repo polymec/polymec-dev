@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,8 +11,8 @@
 #include "core/array.h"
 #include "core/kd_tree.h"
 
-stencil_t* stencil_new(const char* name, size_t num_indices, 
-                       int* offsets, int* indices, 
+stencil_t* stencil_new(const char* name, size_t num_indices,
+                       int* offsets, int* indices,
                        size_t num_ghosts, exchanger_t* ex)
 {
   ASSERT(num_indices > 0);
@@ -45,7 +45,7 @@ stencil_t* stencil_clone(stencil_t* stencil)
   int* indices = polymec_malloc(sizeof(int) * size);
   memcpy(indices, stencil->indices, sizeof(int) * size);
   exchanger_t* ex = exchanger_clone(stencil->ex);
-  return stencil_new(stencil->name, stencil->num_indices, offsets, 
+  return stencil_new(stencil->name, stencil->num_indices, offsets,
                      indices, stencil->num_ghosts, ex);
 }
 
@@ -125,11 +125,11 @@ exchanger_t* stencil_exchanger(stencil_t* stencil)
 static size_t stencil_byte_size(void* obj)
 {
   stencil_t* stencil = obj;
-  
+
   // Data.
-  size_t basic_storage = sizeof(int) + sizeof(char) * strlen(stencil->name) + 
+  size_t basic_storage = sizeof(int) + sizeof(char) * strlen(stencil->name) +
                          sizeof(int) * (1 + stencil->num_indices + 1 + stencil->offsets[stencil->num_indices] + 1 + 1);
-  
+
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
   size_t ex_storage = serializer_size(ex_s, stencil->ex);
@@ -141,7 +141,7 @@ static size_t stencil_byte_size(void* obj)
 static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
 {
   // Read the name.
-  int name_len; 
+  int name_len;
   byte_array_read_ints(bytes, 1, &name_len, offset);
   char name[name_len+1];
   byte_array_read_chars(bytes, name_len, name, offset);
@@ -205,7 +205,7 @@ adj_graph_t* stencil_as_graph(stencil_t* stencil)
   vtx_dist[0] = 0;
   for (int p = 0; p < nproc; ++p)
     vtx_dist[p+1] = vtx_dist[p] + num_verts[p];
-  return adj_graph_from_arrays(comm, vtx_dist, 
+  return adj_graph_from_arrays(comm, vtx_dist,
                                stencil->indices, stencil->offsets,
                                false);
 }
@@ -240,7 +240,7 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   for (int i = 0; i < points->num_points; ++i)
     R_max = MAX(R_max, R[i]);
 
-  // Add ghost points to the kd-tree and fetch an exchanger. This may add 
+  // Add ghost points to the kd-tree and fetch an exchanger. This may add
   // too many ghost points, but hopefully that won't be an issue.
   exchanger_t* ex = kd_tree_find_ghost_points(tree, points->comm, R_max);
 
@@ -266,8 +266,8 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   int num_ghosts = (int)(kd_tree_size(tree) - points->num_points);
 
   // Create the stencil.
-  stencil_t* stencil = 
-    stencil_new("Distance-based point stencil", points->num_points, 
+  stencil_t* stencil =
+    stencil_new("Distance-based point stencil", points->num_points,
                 offsets, indices->data, num_ghosts, ex);
 
   // Clean up.

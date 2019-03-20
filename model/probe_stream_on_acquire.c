@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -31,8 +31,8 @@ static void free_stream(void* context)
   polymec_free(stream);
 }
 
-static void stream_on_acquire_json(void* context, 
-                                   real_t t, 
+static void stream_on_acquire_json(void* context,
+                                   real_t t,
                                    probe_data_t* data)
 {
   stream_context_t* stream = context;
@@ -54,7 +54,7 @@ static void stream_on_acquire_json(void* context,
 
   // Figure out the size of the JSON payload.
   const char* json_format_str = "{\"name\": \"%s\", \"time\": %g, \"data\": %s}";
-  size_t json_size = sizeof(char) * 
+  size_t json_size = sizeof(char) *
                      (strlen(json_format_str) + strlen(stream->data_name) + \
                       20 + strlen(data_str));
 
@@ -66,8 +66,8 @@ static void stream_on_acquire_json(void* context,
   write(stream->socket_fd, json, strlen(json));
 }
 
-static void stream_on_acquire_osc(void* context, 
-                                  real_t t, 
+static void stream_on_acquire_osc(void* context,
+                                  real_t t,
                                   probe_data_t* data)
 {
   stream_context_t* stream = context;
@@ -105,8 +105,8 @@ static void stream_on_acquire_osc(void* context,
   write(stream->socket_fd, osc, osc_size);
 }
 
-bool probe_stream_on_acquire(probe_t* probe, 
-                             const char* destination, 
+bool probe_stream_on_acquire(probe_t* probe,
+                             const char* destination,
                              int port,
                              const char* format)
 {

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +10,7 @@
 #include "core/unordered_set.h"
 #include "model/neighbor_pairing.h"
 
-neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs, 
+neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs,
                                          int* pairs, exchanger_t* ex)
 {
   ASSERT(pairs != NULL);
@@ -54,11 +54,11 @@ void neighbor_pairing_finish_exchange(neighbor_pairing_t* pairing, int token)
 static size_t np_byte_size(void* obj)
 {
   neighbor_pairing_t* np = obj;
-  
+
   // Data.
-  size_t basic_storage = sizeof(int) + sizeof(char) * strlen(np->name) + 
+  size_t basic_storage = sizeof(int) + sizeof(char) * strlen(np->name) +
                          sizeof(int) * (1 + 2*np->num_pairs + 1);
-  
+
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
   size_t ex_storage = serializer_size(ex_s, np->ex);
@@ -70,7 +70,7 @@ static size_t np_byte_size(void* obj)
 static void* np_byte_read(byte_array_t* bytes, size_t* offset)
 {
   // Read the name.
-  int name_len; 
+  int name_len;
   byte_array_read_ints(bytes, 1, &name_len, offset);
   char name[name_len+1];
   byte_array_read_chars(bytes, name_len, name, offset);
@@ -150,7 +150,7 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
   exchanger_t* ex = exchanger_clone(stencil->ex);
 
   // Build the neighbor pairing.
-  neighbor_pairing_t* neighbors = neighbor_pairing_new(stencil->name, 
+  neighbor_pairing_t* neighbors = neighbor_pairing_new(stencil->name,
                                                        pairs->size/2,
                                                        pairs->data,
                                                        ex);
@@ -162,7 +162,7 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
   return neighbors;
 }
 
-stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points, 
+stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
                                                   neighbor_pairing_t* neighbors)
 {
   // Count up the numbers of neighbors for each index.
@@ -225,7 +225,7 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
                      offsets, indices, num_ghosts, ex);
 }
 
-adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
+adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
                                                   neighbor_pairing_t* neighbors)
 {
   // Create a graph whose vertices are the cloud's points.
@@ -275,7 +275,7 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   return g;
 }
 
-matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points, 
+matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points,
                                                            neighbor_pairing_t* neighbors)
 {
   // Figure out the domain decomposition.
@@ -285,7 +285,7 @@ matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points
   MPI_Comm_rank(comm, &rank);
   index_t num_points[nproc];
   index_t num_local_points = (index_t)points->num_points;
-  MPI_Allgather(&num_local_points, 1, MPI_INDEX_T, 
+  MPI_Allgather(&num_local_points, 1, MPI_INDEX_T,
                 num_points, 1, MPI_INDEX_T, comm);
   index_t row_dist[nproc+1];
   row_dist[0] = 0;
@@ -298,7 +298,7 @@ matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points
     global_ids[i] = (index_t)(row_dist[rank] + i);
   neighbor_pairing_exchange(neighbors, global_ids, 1, 0, MPI_INDEX_T);
 
-  // Create a matrix sparsity pattern using the given neighbors and 
+  // Create a matrix sparsity pattern using the given neighbors and
   // allocate column space.
   matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
   index_t num_cols[points->num_points];
@@ -354,11 +354,11 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
   for (int i = 0; i < points->num_points; ++i)
     R_max = MAX(R_max, R[i]);
 
-  // Add ghost points to the kd-tree and fetch an exchanger. This may add 
+  // Add ghost points to the kd-tree and fetch an exchanger. This may add
   // too many ghost points, but hopefully that won't be an issue.
   exchanger_t* ex = kd_tree_find_ghost_points(tree, points->comm, R_max);
 
-  // Make parallel-sensible coordinate and radius fields with ghost candidate 
+  // Make parallel-sensible coordinate and radius fields with ghost candidate
   // values filled in.
   size_t tree_size = kd_tree_size(tree);
   point_t* x_par = polymec_malloc(sizeof(point_t) * tree_size);
@@ -373,7 +373,7 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
 
   for (int i = 0; i < points->num_points; ++i)
   {
-    // Find all the neighbors for this point. We only count those 
+    // Find all the neighbors for this point. We only count those
     // neighbors {j} for which j > i.
     point_t* xi = &x_par[i];
     int_array_t* neighbors = kd_tree_within_radius(tree, xi, R_max);
@@ -397,8 +397,8 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
 
   // Create a neighbor pairing.
   int num_pairs = (int)pair_array->size/2;
-  neighbor_pairing_t* neighbors = 
-    neighbor_pairing_new("Distance-based point pairs", 
+  neighbor_pairing_t* neighbors =
+    neighbor_pairing_new("Distance-based point pairs",
                          num_pairs, pair_array->data, ex);
 
   // Set the number of ghost points referred to within the neighbor pairing.

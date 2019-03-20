@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -32,8 +32,8 @@ static int SILO_FILE_MPI_TAG = 1111;
 #endif
 
 //-------------------------------------------------------------------------
-// The following unpublished functions are not part of the formal silo_file 
-// API, and offer access to low-level Silo internals that can be used 
+// The following unpublished functions are not part of the formal silo_file
+// API, and offer access to low-level Silo internals that can be used
 // directly in other polymec-based libraries.
 //-------------------------------------------------------------------------
 
@@ -52,19 +52,19 @@ DBoptlist* optlist_clone(DBoptlist* optlist);
 // Frees memory associated with a metadata-related SILO options list.
 void optlist_free(DBoptlist* optlist);
 
-// Writes metadata identifying a subdomain of a global polymesh of the given 
-// type to the given SILO file. This is used for objects that appear on more 
+// Writes metadata identifying a subdomain of a global polymesh of the given
+// type to the given SILO file. This is used for objects that appear on more
 // than 1 process via domain decomposition.
 void silo_file_add_subdomain_mesh(silo_file_t* file,
-                                  const char* mesh_name, 
+                                  const char* mesh_name,
                                   int silo_mesh_type,
                                   DBoptlist* optlist);
 
-// Writes metadata identifying a subdomain of a global field of the given 
-// type to the given SILO file. This is used for objects that appear on more 
+// Writes metadata identifying a subdomain of a global field of the given
+// type to the given SILO file. This is used for objects that appear on more
 // than 1 process via domain decomposition.
 void silo_file_add_subdomain_field(silo_file_t* file,
-                                   const char* mesh_name, 
+                                   const char* mesh_name,
                                    const char* field_name,
                                    int silo_var_type,
                                    DBoptlist* optlist);
@@ -78,15 +78,15 @@ void silo_file_push_domain_dir(silo_file_t* file);
 // This pops the last directory off the silo file's directory stack.
 void silo_file_pop_dir(silo_file_t* file);
 
-// This provides access to a "scratch space" in memory that allows named 
-// temporary data to be stored and passed between methods. 
+// This provides access to a "scratch space" in memory that allows named
+// temporary data to be stored and passed between methods.
 string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
 // Writes field metadata to a file.
 void silo_file_write_field_metadata(silo_file_t* file,
                                     const char* md_name,
                                     field_metadata_t* md);
-// Reads field metadata from a file. 
+// Reads field metadata from a file.
 void silo_file_read_field_metadata(silo_file_t* file,
                                    const char* md_name,
                                    field_metadata_t* md);
@@ -100,7 +100,7 @@ bool silo_file_contains_field_metadata(silo_file_t* file,
 //-------------------------------------------------------------------------
 
 // SILO Compression -- global parameter. Disabled by default.
-static int _silo_compression_level = -1; 
+static int _silo_compression_level = -1;
 static bool _silo_compression_level_changed = false;
 
 static void silo_atexit(void)
@@ -126,7 +126,7 @@ void silo_enable_compression(int level)
   ASSERT(level <= 9);
   if (level != _silo_compression_level)
   {
-    _silo_compression_level = level; 
+    _silo_compression_level = level;
     _silo_compression_level_changed = true;
   }
 }
@@ -213,15 +213,15 @@ static void* pmpio_create_file(const char* filename,
   return (void*)file;
 }
 
-static void* pmpio_open_file(const char* filename, 
+static void* pmpio_open_file(const char* filename,
                              const char* dir_name,
-                             PMPIO_iomode_t iomode, 
+                             PMPIO_iomode_t iomode,
                              void* user_data)
 {
   int driver = DB_HDF5;
   DBfile* file;
   if (iomode == PMPIO_WRITE)
-  { 
+  {
     FILE* f = fopen(filename, "r");
     if (f == NULL)
       file = DBCreate(filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
@@ -251,8 +251,8 @@ typedef struct
   DBoptlist* optlist;
 } subdomain_mesh_t;
 
-static subdomain_mesh_t* subdomain_mesh_new(const char* mesh_name, 
-                                            int mesh_type, 
+static subdomain_mesh_t* subdomain_mesh_new(const char* mesh_name,
+                                            int mesh_type,
                                             DBoptlist* optlist)
 {
   subdomain_mesh_t* mesh = polymec_malloc(sizeof(subdomain_mesh_t));
@@ -337,12 +337,12 @@ bool silo_file_query(const char* file_prefix,
       while (node != NULL)
       {
         char path[FILENAME_MAX+1];
-        snprintf(path, FILENAME_MAX, "%s", file_prefix); 
+        snprintf(path, FILENAME_MAX, "%s", file_prefix);
         if (strstr(node->value, path) && strstr(node->value, "silo"))
         {
           strncpy(data_file, node->value, FILENAME_MAX);
           snprintf(data_file, FILENAME_MAX, "%s/%s", directory, node->value);
-          snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
+          snprintf(path, FILENAME_MAX, "%s-", file_prefix);
           if (strstr(node->value, path))
             found_steps = true;
           break;
@@ -367,7 +367,7 @@ bool silo_file_query(const char* file_prefix,
     if (is_master)
     {
       // How many MPI processes were used to construct the data set?
-      DBtoc* toc = DBGetToc(file); 
+      DBtoc* toc = DBGetToc(file);
       int my_num_mpi_procs = -1;
       for (int f = 0; f < toc->nmultimesh; ++f)
       {
@@ -416,7 +416,7 @@ bool silo_file_query(const char* file_prefix,
       while (node != NULL)
       {
         char path[FILENAME_MAX+1];
-        snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
+        snprintf(path, FILENAME_MAX, "%s-", file_prefix);
         char* p1 = strstr(node->value, path);
         char* p2 = strstr(node->value, ".silo");
         if ((p1 != NULL) && (p2 != NULL))
@@ -474,7 +474,7 @@ bool silo_file_query(const char* file_prefix,
   return true;
 }
 
-struct silo_file_t 
+struct silo_file_t
 {
   // File data.
   DBfile* dbfile;
@@ -483,7 +483,7 @@ struct silo_file_t
   char prefix[FILENAME_MAX+1], directory[FILENAME_MAX+1], filename[FILENAME_MAX+1];
   int step;
   real_t time;
-  int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
+  int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)?
   string_ptr_unordered_map_t* expressions;
 
   // Directory stack.
@@ -534,7 +534,7 @@ static void write_expressions_to_file(silo_file_t* file, DBfile* dbfile)
       ++k;
     }
     DBPutDefvars(dbfile, "expressions", file->expressions->size,
-                 (const char* const*)names, (const int*)types, 
+                 (const char* const*)names, (const int*)types,
                  (const char* const*)defs, NULL);
   }
 }
@@ -553,7 +553,7 @@ static void write_provenance_to_file(silo_file_t* file)
   DBWrite(file->dbfile, "provenance_string", provenance_str, &provenance_len, 1, DB_CHAR);
   silo_file_pop_dir(file);
 
-  // Note we have to use free here instead of string_free or polymec_free, 
+  // Note we have to use free here instead of string_free or polymec_free,
   // since open_memstream uses vanilla malloc and realloc.
   free(provenance_str);
 }
@@ -597,7 +597,7 @@ static void write_subdomains_to_file(silo_file_t* file)
     }
 
     // Write the point mesh and variable data.
-    DBPutMultimesh(file->dbfile, mesh->name, num_chunks, 
+    DBPutMultimesh(file->dbfile, mesh->name, num_chunks,
                    (char const* const*)mesh_names, mesh_types, optlist);
 
     // Clean up.
@@ -624,8 +624,8 @@ static void write_subdomains_to_file(silo_file_t* file)
     }
 
     // Write the field data.
-    DBPutMultivar(file->dbfile, field->name, num_chunks, 
-                  (char const* const*)field_names, field_types, field->optlist); 
+    DBPutMultivar(file->dbfile, field->name, num_chunks,
+                  (char const* const*)field_names, field_types, field->optlist);
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
@@ -641,7 +641,7 @@ static void write_master_file(silo_file_t* file)
 
   START_FUNCTION_TIMER();
 
-  // FIXME: Should change this to use Silo's name schemes for multi-block 
+  // FIXME: Should change this to use Silo's name schemes for multi-block
   // FIXME: objects when we start to Get Real Parallel.
 
   char master_file_name[FILENAME_MAX+1];
@@ -649,8 +649,8 @@ static void write_master_file(silo_file_t* file)
     snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
     snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->step);
-  PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm, 
-                                    file->mpi_tag+1, pmpio_create_file, 
+  PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm,
+                                    file->mpi_tag+1, pmpio_create_file,
                                     pmpio_open_file, pmpio_close_file, NULL);
   log_debug("write_master_file: Waiting for baton...");
   DBfile* master = (DBfile*)PMPIO_WaitForBaton(baton, master_file_name, "/");
@@ -696,8 +696,8 @@ static void write_master_file(silo_file_t* file)
     }
 
     // Write the subdomain_mesh.
-    int stat = DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, 
-                              (char const* const*)mesh_names, mesh_types, 
+    int stat = DBPutMultimesh(master, mesh->name, file->num_files*num_chunks,
+                              (char const* const*)mesh_names, mesh_types,
                               optlist);
     if (stat == -1)
       polymec_error("Error writing multi-mesh to Silo master file %s.", master_file_name);
@@ -730,7 +730,7 @@ static void write_master_file(silo_file_t* file)
     }
 
     // Write the subdomain_fieldiable data.
-    DBPutMultivar(master, field->name, num_files*num_chunks, 
+    DBPutMultivar(master, field->name, num_files*num_chunks,
                   (char const* const *)field_names, field_types, optlist);
 
     // Clean up.
@@ -800,7 +800,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   if (file->nproc > 1)
   {
-    // We put the entire data set into a directory named after the 
+    // We put the entire data set into a directory named after the
     // prefix, and every process gets its own subdirectory therein.
 
     // Create the master directory if we need to.
@@ -820,8 +820,8 @@ silo_file_t* silo_file_new(MPI_Comm comm,
       MPI_Barrier(file->comm);
 
     // Initialize poor man's I/O and figure out group ranks.
-    file->baton = PMPIO_Init(file->num_files, PMPIO_WRITE, file->comm, file->mpi_tag, 
-                             pmpio_create_file, pmpio_open_file, 
+    file->baton = PMPIO_Init(file->num_files, PMPIO_WRITE, file->comm, file->mpi_tag,
+                             pmpio_create_file, pmpio_open_file,
                              pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
     file->rank_in_group = PMPIO_RankInGroup(file->baton, file->rank);
@@ -961,7 +961,7 @@ static void show_provenance_on_debug_log(silo_file_t* file)
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
-                            int step, 
+                            int step,
                             real_t* time)
 {
   START_FUNCTION_TIMER();
@@ -982,7 +982,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   file->dirs = NULL;
 #if POLYMEC_HAVE_MPI
   file->mpi_tag = SILO_FILE_MPI_TAG;
-  MPI_Comm_size(file->comm, &nproc); 
+  MPI_Comm_size(file->comm, &nproc);
 #endif
 
   // Provide a default for the directory for querying.
@@ -1009,7 +1009,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
   log_debug("silo_file_open: Found file written by %d MPI processes.", num_mpi_procs);
 
-  // For now, we only support reading files that were written with the same 
+  // For now, we only support reading files that were written with the same
   // number of processes.
   if (nproc != num_mpi_procs)
   {
@@ -1019,7 +1019,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     return NULL;
   }
 
-  // Check to see whether the requested step is available, or whether the 
+  // Check to see whether the requested step is available, or whether the
   // latest one is requested (with -1).
   if (step >= 0)
   {
@@ -1048,9 +1048,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   int_slist_free(steps);
 
 #if POLYMEC_HAVE_MPI
-  // The way these things are defined for a file has to do with how the 
+  // The way these things are defined for a file has to do with how the
   // file was generated, not how we are currently running.
-  MPI_Comm_rank(file->comm, &file->rank); 
+  MPI_Comm_rank(file->comm, &file->rank);
   file->num_files = num_files; // number of files in the data set.
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
 
@@ -1076,7 +1076,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     // Initialize poor man's I/O and figure out group ranks.
     MPI_Barrier(file->comm);
-    file->baton = PMPIO_Init(file->num_files, PMPIO_READ, file->comm, file->mpi_tag, 
+    file->baton = PMPIO_Init(file->num_files, PMPIO_READ, file->comm, file->mpi_tag,
                              pmpio_create_file, pmpio_open_file, pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
     file->rank_in_group = PMPIO_RankInGroup(file->baton, file->rank);
@@ -1269,7 +1269,7 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
   // Write the compound array.
   if (elem_names->size > 0)
   {
-    DBPutCompoundarray(file->dbfile, tag_list_name, 
+    DBPutCompoundarray(file->dbfile, tag_list_name,
                        (char const* const*)elem_names->data, elem_lengths->data,
                        (int)elem_names->size, tag_data->data, (int)tag_data->size, DB_INT, 0);
   }
@@ -1430,7 +1430,7 @@ void silo_file_write_polymesh(silo_file_t* file,
 
   // Write out the 3D polyhedral mesh.
   int num_cells = mesh->num_cells;
-  int result = DBPutUcdmesh(file->dbfile, (char*)mesh_name, 3, 
+  int result = DBPutUcdmesh(file->dbfile, (char*)mesh_name, 3,
                             (char const* const*)coordnames, coords,
                             num_nodes, num_cells, 0, 0, SILO_FLOAT_TYPE, optlist);
   if (result == -1)
@@ -1497,7 +1497,7 @@ void silo_file_write_polymesh(silo_file_t* file,
     silo_file_write_tags(file, mesh->cell_tags, tag_name);
   }
 
-  // Write out exchanger information. 
+  // Write out exchanger information.
   {
     char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_cell_exchanger", mesh_name);
@@ -1516,7 +1516,7 @@ void silo_file_write_polymesh(silo_file_t* file,
   DBWrite(file->dbfile, num_faces_var, &mesh->num_faces, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_edges_var, &mesh->num_edges, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_nodes_var, &mesh->num_nodes, &one, 1, DB_INT);
-  
+
   // Clean up.
   DBFreeOptlist(optlist);
 
@@ -1531,7 +1531,7 @@ void silo_file_write_polymesh(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-extern void polymesh_set_exchanger(polymesh_t* mesh, 
+extern void polymesh_set_exchanger(polymesh_t* mesh,
                                    polymesh_centering_t centering,
                                    exchanger_t* exchanger);
 polymesh_t* silo_file_read_polymesh(silo_file_t* file,
@@ -1574,7 +1574,7 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
 #else
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
-  polymesh_t* mesh = polymesh_new(comm, num_cells, num_ghost_cells, 
+  polymesh_t* mesh = polymesh_new(comm, num_cells, num_ghost_cells,
                                   num_faces, num_nodes);
 
   // Set node positions.
@@ -1650,7 +1650,7 @@ bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name)
 {
   bool result = false;
   silo_file_push_domain_dir(file);
-  result = (DBInqVarExists(file->dbfile, mesh_name) && 
+  result = (DBInqVarExists(file->dbfile, mesh_name) &&
             (DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH));
   silo_file_pop_dir(file);
   return result;
@@ -1738,7 +1738,7 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   {
     for (int i = 0; i < num_elems; ++i)
       comp_data[i] = field_data[i][c];
-    silo_file_write_polymesh_field_comp(file, field_name, mesh_name, c, 
+    silo_file_write_polymesh_field_comp(file, field_name, mesh_name, c,
                                         field->centering, comp_data, md);
   }
   polymec_free(comp_data);
@@ -1840,8 +1840,8 @@ void silo_file_read_polymesh_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-bool silo_file_contains_polymesh_field(silo_file_t* file, 
-                                       const char* field_name, 
+bool silo_file_contains_polymesh_field(silo_file_t* file,
+                                       const char* field_name,
                                        const char* mesh_name,
                                        polymesh_centering_t centering)
 {
@@ -1886,7 +1886,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
   coords[2] = &(z[0]);
 
   // Write out the point mesh.
-  DBPutPointmesh(file->dbfile, (char*)cloud_name, 3, coords, (int)num_points, SILO_FLOAT_TYPE, NULL); 
+  DBPutPointmesh(file->dbfile, (char*)cloud_name, 3, coords, (int)num_points, SILO_FLOAT_TYPE, NULL);
   polymec_free(x);
   polymec_free(y);
   polymec_free(z);
@@ -1896,7 +1896,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   int one = 1;
   DBWrite(file->dbfile, num_points_var, &num_points, &one, 1, DB_INT);
-  
+
   // Write out tag information.
   {
     char tag_name[FILENAME_MAX+1];
@@ -1969,7 +1969,7 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
   return cloud;
 }
 
-void silo_file_write_planar_polymesh(silo_file_t* file, 
+void silo_file_write_planar_polymesh(silo_file_t* file,
                                      const char* mesh_name,
                                      planar_polymesh_t* mesh)
 {
@@ -2029,7 +2029,7 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
           cell_nodes[l] = mesh->edge_nodes[2*edge];
       }
     }
-    DBPutZonelist2(file->dbfile, zonelist_name, mesh->num_cells, 2, 
+    DBPutZonelist2(file->dbfile, zonelist_name, mesh->num_cells, 2,
                    cell_nodes, total_num_cell_nodes, 0, 0, 0,
                    shapes, num_cell_edges, ones, mesh->num_cells, NULL);
   }
@@ -2038,13 +2038,13 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   int num_edge_nodes = 2;
   char facelist_name[FILENAME_MAX+1];
   snprintf(facelist_name, FILENAME_MAX, "%s_facelist", mesh_name);
-  DBPutFacelist(file->dbfile, facelist_name, mesh->num_edges, 2, mesh->edge_nodes, 
-                2*mesh->num_edges, 0, NULL, &num_edge_nodes, &(mesh->num_edges), 1, 
+  DBPutFacelist(file->dbfile, facelist_name, mesh->num_edges, 2, mesh->edge_nodes,
+                2*mesh->num_edges, 0, NULL, &num_edge_nodes, &(mesh->num_edges), 1,
                 NULL, NULL, 0);
 
   // Write out the (2D) planar poly(gonal) mesh.
   int num_cells = mesh->num_cells;
-  int result = DBPutUcdmesh(file->dbfile, (char*)mesh_name, 2, 
+  int result = DBPutUcdmesh(file->dbfile, (char*)mesh_name, 2,
                             (char const* const*)coordnames, coords,
                             num_nodes, num_cells, zonelist_name, facelist_name, SILO_FLOAT_TYPE, optlist);
   if (result == -1)
@@ -2081,7 +2081,7 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   }
 
   // Write out the number of mesh cells/faces/nodes/edges to special variables.
-  char num_cells_var[FILENAME_MAX+1], num_edges_var[FILENAME_MAX+1], 
+  char num_cells_var[FILENAME_MAX+1], num_edges_var[FILENAME_MAX+1],
        num_nodes_var[FILENAME_MAX+1];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
   snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
@@ -2090,7 +2090,7 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   DBWrite(file->dbfile, num_cells_var, &mesh->num_cells, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_edges_var, &mesh->num_edges, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_nodes_var, &mesh->num_nodes, &one, 1, DB_INT);
-  
+
   // Clean up.
   DBFreeOptlist(optlist);
 
@@ -2099,7 +2099,7 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file, 
+planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
                                                   const char* mesh_name)
 {
   START_FUNCTION_TIMER();
@@ -2194,12 +2194,12 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
   return mesh;
 }
 
-bool silo_file_contains_planar_polymesh(silo_file_t* file, 
+bool silo_file_contains_planar_polymesh(silo_file_t* file,
                                         const char* mesh_name)
 {
   bool result = false;
   silo_file_push_domain_dir(file);
-  result = (DBInqVarExists(file->dbfile, mesh_name) && 
+  result = (DBInqVarExists(file->dbfile, mesh_name) &&
             (DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH));
   silo_file_pop_dir(file);
   return result;
@@ -2209,7 +2209,7 @@ bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name)
 {
   bool result = false;
   silo_file_push_domain_dir(file);
-  result = (DBInqVarExists(file->dbfile, cloud_name) && 
+  result = (DBInqVarExists(file->dbfile, cloud_name) &&
             (DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH));
   silo_file_pop_dir(file);
   return result;
@@ -2254,7 +2254,7 @@ static void silo_file_write_point_field_comp(silo_file_t* file,
 static bool silo_file_read_point_field_comp(silo_file_t* file,
                                             const char* field_name,
                                             const char* cloud_name,
-                                            int component, 
+                                            int component,
                                             real_t* field_data)
 {
   START_FUNCTION_TIMER();
@@ -2267,7 +2267,7 @@ static bool silo_file_read_point_field_comp(silo_file_t* file,
   DBmeshvar* var = DBGetPointvar(file->dbfile, var_name);
   if (var == NULL)
   {
-    log_urgent("Component %d of field '%s' was not found in the Silo file.", 
+    log_urgent("Component %d of field '%s' was not found in the Silo file.",
                component, field_name);
     silo_file_pop_dir(file);
     STOP_FUNCTION_TIMER();
@@ -2308,7 +2308,7 @@ void silo_file_write_point_field(silo_file_t* file,
   DECLARE_POINT_CLOUD_FIELD_ARRAY(field_data, field);
   for (int c = 0; c < field->num_components; ++c)
   {
-    silo_file_write_point_field_comp(file, field_name, cloud_name, c, 
+    silo_file_write_point_field_comp(file, field_name, cloud_name, c,
                                      (real_t*)(field_data[c]), md);
   }
   STOP_FUNCTION_TIMER();
@@ -2346,8 +2346,8 @@ void silo_file_read_point_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-bool silo_file_contains_point_field(silo_file_t* file, 
-                                    const char* field_name, 
+bool silo_file_contains_point_field(silo_file_t* file,
+                                    const char* field_name,
                                     const char* cloud_name)
 {
   bool result = false;
@@ -2579,7 +2579,7 @@ DBfile* silo_file_dbfile(silo_file_t* file)
 }
 
 void silo_file_add_subdomain_mesh(silo_file_t* file,
-                                  const char* mesh_name, 
+                                  const char* mesh_name,
                                   int silo_mesh_type,
                                   DBoptlist* optlist)
 {
@@ -2595,7 +2595,7 @@ void silo_file_add_subdomain_mesh(silo_file_t* file,
 }
 
 void silo_file_add_subdomain_field(silo_file_t* file,
-                                   const char* mesh_name, 
+                                   const char* mesh_name,
                                    const char* field_name,
                                    int silo_var_type,
                                    DBoptlist* optlist)
@@ -2722,7 +2722,7 @@ stencil_t* silo_file_read_stencil(silo_file_t* file,
   return s;
 }
 
-bool silo_file_contains_neighbor_pairing(silo_file_t* file, 
+bool silo_file_contains_neighbor_pairing(silo_file_t* file,
                                          const char* neighbors_name)
 {
   char name[FILENAME_MAX+1];
@@ -2790,7 +2790,7 @@ void silo_file_write_field_metadata(silo_file_t* file,
 
   int pos = 0, comp, num_vectors = 0;
   ++md_size;
-  while (field_metadata_next_vector(md, &pos, &comp)) 
+  while (field_metadata_next_vector(md, &pos, &comp))
   {
     ++num_vectors;
     ++md_size;
@@ -2799,7 +2799,7 @@ void silo_file_write_field_metadata(silo_file_t* file,
   int num_tensor2s = 0;
   pos = 0;
   ++md_size;
-  while (field_metadata_next_tensor2(md, &pos, &comp)) 
+  while (field_metadata_next_tensor2(md, &pos, &comp))
   {
     ++num_tensor2s;
     ++md_size;
@@ -2808,7 +2808,7 @@ void silo_file_write_field_metadata(silo_file_t* file,
   int num_symtensor2s = 0;
   pos = 0;
   ++md_size;
-  while (field_metadata_next_symtensor2(md, &pos, &comp)) 
+  while (field_metadata_next_symtensor2(md, &pos, &comp))
   {
     ++num_symtensor2s;
     ++md_size;
@@ -2822,13 +2822,13 @@ void silo_file_write_field_metadata(silo_file_t* file,
   {
     const char* name = field_metadata_name(md, c);
     int name_size = (int)((name != NULL) ? strlen(name) : 0);
-    mda[offset++] = name_size; 
+    mda[offset++] = name_size;
     for (int cc = 0; cc < name_size; ++cc, ++offset)
       mda[offset] = (int)(name[cc]);
 
     const char* units = field_metadata_units(md, c);
     int units_size = (int)((units != NULL) ? strlen(units) : 0);
-    mda[offset++] = units_size; 
+    mda[offset++] = units_size;
     for (int cc = 0; cc < units_size; ++cc, ++offset)
       mda[offset] = (int)(units[cc]);
 
@@ -2867,7 +2867,7 @@ void silo_file_read_field_metadata(silo_file_t* file,
     if (num_comps != field_metadata_num_components(md))
     {
       polymec_free(mda);
-      polymec_error("silo_file_read_field_metadata: Inconsistent metadata size: %d components read, %d expected", 
+      polymec_error("silo_file_read_field_metadata: Inconsistent metadata size: %d components read, %d expected",
                     num_comps, field_metadata_num_components(md));
     }
     int offset = 1;

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -161,8 +161,8 @@ static int m_new(lua_State* L)
   int num_args = lua_gettop(L);
   if ((num_args != 1) || !lua_istable(L, 1))
     return luaL_error(L, "Argument must be a table with keys for its name and methods.");
-  
-  // Create a table at the top of the stack. This will be the context for 
+
+  // Create a table at the top of the stack. This will be the context for
   // the methods.
   lua_newtable(L);
   int obj_index = num_args + 1;
@@ -225,7 +225,7 @@ static int m_new(lua_State* L)
       }
     }
   }
-  
+
   // What are we missing?
   if (vtable.init == NULL)
     luaL_error(L, "init method must be provided.");
@@ -236,7 +236,7 @@ static int m_new(lua_State* L)
   lua_model_t* lm = polymec_malloc(sizeof(lua_model_t));
   lm->L = L;
 
-  // Store the table representing our object in the registry, with 
+  // Store the table representing our object in the registry, with
   // context as a key.
   lua_rawsetp(L, LUA_REGISTRYINDEX, lm);
 
@@ -463,7 +463,7 @@ static int m_run(lua_State* L)
     real_t plot = lua_to_real(L, -1);
     if (plot <= 0.0)
       return luaL_error(L, "plot_every must be positive.");
-    model_plot_every(m, plot); 
+    model_plot_every(m, plot);
   }
   else if (!lua_isnil(L, -1))
     return luaL_error(L, "plot_every must be a simulation time interval.");
@@ -627,7 +627,7 @@ static int lua_push_probe_data(lua_State* L, probe_data_t* data)
               }
               else
               {
-                lua_newtable(L); 
+                lua_newtable(L);
                 for (size_t l = 1; l <= data->shape[3]; ++l)
                 {
                   // rank == 4
@@ -745,7 +745,7 @@ static lua_class_method model_methods[] = {
   {NULL, NULL, NULL}
 };
 
-typedef struct 
+typedef struct
 {
   lua_State* L;
 } lua_probe_t;
@@ -775,7 +775,7 @@ static void table_to_probe_data(lua_State* L, int index, probe_data_t* data)
         else
           luaL_error(L, "probe:acquire: data[%d] is not a number.", (int)i);
       }
-      else 
+      else
       {
         for (size_t j = 1; j <= data->shape[1]; ++j)
         {
@@ -859,7 +859,7 @@ static void lp_dtor(void* context)
   lua_pushnil(p->L);
   lua_settable(p->L, LUA_REGISTRYINDEX);
 
-  // Kill. 
+  // Kill.
   polymec_free(p);
 }
 
@@ -965,7 +965,7 @@ static void lua_on_acquire(void* context, real_t t, probe_data_t* data)
   lua_pushlightuserdata(func->L, func);
   lua_gettable(func->L, LUA_REGISTRYINDEX);
   ASSERT(lua_isfunction(func->L, -1));
-  
+
   // Push the time and probe data onto the stack.
   lua_push_real(func->L, t);
   lua_push_probe_data(func->L, data);
@@ -1013,7 +1013,7 @@ static int p_stream_on_acquire(lua_State* L)
 
   int port = -1;
   lua_getfield(L, 2, "port");
-  if (!lua_isnil(L, -1)) 
+  if (!lua_isnil(L, -1))
   {
     if (!lua_isinteger(L, -1))
       return luaL_error(L, "If given, port must be a positive integer.");
