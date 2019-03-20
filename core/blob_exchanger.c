@@ -43,7 +43,7 @@ void blob_buffer_free(blob_buffer_t* buffer)
 struct blob_exchanger_t
 {
   MPI_Comm comm;
-  int rank;
+  int rank, nproc;
 
   // Mapping from processes to indices for blobs sent.
   blob_exchanger_proc_map_t* send_map;
@@ -171,8 +171,9 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
                                      blob_exchanger_proc_map_t* receive_map,
                                      blob_exchanger_size_map_t* blob_size_map)
 {
-  int rank;
+  int rank, nproc;
   MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nproc);
 
   // Validate the maps against one another. There must be a blob size for every
   // index found in the send and receive maps.
@@ -186,6 +187,8 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
     {
       int index = indices->data[i];
       ASSERT(blob_exchanger_size_map_contains(blob_size_map, index));
+      ASSERT(proc >= 0);
+      ASSERT(proc < nproc);
       if (proc == rank)
         local_bytes_sent += *blob_exchanger_size_map_get(blob_size_map, index);
     }
@@ -212,6 +215,7 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
                                                    blob_exchanger_free);
   ex->comm = comm;
   ex->rank = rank;
+  ex->nproc = nproc;
   ex->send_map = send_map;
   ex->recv_map = receive_map;
   ex->blob_sizes = blob_size_map;
@@ -608,6 +612,7 @@ bool blob_exchanger_finish_exchange(blob_exchanger_t* ex, int token)
 
   // Retrieve the message for the given token.
   blob_buffer_t* buffer = ex->pending_msgs->data[token];
+  ASSERT(buffer != NULL);
   blob_exchanger_waitall(ex, buffer);
 
   // Pull the buffer out of our list of pending messages.
@@ -714,15 +719,13 @@ bool blob_exchanger_is_valid(blob_exchanger_t* ex, char** reason)
 
   // First question: do our neighbors agree with us about being our
   // neighbors?
-  int nproc;
-  MPI_Comm_size(ex->comm, &nproc);
 
   // Tally up the number of indices we're sending to and receiving from
   // every other process in the communicator.
   int pos = 0, proc;
   int_array_t* indices;
-  int my_neighbors[2*nproc];
-  memset(my_neighbors, 0, 2 * sizeof(int) * nproc);
+  int my_neighbors[2*ex->nproc];
+  memset(my_neighbors, 0, 2 * sizeof(int) * ex->nproc);
   while (blob_exchanger_proc_map_next(ex->send_map, &pos, &proc, &indices))
     my_neighbors[2*proc] += (int)indices->size;
   pos = 0;
@@ -731,14 +734,14 @@ bool blob_exchanger_is_valid(blob_exchanger_t* ex, char** reason)
 
   // Do an all-to-all exchange to get everyone's votes on who is whose
   // neighbor.
-  int* neighbors_for_proc = polymec_malloc(sizeof(int)*2*nproc*nproc);
-  MPI_Allgather(my_neighbors, 2*nproc, MPI_INT,
-                neighbors_for_proc, 2*nproc, MPI_INT, ex->comm);
+  int* neighbors_for_proc = polymec_malloc(sizeof(int)*2*ex->nproc*ex->nproc);
+  MPI_Allgather(my_neighbors, 2*ex->nproc, MPI_INT,
+                neighbors_for_proc, 2*ex->nproc, MPI_INT, ex->comm);
 
-  for (int p = 0; p < nproc; ++p)
+  for (int p = 0; p < ex->nproc; ++p)
   {
     int num_im_sending = my_neighbors[2*p];
-    int num_theyre_receiving = neighbors_for_proc[2*(p*nproc+ex->rank)+1];
+    int num_theyre_receiving = neighbors_for_proc[2*(p*ex->nproc+ex->rank)+1];
     if (num_im_sending != num_theyre_receiving)
     {
       polymec_free(neighbors_for_proc);
@@ -752,7 +755,7 @@ bool blob_exchanger_is_valid(blob_exchanger_t* ex, char** reason)
     }
 
     int num_im_receiving = my_neighbors[2*p+1];
-    int num_theyre_sending = neighbors_for_proc[2*(p*nproc+ex->rank)];
+    int num_theyre_sending = neighbors_for_proc[2*(p*ex->nproc+ex->rank)];
     if (num_im_receiving != num_theyre_sending)
     {
       polymec_free(neighbors_for_proc);

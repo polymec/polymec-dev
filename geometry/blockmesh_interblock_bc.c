@@ -18,10 +18,6 @@
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
-// This returns the integer token for the current send/receive transaction
-// in a block.
-extern int unimesh_boundary_update_token(unimesh_t* mesh);
-
 // Maps the given boundary for the patch at (i, j, k) in the given block
 // within the given mesh to a flat index.
 static inline int boundary_index(blockmesh_t* mesh,
@@ -91,6 +87,10 @@ struct blockmesh_interblock_bc_t
 
   // Mapping of exchange tokens to buffers (segregated by centering).
   blob_buffer_map_t* ex_buffers[8];
+
+  // This is a token bank mapping unimesh tokens to blockmesh tokens.
+  // In a perfect world, we wouldn't need this.
+  int_int_unordered_map_t* ex_tokens[8];
 };
 
 static void ibc_start_update(void* context, unimesh_t* block,
@@ -236,11 +236,8 @@ static void ibc_finished_starting_boundary_updates(void* context,
 
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   int token1 = blob_exchanger_start_exchange(ibc->ex[c], token, buffer);
-  if (token1 != token)
-  {
-    polymec_error("Block boundary exchange token mismatch: are you doing "
-                  "unimesh field exchanges on an individual mesh block?");
-  }
+printf("Starting (%d, %d)\n", token, token1);
+  int_int_unordered_map_insert(ibc->ex_tokens[c], token, token1);
 }
 
 // This observer method is called right before a intermesh boundary update is
@@ -255,17 +252,17 @@ static void ibc_about_to_finish_boundary_updates(void* context,
   blockmesh_interblock_bc_t* ibc = context;
   int c = (int)centering;
 
-  // Finish the exchange.
-  bool finished = blob_exchanger_finish_exchange(ibc->ex[c], token);
-
-  // If this token isn't valid, someone has performed an exchange on a block in
-  // this mesh.
-  if (!finished)
+  // Fetch the token and finish the exchange.
+  int* token1_p = int_int_unordered_map_get(ibc->ex_tokens[c], token);
+  if (token1_p == NULL)
   {
     polymec_error("Block boundary exchange failed with invalid token. "
                   "Are you calling unimesh_field_exchange on an individual "
                   "mesh block?");
   }
+  int token1 = *token1_p;
+printf("Finishing (%d, %d)\n", token, token1);
+  blob_exchanger_finish_exchange(ibc->ex[c], token1);
 }
 
 // This helper copies boundary values into a patch from a buffer.
@@ -290,16 +287,20 @@ static void ibc_about_to_finish_boundary_update(void* context,
   // Find our list of connections for this patch boundary.
   int b_index = boundary_index(ibc->mesh, block, i, j, k, boundary);
   cxn_t** cxn_p = cxn_map_get(ibc->cxns, b_index);
-  ASSERT(cxn_p != NULL);
-  cxn_t* cxn = *cxn_p;
-  (void)cxn;
+
+  // If we don't have this connection, there's nothing to do.
+  if (cxn_p == NULL)
+    return;
 
   // Extract the boundary values from the blob buffer.
   int c = (int)patch->centering;
-  size_t boundary_size = blob_exchanger_blob_size(ibc->ex[c], b_index);
+  size_t boundary_size = patch->nc * blob_exchanger_blob_size(ibc->ex[c], b_index);
   char bvalues[boundary_size];
   blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
   blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, bvalues);
+
+  // Destroy the buffer associated with this exchange.
+  int_int_unordered_map_delete(ibc->ex_tokens[c], token);
 
   // Copy the boundary values back into the patch.
   unimesh_patch_copy_bvalues_from_buffer(patch, boundary, bvalues);
@@ -315,6 +316,7 @@ blockmesh_interblock_bc_t* blockmesh_interblock_bc_new(blockmesh_t* mesh)
   bc->mesh = mesh;
   memset(bc->ex, 0, sizeof(blob_exchanger_t*)*8);
   memset(bc->ex_buffers, 0, sizeof(ptr_array_t*)*8);
+  memset(bc->ex_tokens, 0, sizeof(int_int_unordered_map_t*)*8);
   bc->cxns = cxn_map_new();
   bc->block_neighbors = int_array_new();
   return bc;
@@ -330,6 +332,8 @@ void blockmesh_interblock_bc_free(blockmesh_interblock_bc_t* bc)
       release_ref(bc->ex[c]);
     if (bc->ex_buffers[c] != NULL)
       blob_buffer_map_free(bc->ex_buffers[c]);
+    if (bc->ex_tokens[c] != NULL)
+      int_int_unordered_map_free(bc->ex_tokens[c]);
   }
   polymec_free(bc);
 }
@@ -446,15 +450,6 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
   int_array_resize(bc->block_neighbors, 6*blockmesh_num_blocks(bc->mesh));
   for (size_t i = 0; i < bc->block_neighbors->size; ++i)
     bc->block_neighbors->data[i] = -1;
-
-  // Create the exchanger for our connections for each of our centerings,
-  // plus a list of buffers.
-  for (int c = 0; c < 8; ++c)
-  {
-    unimesh_centering_t centering = (unimesh_centering_t)c;
-    bc->ex[c] = interblock_exchanger_new(bc->mesh, bc->cxns, centering);
-    bc->ex_buffers[c] = blob_buffer_map_new();
-  }
 
   // Traverse all the connections for this BC and create
   // unimesh_patch_bc objects for each block.
@@ -620,6 +615,17 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
       cxn->proc2 = rank;
     }
   }
+
+  // Create the exchanger for our connections for each of our centerings,
+  // plus a list of buffers.
+  for (int c = 0; c < 8; ++c)
+  {
+    unimesh_centering_t centering = (unimesh_centering_t)c;
+    bc->ex[c] = interblock_exchanger_new(bc->mesh, bc->cxns, centering);
+    bc->ex_buffers[c] = blob_buffer_map_new();
+    bc->ex_tokens[c] = int_int_unordered_map_new();
+  }
+
 }
 
 // This non-public function is used by the blockmesh class to answer queries
