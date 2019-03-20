@@ -528,7 +528,7 @@ bool adj_graph_is_valid(adj_graph_t* graph, char** reason)
       if (int_lsearch(edges2, ne2, v1) == NULL)
       {
         snprintf(_reason, 1024, "Vertex %d has an edge to vertex %d, but "
-                 "%d does not have a reciprocal edge.", v1, v2, v2);
+                 "%d has no reciprocal edge.", v1, v2, v2);
         if (reason != NULL)
           *reason = _reason;
         return false;

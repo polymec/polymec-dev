@@ -202,8 +202,8 @@ static void handle_silo_error(char* message)
 static void set_up_logging()
 {
   options_t* opts = options_argv();
-  char* logging = options_value(opts, "logging");
-  char* logging_mode = options_value(opts, "logging_mode");
+  char* logging = options_value(opts, "log");
+  char* logging_mode = options_value(opts, "log_mode");
   char* log_file = options_value(opts, "log_file");
   if (logging != NULL)
   {
