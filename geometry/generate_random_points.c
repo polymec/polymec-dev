@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,8 +25,8 @@ void generate_random_points(rng_t* rng, sp_func_t* density, bbox_t* bounding_box
       // Generate a random point within the bounding box.
       point_randomize(&points[i], rng, bounding_box);
 
-      // Now evaluate the density at this point and reject the point if 
-      // if the relative density is less than a random number between 0 
+      // Now evaluate the density at this point and reject the point if
+      // if the relative density is less than a random number between 0
       // and 1.
       real_t rho;
       sp_func_eval(density, &points[i], &rho);

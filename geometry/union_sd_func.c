@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -69,7 +69,7 @@ sd_func_t* union_sd_func_new(sd_func_t** surfaces, int num_surfaces)
       snprintf(surf_str, 1024, "%s, ", sd_func_name(surfaces[i]));
     strncat(un_str, surf_str, num_surfaces*1024);
   }
-  sd_func_vtable vtable = {.value = un_value, 
+  sd_func_vtable vtable = {.value = un_value,
                            .eval_grad = un_eval_grad,
                            .dtor = un_free};
   return sd_func_new(un_str, un, vtable);

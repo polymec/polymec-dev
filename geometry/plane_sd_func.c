@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -37,11 +37,11 @@ sd_func_t* plane_sd_func_new(vector_t* n, point_t* x)
 {
   // Set up a plane signed distance function.
   plane_t* p = polymec_malloc(sizeof(plane_t));
-  sd_func_vtable vtable = {.value = plane_value, 
+  sd_func_vtable vtable = {.value = plane_value,
                            .eval_grad = plane_eval_grad,
                            .dtor = polymec_free};
   char plane_str[1024];
-  sprintf(plane_str, "Plane (n = (%g, %g, %g), x = (%g, %g, %g))", 
+  sprintf(plane_str, "Plane (n = (%g, %g, %g), x = (%g, %g, %g))",
           n->x, n->y, n->z, x->x, x->y, x->z);
   sd_func_t* plane = sd_func_new(plane_str, p, vtable);
 

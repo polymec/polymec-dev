@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +10,7 @@
 #include "geometry/plane_sd_func.h"
 #include "geometry/polygon.h"
 
-struct polyhedron_t 
+struct polyhedron_t
 {
   point_t* vertices;
   size_t num_vertices;
@@ -30,7 +30,7 @@ static void polyhedron_free(void* ctx)
 }
 
 polyhedron_t* polyhedron_new(point_t* vertices, size_t num_vertices,
-                             int** faces, size_t* num_face_vertices, 
+                             int** faces, size_t* num_face_vertices,
                              size_t num_faces)
 {
   polyhedron_t* poly = polymec_refcounted_malloc(sizeof(polyhedron_t), polyhedron_free);
@@ -85,32 +85,32 @@ static real_t compute_face_area(polyhedron_t* poly, size_t face_index)
   for (size_t j = 1; j < poly->num_face_vertices[face_index] - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
-    point_displacement(&(poly->face_vertices[face_index][0]), 
+    point_displacement(&(poly->face_vertices[face_index][0]),
                        &(poly->face_vertices[face_index][j]), &A);
-    point_displacement(&(poly->face_vertices[face_index][0]), 
+    point_displacement(&(poly->face_vertices[face_index][0]),
                        &(poly->face_vertices[face_index][j+1]), &B);
     area += 0.5 * vector_cross_mag(&A, &B);
   }
   return area;
 }
 
-static void compute_face_normal(polyhedron_t* poly, 
+static void compute_face_normal(polyhedron_t* poly,
                                 size_t face_index,
                                 vector_t* normal)
 {
   vector_t A, B;
-  point_displacement(&(poly->face_vertices[face_index][0]), 
+  point_displacement(&(poly->face_vertices[face_index][0]),
                      &(poly->face_vertices[face_index][1]), &A);
-  point_displacement(&(poly->face_vertices[face_index][0]), 
+  point_displacement(&(poly->face_vertices[face_index][0]),
                      &(poly->face_vertices[face_index][2]), &B);
   vector_cross(&A, &B, normal);
   ASSERT(vector_mag(normal) > 0.0);
   vector_normalize(normal);
 }
 
-bool polyhedron_next_face(polyhedron_t* poly, 
-                          int* pos, 
-                          point_t** face_vertices, 
+bool polyhedron_next_face(polyhedron_t* poly,
+                          int* pos,
+                          point_t** face_vertices,
                           size_t* num_face_vertices,
                           real_t* face_area,
                           vector_t* face_normal)
@@ -161,7 +161,7 @@ real_t polyhedron_volume(polyhedron_t* poly)
 {
   real_t V = 0.0;
 
-  // Sum up the volumes of the tets whose bases are triangulations 
+  // Sum up the volumes of the tets whose bases are triangulations
   // of our faces, with tips at our centroid.
   point_t xc;
   polyhedron_compute_centroid(poly, &xc);
@@ -169,11 +169,11 @@ real_t polyhedron_volume(polyhedron_t* poly)
   tetrahedron_t* tet = tetrahedron_new();
   for (size_t f = 0; f < poly->num_faces; ++f)
   {
-    // Compute the (3D) centroid of this face. 
+    // Compute the (3D) centroid of this face.
     point_t xf;
     compute_face_centroid(poly, f, &xf);
 
-    // Sum the volumes of the tets formed by this face's vertex and its 
+    // Sum the volumes of the tets formed by this face's vertex and its
     // centroid.
     size_t nv = poly->num_face_vertices[f];
     for (size_t i = 0; i < nv; ++i)

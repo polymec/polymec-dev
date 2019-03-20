@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -615,8 +615,8 @@ static void constant_bc_free(void* context)
   polymec_free(bc);
 }
 
-unimesh_patch_bc_t* constant_unimesh_patch_bc_new(unimesh_t* mesh, 
-                                                  real_t* values, 
+unimesh_patch_bc_t* constant_unimesh_patch_bc_new(unimesh_t* mesh,
+                                                  real_t* values,
                                                   int num_components)
 {
   ASSERT(values != NULL);

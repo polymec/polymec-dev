@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,10 +12,10 @@
 
 #if POLYMEC_HAVE_MPI
 
-// This helper constructs and returns a point cloud from the points with the 
+// This helper constructs and returns a point cloud from the points with the
 // given indices in the given point cloud.
-static point_cloud_t* create_subcloud(MPI_Comm comm, 
-                                      point_cloud_t* cloud, 
+static point_cloud_t* create_subcloud(MPI_Comm comm,
+                                      point_cloud_t* cloud,
                                       int* indices, size_t num_indices)
 {
   START_FUNCTION_TIMER();
@@ -30,7 +30,7 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
 
 #endif
 
-void distribute_point_cloud(point_cloud_t** cloud, 
+void distribute_point_cloud(point_cloud_t** cloud,
                             MPI_Comm comm,
                             int64_t* global_partition,
                             point_cloud_field_t** fields,
@@ -152,7 +152,7 @@ void distribute_point_cloud(point_cloud_t** cloud,
     serializer_t* ser = point_cloud_serializer();
     size_t offset = 0;
     local_cloud = serializer_read(ser, bytes, &offset);
-    
+
     byte_array_free(bytes);
     ser = NULL;
 
@@ -185,9 +185,9 @@ void distribute_point_cloud(point_cloud_t** cloud,
 #endif
 }
 
-bool partition_point_cloud(point_cloud_t** cloud, 
-                           MPI_Comm comm, 
-                           int* weights, 
+bool partition_point_cloud(point_cloud_t** cloud,
+                           MPI_Comm comm,
+                           int* weights,
                            real_t imbalance_tol,
                            point_cloud_field_t** fields,
                            size_t num_fields)
@@ -214,7 +214,7 @@ bool partition_point_cloud(point_cloud_t** cloud,
   if (rank == 0)
   {
     point_cloud_t* cl = *cloud;
-    global_partition = partition_points(cl->points, cl->num_points, comm, 
+    global_partition = partition_points(cl->points, cl->num_points, comm,
                                         weights, imbalance_tol, true);
   }
   else
@@ -243,9 +243,9 @@ bool partition_point_cloud(point_cloud_t** cloud,
 //                     Dynamic repartition code below
 //------------------------------------------------------------------------
 
-#if POLYMEC_HAVE_MPI 
+#if POLYMEC_HAVE_MPI
 
-// Fuse a set of subclouds into a single point cloud. Ghost points are not 
+// Fuse a set of subclouds into a single point cloud. Ghost points are not
 // permitted. Subclouds are consumed.
 static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, size_t num_subclouds)
 {
@@ -276,8 +276,8 @@ static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, size_t num_subcloud
 
 #endif
 
-bool repartition_point_cloud(point_cloud_t** cloud, 
-                             int* weights, 
+bool repartition_point_cloud(point_cloud_t** cloud,
+                             int* weights,
                              real_t imbalance_tol,
                              point_cloud_field_t** fields,
                              size_t num_fields)
@@ -315,7 +315,7 @@ bool repartition_point_cloud(point_cloud_t** cloud,
 #endif
 }
 
-void redistribute_point_cloud(point_cloud_t** cloud, 
+void redistribute_point_cloud(point_cloud_t** cloud,
                               int64_t* local_partition,
                               point_cloud_field_t** fields,
                               size_t num_fields)
@@ -352,7 +352,7 @@ void redistribute_point_cloud(point_cloud_t** cloud,
     for (size_t i = 0; i < indices->size; ++i)
       int_unordered_set_insert(sent_points, indices->data[i]);
 
-    // Create the subcloud to send. 
+    // Create the subcloud to send.
     point_cloud_t* subcloud = create_subcloud(c->comm, c, indices->data, indices->size);
 
     // Serialize the cloud.
@@ -389,14 +389,14 @@ void redistribute_point_cloud(point_cloud_t** cloud,
   {
     receive_buffers[i] = byte_array_new();
     byte_array_resize(receive_buffers[i], receive_buffer_sizes[i]);
-    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, 
+    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE,
               redist->receive_procs->data[i], 0, c->comm, &requests[i]);
   }
 
   // Send the actual clouds and wait for receipt.
   for (size_t i = 0; i < num_sends; ++i)
   {
-    MPI_Isend(send_buffers[i]->data, (int)send_buffers[i]->size, MPI_BYTE, 
+    MPI_Isend(send_buffers[i]->data, (int)send_buffers[i]->size, MPI_BYTE,
               redist->send_procs->data[i], 0, c->comm, &requests[num_receives + i]);
   }
   MPI_Waitall((int)(num_receives + num_sends), requests, statuses);
@@ -410,7 +410,7 @@ void redistribute_point_cloud(point_cloud_t** cloud,
     subclouds[i+1] = serializer_read(ser, receive_buffers[i], &receive_offsets[i]);
   }
 
-  // Clean up the send buffers and the serializer. We still need the 
+  // Clean up the send buffers and the serializer. We still need the
   // receive buffer.
   ser = NULL;
   for (size_t i = 0; i < num_sends; ++i)

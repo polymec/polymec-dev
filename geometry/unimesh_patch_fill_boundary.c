@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -352,11 +352,11 @@ static void fill_z2_node(unimesh_patch_t* patch, real_t* data)
 
 typedef void (*buffer_fill_func)(unimesh_patch_t* patch, real_t* data);
 
-void unimesh_patch_fill_boundary(unimesh_patch_t* patch, 
-                                 unimesh_boundary_t boundary, 
+void unimesh_patch_fill_boundary(unimesh_patch_t* patch,
+                                 unimesh_boundary_t boundary,
                                  real_t* data)
 {
-  static buffer_fill_func fill[8][6] = 
+  static buffer_fill_func fill[8][6] =
   {
     {fill_x1_cell, fill_x2_cell, fill_y1_cell, fill_y2_cell, fill_z1_cell, fill_z2_cell},
     {fill_x1_xface, fill_x2_xface, fill_y1_xface, fill_y2_xface, fill_z1_xface, fill_z2_xface},

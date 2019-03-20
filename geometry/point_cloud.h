@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,9 +19,9 @@
 ///@{
 
 /// \class point_cloud
-/// This data type represents a cloud consisting of points, possibly with 
+/// This data type represents a cloud consisting of points, possibly with
 /// remotely-managed ghost points, and associated properties.
-typedef struct 
+typedef struct
 {
   /// MPI communicator.
   MPI_Comm comm;
@@ -42,12 +42,12 @@ typedef struct
   ptr_array_t* observers;
 } point_cloud_t;
 
-/// Constructs a new point cloud whose point coordinates are all set to the 
+/// Constructs a new point cloud whose point coordinates are all set to the
 /// origin. This cloud has no ghost points.
 /// \memberof point_cloud
 point_cloud_t* point_cloud_new(MPI_Comm comm, size_t num_points);
 
-/// Construct a new point cloud from the set of points with the given 
+/// Construct a new point cloud from the set of points with the given
 /// coordinates. Coordinates are copied, and there are no ghost points.
 /// \memberof point_cloud
 point_cloud_t* point_cloud_from_points(MPI_Comm comm, point_t* coords, int num_points);
@@ -61,13 +61,13 @@ void point_cloud_free(point_cloud_t* cloud);
 /// \memberof point_cloud
 void point_cloud_set_num_ghosts(point_cloud_t* cloud, size_t num_ghosts);
 
-/// Returns a newly-allocated list of indices that will define a tags for 
-/// cells/faces/edges/nodes with the given descriptor. If the tag already 
+/// Returns a newly-allocated list of indices that will define a tags for
+/// cells/faces/edges/nodes with the given descriptor. If the tag already
 /// exists, returns NULL.
 /// \memberof point_cloud
 int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, size_t num_indices);
 
-/// Retrieves the given tag, returning an array of indices if found (and 
+/// Retrieves the given tag, returning an array of indices if found (and
 /// writing the number of tagged elements to num_elements), or NULL if not.
 /// \memberof point_cloud
 int* point_cloud_tag(point_cloud_t* cloud, const char* tag, size_t* num_indices);
@@ -88,29 +88,29 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
 /// \memberof point_cloud
 void point_cloud_fprintf(point_cloud_t* cloud, FILE* stream);
 
-/// Performs an in-place union of this point cloud with another. If tag is not 
-/// NULL, the points from other are added to the tag with the given name (and 
+/// Performs an in-place union of this point cloud with another. If tag is not
+/// NULL, the points from other are added to the tag with the given name (and
 /// the tag is created if it dœes not already exist).
 /// \memberof point_cloud
-void point_cloud_unite(point_cloud_t* cloud, 
+void point_cloud_unite(point_cloud_t* cloud,
                        point_cloud_t* other,
                        const char* tag);
 
-/// Performs an in-place intersection of this point cloud with another, 
-/// removing tags for which there subsequently exist no points. A point in 
-/// cloud is removed if it does not fall within distance_tol of a point in 
+/// Performs an in-place intersection of this point cloud with another,
+/// removing tags for which there subsequently exist no points. A point in
+/// cloud is removed if it does not fall within distance_tol of a point in
 /// other.
 /// \memberof point_cloud
-void point_cloud_intersect(point_cloud_t* cloud, 
+void point_cloud_intersect(point_cloud_t* cloud,
                            point_cloud_t* other,
                            real_t distance_tol);
 
-/// Performs an in-place differencing of this point cloud with another, 
-/// removing tags for which there subsequently exist no points. A point in 
-/// cloud is removed if it falls within distance_tol of a point in 
+/// Performs an in-place differencing of this point cloud with another,
+/// removing tags for which there subsequently exist no points. A point in
+/// cloud is removed if it falls within distance_tol of a point in
 /// other.
 /// \memberof point_cloud
-void point_cloud_difference(point_cloud_t* cloud, 
+void point_cloud_difference(point_cloud_t* cloud,
                             point_cloud_t* other,
                             real_t distance_tol);
 
@@ -136,7 +136,7 @@ typedef struct point_cloud_observer_t point_cloud_observer_t;
 point_cloud_observer_t* point_cloud_observer_new(void* context,
                                                  point_cloud_observer_vtable vtable);
 
-/// Adds an observer to the point cloud. The point cloud assumes control of 
+/// Adds an observer to the point cloud. The point cloud assumes control of
 /// the observer.
 /// \memberof point_cloud
 void point_cloud_add_observer(point_cloud_t* cloud,

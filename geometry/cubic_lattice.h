@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,13 +17,13 @@
 /// \class cubic_lattice
 /// This class defines an indexing scheme for a cubic lattice.
 /// \refcounted
-typedef struct 
+typedef struct
 {
   // Number of cells in x, y, and z.
   index_t nx, ny, nz;
 } cubic_lattice_t;
 
-/// Constructs a representation of a cubic lattice with the given numbers of 
+/// Constructs a representation of a cubic lattice with the given numbers of
 /// cells in x, y, and z.
 /// \memberof cubic_lattice
 cubic_lattice_t* cubic_lattice_new(index_t nx, index_t ny, index_t nz);
@@ -60,7 +60,7 @@ static inline index_t cubic_lattice_num_zfaces(cubic_lattice_t* l)
 /// \memberof cubic_lattice
 static inline index_t cubic_lattice_num_faces(cubic_lattice_t* l)
 {
-  return cubic_lattice_num_xfaces(l) + cubic_lattice_num_yfaces(l) + 
+  return cubic_lattice_num_xfaces(l) + cubic_lattice_num_yfaces(l) +
          cubic_lattice_num_zfaces(l);
 }
 
@@ -89,7 +89,7 @@ static inline index_t cubic_lattice_num_zedges(cubic_lattice_t* l)
 /// \memberof cubic_lattice
 static inline index_t cubic_lattice_num_edges(cubic_lattice_t* l)
 {
-  return cubic_lattice_num_xedges(l) + cubic_lattice_num_yedges(l) + 
+  return cubic_lattice_num_xedges(l) + cubic_lattice_num_yedges(l) +
          cubic_lattice_num_zedges(l);
 }
 
@@ -127,7 +127,7 @@ static inline index_t cubic_lattice_xface(cubic_lattice_t* l, index_t i, index_t
 /// \memberof cubic_lattice
 static inline index_t cubic_lattice_yface(cubic_lattice_t* l, index_t i, index_t j, index_t k)
 {
-  return cubic_lattice_num_xfaces(l) + 
+  return cubic_lattice_num_xfaces(l) +
          (l->nx)*(l->ny+1)*k + (l->nx)*j + i;
 }
 
@@ -135,7 +135,7 @@ static inline index_t cubic_lattice_yface(cubic_lattice_t* l, index_t i, index_t
 /// \memberof cubic_lattice
 static inline index_t cubic_lattice_zface(cubic_lattice_t* l, index_t i, index_t j, index_t k)
 {
-  return cubic_lattice_num_xfaces(l) + cubic_lattice_num_yfaces(l) + 
+  return cubic_lattice_num_xfaces(l) + cubic_lattice_num_yfaces(l) +
          (l->nx)*(l->ny)*k + (l->nx)*j + i;
 }
 
@@ -150,7 +150,7 @@ static inline index_t cubic_lattice_xedge(cubic_lattice_t* l, index_t i, index_t
 /// \memberof cubic_lattice
 static inline index_t cubic_lattice_yedge(cubic_lattice_t* l, index_t i, index_t j, index_t k)
 {
-  return cubic_lattice_num_xedges(l) + 
+  return cubic_lattice_num_xedges(l) +
          (l->nx+1)*(l->ny)*k + (l->nx+1)*j + i;
 }
 
@@ -158,7 +158,7 @@ static inline index_t cubic_lattice_yedge(cubic_lattice_t* l, index_t i, index_t
 /// \memberof cubic_lattice
 static inline index_t cubic_lattice_zedge(cubic_lattice_t* l, index_t i, index_t j, index_t k)
 {
-  return cubic_lattice_num_xedges(l) + cubic_lattice_num_yedges(l) + 
+  return cubic_lattice_num_xedges(l) + cubic_lattice_num_yedges(l) +
          (l->nx+1)*(l->ny+1)*k + (l->nx+1)*j + i;
 }
 

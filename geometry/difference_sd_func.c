@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -42,7 +42,7 @@ sd_func_t* difference_sd_func_new(sd_func_t* surface1, sd_func_t* surface2)
 
   char diff_str[4096];
   sprintf(diff_str, "Difference (%s, %s)", sd_func_name(surface1), sd_func_name(surface2));
-  sd_func_vtable vtable = {.value = diff_value, 
+  sd_func_vtable vtable = {.value = diff_value,
                            .eval_grad = diff_eval_grad,
                            .dtor = polymec_free};
   return sd_func_new(diff_str, diff, vtable);

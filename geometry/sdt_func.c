@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/sdt_func.h"
 
-struct sdt_func_t 
+struct sdt_func_t
 {
   char* name;
   void* context;
@@ -34,7 +34,7 @@ sdt_func_t* sdt_func_new(const char* name, void* context, sdt_func_vtable vtable
   return f;
 }
 
-typedef struct 
+typedef struct
 {
   st_func_t* f;
   st_func_t* df;
@@ -75,8 +75,8 @@ static void stsd_dtor(void* context)
   polymec_free(stsd);
 }
 
-sdt_func_t* sdt_func_from_st_funcs(const char* name, 
-                                   st_func_t* distance, 
+sdt_func_t* sdt_func_from_st_funcs(const char* name,
+                                   st_func_t* distance,
                                    st_func_t* gradient)
 {
   ASSERT(distance != NULL);

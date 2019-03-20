@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/sd_func.h"
 
-struct sd_func_t 
+struct sd_func_t
 {
   char* name;
   void* context;
@@ -34,7 +34,7 @@ sd_func_t* sd_func_new(const char* name, void* context, sd_func_vtable vtable)
   return f;
 }
 
-typedef struct 
+typedef struct
 {
   sp_func_t* f;
   sp_func_t* df;
@@ -74,8 +74,8 @@ static void spsd_dtor(void* context)
   polymec_free(spsd);
 }
 
-sd_func_t* sd_func_from_sp_funcs(const char* name, 
-                                 sp_func_t* distance, 
+sd_func_t* sd_func_from_sp_funcs(const char* name,
+                                 sp_func_t* distance,
                                  sp_func_t* gradient)
 {
   ASSERT(distance != NULL);

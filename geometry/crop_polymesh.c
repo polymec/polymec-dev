@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -37,8 +37,8 @@ static noreturn void project_faces(polymesh_t* mesh, sd_func_t* boundary_func)
   POLYMEC_NOT_IMPLEMENTED
 }
 
-polymesh_t* crop_polymesh(polymesh_t* mesh, 
-                          sd_func_t* boundary_func, 
+polymesh_t* crop_polymesh(polymesh_t* mesh,
+                          sd_func_t* boundary_func,
                           polymesh_crop_t crop_type)
 {
   // Mark the cells whose centers fall outside the boundary.
@@ -109,7 +109,7 @@ polymesh_t* crop_polymesh(polymesh_t* mesh,
   int_unordered_set_free(remaining_ghosts);
 
   // Make a new mesh.
-  polymesh_t* cropped_mesh = polymesh_new(mesh->comm, 
+  polymesh_t* cropped_mesh = polymesh_new(mesh->comm,
                                           mesh->num_cells - outside_cells->size,
                                           num_new_ghosts, num_new_faces, num_new_nodes);
 
@@ -184,7 +184,7 @@ polymesh_t* crop_polymesh(polymesh_t* mesh,
 
   // Construct edges.
   polymesh_construct_edges(cropped_mesh);
-  
+
   // Create the boundary faces tag.
   int* bf_tag = polymesh_create_tag(cropped_mesh->face_tags, sd_func_name(boundary_func), boundary_faces->size);
   {

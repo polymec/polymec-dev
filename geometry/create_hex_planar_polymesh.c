@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -58,20 +58,20 @@ static hex_map_t* hexagon(int radius)
 
 // Starting angles for x- and y-aligned hexes.
 // Constructs the neighboring hex for the given hex, in the given direction.
-static inline void hex_map_get_neighbor(hex_map_t* hexes, 
+static inline void hex_map_get_neighbor(hex_map_t* hexes,
                                         hex_t* hex,
-                                        int direction, 
+                                        int direction,
                                         hex_t* neighbor)
 {
   // q, r displacements by direction
   static int dq[6] = {1, 1, 0, -1, -1, 0};
   static int dr[6] = {0, -1, -1, 0, 1, 1};
-  neighbor->q = hex->q + dq[direction]; 
+  neighbor->q = hex->q + dq[direction];
   neighbor->r = hex->r + dr[direction];
 }
 
-static void hex_get_node_position(hex_t* hex, 
-                                  int direction, 
+static void hex_get_node_position(hex_t* hex,
+                                  int direction,
                                   real_t h,
                                   point2_t* x)
 {
@@ -160,7 +160,7 @@ planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h)
     // Get the second cell for this edge.
     int cell2 = edge_cells->data[2*edge+1];
 
-    // If the edge doesn't have a first node yet, create one and hook it 
+    // If the edge doesn't have a first node yet, create one and hook it
     // up to this and the other one or two incident edges.
     if (edge_nodes->data[2*edge] == -1)
     {
@@ -170,7 +170,7 @@ planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h)
       // Find the incident edge (the previous one in the cell.
       int prev_dir1 = (dir1 + 5) % 6;
       int prev_edge = cell_edges->data[6*cell1+prev_dir1];
-      int prev_edge_node2 = (prev_edge >= 0) ? 2*prev_edge+1 
+      int prev_edge_node2 = (prev_edge >= 0) ? 2*prev_edge+1
                                              : 2*(~prev_edge);
 
       // Create the first node for this edge.
@@ -197,7 +197,7 @@ planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h)
       }
     }
 
-    // If the edge doesn't have a second node yet, create one and hook it 
+    // If the edge doesn't have a second node yet, create one and hook it
     // up to this and the other one or two incident edges.
     if (edge_nodes->data[2*edge+1] == -1)
     {
@@ -207,7 +207,7 @@ planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h)
       // Find the incident edge (the next one in the cell.
       int next_dir1 = (dir1 + 1) % 6;
       int next_edge = cell_edges->data[6*cell1+next_dir1];
-      int next_edge_node1 = (next_edge >= 0) ? 2*next_edge 
+      int next_edge_node1 = (next_edge >= 0) ? 2*next_edge
                                              : 2*(~next_edge)+1;
 
       // Create the second node for this edge.
@@ -238,7 +238,7 @@ planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h)
   // Create our planar polymesh.
   planar_polymesh_t* mesh = planar_polymesh_new_with_cell_type((int)hex_map->size,
                                                                (int)num_edges,
-                                                               (int)nodes->size, 
+                                                               (int)nodes->size,
                                                                6);
   memcpy(mesh->cell_edges, cell_edges->data, sizeof(int) * cell_edges->size);
   memcpy(mesh->edge_nodes, edge_nodes->data, sizeof(int) * edge_nodes->size);

@@ -1,13 +1,13 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/create_quad_planar_polymesh.h"
 
-typedef struct 
+typedef struct
 {
   // Number of cells in x, y, and z.
   size_t nx, ny;
@@ -79,14 +79,14 @@ static inline int quad_lattice_node(quad_lattice_t* l, int i, int j)
   return (int)((l->nx+1)*j + i);
 }
 
-planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny, 
+planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
                                                bbox_t* bbox,
                                                bool periodic_in_x,
                                                bool periodic_in_y)
 {
   ASSERT(bbox->x2 > bbox->x1);
   ASSERT(bbox->y2 > bbox->y1);
-  
+
   // Create a cubic lattice object for indexing.
   quad_lattice_t* lattice = quad_lattice_new(nx, ny);
 

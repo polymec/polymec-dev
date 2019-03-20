@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,37 +19,37 @@
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
-extern void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch, 
-                                                 unimesh_boundary_t boundary, 
+extern void unimesh_patch_copy_bvalues_to_buffer(unimesh_patch_t* patch,
+                                                 unimesh_boundary_t boundary,
                                                  void* buffer);
 
-extern void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch, 
-                                                   unimesh_boundary_t boundary, 
+extern void unimesh_patch_copy_bvalues_from_buffer(unimesh_patch_t* patch,
+                                                   unimesh_boundary_t boundary,
                                                    void* buffer);
 
 extern int unimesh_boundary_update_token(unimesh_t* mesh);
-extern int unimesh_owner_proc(unimesh_t* mesh, 
+extern int unimesh_owner_proc(unimesh_t* mesh,
                               int i, int j, int k,
                               unimesh_boundary_t boundary);
 extern unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh);
 
 //------------------------------------------------------------------------
-// These functions give access to the send and receive buffers maintained 
+// These functions give access to the send and receive buffers maintained
 // for a mesh by its remote BC.
 //------------------------------------------------------------------------
-static void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh, 
-                                                int i, int j, int k, 
+static void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh,
+                                                int i, int j, int k,
                                                 unimesh_boundary_t boundary);
 
-static void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh, 
-                                                   int i, int j, int k, 
+static void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh,
+                                                   int i, int j, int k,
                                                    unimesh_boundary_t boundary);
 
-//------------------------------------------------------------------------ 
+//------------------------------------------------------------------------
 //                          Send/receive buffers
-//------------------------------------------------------------------------ 
+//------------------------------------------------------------------------
 
-// The comm_buffer class is an annotated blob of memory that stores 
+// The comm_buffer class is an annotated blob of memory that stores
 // patch boundary data for patches in a unimesh with data of a given centering
 // and number of components.
 typedef struct
@@ -77,7 +77,7 @@ static inline int patch_index(comm_buffer_t* buffer, int i, int j, int k)
 }
 
 // Maps a flat patch index back to (i, j, k).
-static inline void get_patch_indices(comm_buffer_t* buffer, int index, 
+static inline void get_patch_indices(comm_buffer_t* buffer, int index,
                                      int* i, int* j, int* k)
 {
   *i = index/(buffer->npy*buffer->npz);
@@ -85,11 +85,11 @@ static inline void get_patch_indices(comm_buffer_t* buffer, int index,
   *k = index - buffer->npy*buffer->npz*(*i) - buffer->npz*(*j);
 }
 
-// Helper for traversing patch+boundary pairs for a given remote process 
+// Helper for traversing patch+boundary pairs for a given remote process
 // in a comm buffer.
-static bool comm_buffer_next_remote_boundary(comm_buffer_t* buffer, 
-                                             int remote_proc, int* pos, 
-                                             int* i, int* j, int* k, 
+static bool comm_buffer_next_remote_boundary(comm_buffer_t* buffer,
+                                             int remote_proc, int* pos,
+                                             int* i, int* j, int* k,
                                              unimesh_boundary_t* boundary)
 {
   if (*pos == 0)
@@ -104,7 +104,7 @@ static bool comm_buffer_next_remote_boundary(comm_buffer_t* buffer,
   else // stay in this patch and increment the boundary
     *boundary = (unimesh_boundary_t)((int)(*boundary) + 1);
 
-  // Now we find out whether this patch+boundary pair belongs to our 
+  // Now we find out whether this patch+boundary pair belongs to our
   // remote_proc. If not, move along till we find one that does.
   int proc = unimesh_owner_proc(buffer->mesh, *i, *j, *k, *boundary);
   if (proc == remote_proc) return true;
@@ -124,7 +124,7 @@ static bool comm_buffer_next_remote_boundary(comm_buffer_t* buffer,
 }
 
 // Computes patch+boundary offsets for send buffers.
-static void send_buffer_compute_offsets(comm_buffer_t* buffer, 
+static void send_buffer_compute_offsets(comm_buffer_t* buffer,
                                         size_t boundary_offsets[6])
 {
   START_FUNCTION_TIMER();
@@ -135,7 +135,7 @@ static void send_buffer_compute_offsets(comm_buffer_t* buffer,
     int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos,
                                             &i, &j, &k, &boundary))
     {
       // Extract the offset for this patch.
@@ -146,7 +146,7 @@ static void send_buffer_compute_offsets(comm_buffer_t* buffer,
       int b = (int)boundary;
       int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
 
-      // Update our running tally. 
+      // Update our running tally.
       last_offset = offset + buffer->nc * boundary_offsets[b];
     }
   }
@@ -154,7 +154,7 @@ static void send_buffer_compute_offsets(comm_buffer_t* buffer,
 }
 
 // Computes patch+boundary offsets for receive buffers.
-static void receive_buffer_compute_offsets(comm_buffer_t* buffer, 
+static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
                                            size_t boundary_offsets[6])
 {
   START_FUNCTION_TIMER();
@@ -168,12 +168,12 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
     int_array_clear(indices);
     int_array_clear(remote_indices);
 
-    // Make a list of patch+boundary indices for the remote send buffer 
+    // Make a list of patch+boundary indices for the remote send buffer
     // on process p.
     int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos,
                                             &i, &j, &k, &boundary))
     {
       // Compute our own patch+boundary index and append it.
@@ -215,10 +215,10 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
     size_t perm[remote_indices->size];
     int_qsort_to_perm(remote_indices->data, remote_indices->size, perm);
 
-    // Sort our indices with this permutation. This will order our local 
+    // Sort our indices with this permutation. This will order our local
     // patch+boundary pairs to match the ordering for our remote send buffer.
     int_array_reorder(indices, perm);
-    
+
     // Now compute our offsets for each of these patch+boundary pairs.
     size_t offset = 0;
     for (size_t l = 0; l < indices->size; ++l)
@@ -227,7 +227,7 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
       int index = indices->data[l];
       int_int_unordered_map_insert(buffer->offsets, index, (int)offset);
 
-      // Update our running tally. 
+      // Update our running tally.
       int b = index - 6*(index/6);
       offset += buffer->nc * boundary_offsets[b];
     }
@@ -239,7 +239,7 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
   STOP_FUNCTION_TIMER();
 }
 
-static void comm_buffer_reset(comm_buffer_t* buffer, 
+static void comm_buffer_reset(comm_buffer_t* buffer,
                               unimesh_centering_t centering,
                               int num_components)
 {
@@ -252,7 +252,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
     buffer->request_states[p] = NOT_POSTED;
 
   // Do we need to do anything else?
-  if ((buffer->centering == centering) && 
+  if ((buffer->centering == centering) &&
       (buffer->nc == num_components))
     return;
 
@@ -262,7 +262,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
 
   size_t remote_offsets[8][6] =  { // cells (including ghosts for simplicity)
-                                  {(ny+2)*(nz+2), (ny+2)*(nz+2), 
+                                  {(ny+2)*(nz+2), (ny+2)*(nz+2),
                                    (nx+2)*(nz+2), (nx+2)*(nz+2),
                                    (nx+2)*(ny+2), (nx+2)*(ny+2)},
                                    // x faces
@@ -294,7 +294,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
                                    (nx+1)*(nz+1), (nx+1)*(nz+1),
                                    (nx+1)*(ny+1), (nx+1)*(ny+1)}};
 
-  // Compute counts for data for all buffers this process uses to 
+  // Compute counts for data for all buffers this process uses to
   // communicate with other processes.
   int cent = (int)centering;
   size_t proc_data_counts[buffer->procs->size];
@@ -304,7 +304,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
     int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos,
                                             &i, &j, &k, &boundary))
     {
       // Update our data count for this process.
@@ -313,7 +313,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
     }
   }
 
-  // Convert our counts to offsets. This gives us starting offsets for 
+  // Convert our counts to offsets. This gives us starting offsets for
   // each segment of our buffer.
   buffer->proc_offsets[0] = 0;
   for (size_t p = 0; p < buffer->procs->size; ++p)
@@ -336,7 +336,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
     int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos,
                                             &i, &j, &k, &boundary))
     {
       int p_index = patch_index(buffer, i, j, k);
@@ -403,7 +403,7 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
   return buffer;
 }
 
-static void comm_buffer_fprintf(comm_buffer_t* buffer, 
+static void comm_buffer_fprintf(comm_buffer_t* buffer,
                                 bool show_data,
                                 FILE* stream)
 {
@@ -411,7 +411,7 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
   const char* buffer_types[2] = {"Send", "Receive"};
   fprintf(stream, "%s buffer on rank %d:\n", buffer_types[(int)buffer->type], buffer->rank);
   fprintf(stream, "Patch size: %d x %d x %d\n", buffer->nx, buffer->ny, buffer->nz);
-  static const char* centering_str[8] = 
+  static const char* centering_str[8] =
     {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
   fprintf(stream, "Centering: %s\n", centering_str[(int)buffer->centering]);
   fprintf(stream, "Num components: %d\n", buffer->nc);
@@ -434,7 +434,7 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
           if (off_p != NULL)
           {
             size_t offset = buffer->proc_offsets[p] + *off_p;
-            fprintf(stream, " (%d, %d, %d), %s: %d (%d)\n", 
+            fprintf(stream, " (%d, %d, %d), %s: %d (%d)\n",
                 i, j, k, bnames[b], (int)offset, *off_p);
           }
         }
@@ -459,7 +459,7 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
   STOP_FUNCTION_TIMER();
 }
 
-static comm_buffer_t* send_buffer_new(unimesh_t* mesh, 
+static comm_buffer_t* send_buffer_new(unimesh_t* mesh,
                                       unimesh_centering_t centering,
                                       int num_components)
 {
@@ -470,7 +470,7 @@ static comm_buffer_t* send_buffer_new(unimesh_t* mesh,
   return buffer;
 }
 
-static comm_buffer_t* receive_buffer_new(unimesh_t* mesh, 
+static comm_buffer_t* receive_buffer_new(unimesh_t* mesh,
                                          unimesh_centering_t centering,
                                          int num_components)
 {
@@ -481,16 +481,16 @@ static comm_buffer_t* receive_buffer_new(unimesh_t* mesh,
   return buffer;
 }
 
-// This posts a send for the send buffer, for the given patch/boundary, using 
+// This posts a send for the send buffer, for the given patch/boundary, using
 // the given tag.
-static void comm_buffer_post(comm_buffer_t* comm_buff, 
-                             int i, int j, int k, unimesh_boundary_t boundary, 
+static void comm_buffer_post(comm_buffer_t* comm_buff,
+                             int i, int j, int k, unimesh_boundary_t boundary,
                              int tag)
 {
   // Get the remote process for this patch/boundary.
   int remote_proc = unimesh_owner_proc(comm_buff->mesh, i, j, k, boundary);
   if (remote_proc == comm_buff->rank) // nothing to do!
-    return; 
+    return;
 
   // Find this process in the comm buffer's process list.
   int* remote_proc_p = int_bsearch(comm_buff->procs->data, comm_buff->procs->size, remote_proc);
@@ -503,8 +503,8 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
 
   START_FUNCTION_TIMER();
 
-  // Jot down this request to post for this patch/boundary, and determine 
-  // whether this function has been called for all patch/boundary pairs 
+  // Jot down this request to post for this patch/boundary, and determine
+  // whether this function has been called for all patch/boundary pairs
   // that correspond to this process.
   bool ready_to_post = true;
   {
@@ -526,9 +526,9 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
         // Get the process for this patch.
         int req_proc = unimesh_owner_proc(comm_buff->mesh, req_i, req_j, req_k, req_boundary);
 
-        // If the process matches this one and there's a missing post request, 
+        // If the process matches this one and there's a missing post request,
         // we can't do the post.
-        if ((req_proc == remote_proc) && (val == 0)) 
+        if ((req_proc == remote_proc) && (val == 0))
         {
           // Nope! There are still patches for this process that haven't been posted.
           ready_to_post = false;
@@ -543,14 +543,14 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
     bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
     if (write_comm_buffers)
     {
-      static const char* centering_str[8] = 
+      static const char* centering_str[8] =
         {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
-      static const char* type_str[2] = {"send", "receive"}; 
+      static const char* type_str[2] = {"send", "receive"};
 
       // Write out the send buffer.
       char file[FILENAME_MAX+1];
-      snprintf(file, FILENAME_MAX, "%s_%s_buffer.%d", 
-               centering_str[(int)comm_buff->centering], type_str[(int)comm_buff->type], 
+      snprintf(file, FILENAME_MAX, "%s_%s_buffer.%d",
+               centering_str[(int)comm_buff->centering], type_str[(int)comm_buff->type],
                comm_buff->rank);
       FILE* f = fopen(file, "w");
       comm_buffer_fprintf(comm_buff, true, f);
@@ -559,14 +559,14 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
 
     // Get the actual buffer and its size.
     void* data = &(comm_buff->storage[comm_buff->proc_offsets[proc_index]]);
-    size_t size = comm_buff->proc_offsets[proc_index+1] - 
+    size_t size = comm_buff->proc_offsets[proc_index+1] -
                   comm_buff->proc_offsets[proc_index];
 
     // Post the send and handle errors.
     MPI_Comm comm = unimesh_comm(comm_buff->mesh);
     if (comm_buff->type == SEND)
     {
-      int err = MPI_Isend(data, (int)size, MPI_REAL_T, remote_proc, 
+      int err = MPI_Isend(data, (int)size, MPI_REAL_T, remote_proc,
                           tag, comm, &(comm_buff->requests[proc_index]));
       if (err != MPI_SUCCESS)
       {
@@ -574,14 +574,14 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
         char str[MPI_MAX_ERROR_STRING];
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
-        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
+        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n",
                  comm_buff->rank, remote_proc, err, str);
         polymec_error(err_msg);
       }
     }
     else
     {
-      int err = MPI_Irecv(data, (int)size, MPI_REAL_T, remote_proc, 
+      int err = MPI_Irecv(data, (int)size, MPI_REAL_T, remote_proc,
                           tag, comm, &(comm_buff->requests[proc_index]));
       if (err != MPI_SUCCESS)
       {
@@ -589,14 +589,14 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
         char str[MPI_MAX_ERROR_STRING];
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
-        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n",
                  comm_buff->rank, remote_proc, err, str);
         polymec_error(err_msg);
       }
     }
     comm_buff->request_states[proc_index] = POSTED;
 
-    // Reset the post requests for our remote process 
+    // Reset the post requests for our remote process
     int pos = 0, key, val;
     while (int_int_unordered_map_next(comm_buff->post_requests, &pos, &key, &val))
     {
@@ -616,14 +616,14 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
   STOP_FUNCTION_TIMER();
 }
 
-// This tells a comm buffer to wait for its requests to complete for 
+// This tells a comm buffer to wait for its requests to complete for
 // the given process.
 static void comm_buffer_wait(comm_buffer_t* comm_buffer, int process)
 {
   START_FUNCTION_TIMER();
   // Find the process in the comm buffer's list.
-  int* proc_p = int_bsearch(comm_buffer->procs->data, 
-                            comm_buffer->procs->size, 
+  int* proc_p = int_bsearch(comm_buffer->procs->data,
+                            comm_buffer->procs->size,
                             process);
   ASSERT(proc_p != NULL);
   size_t proc_index = proc_p - comm_buffer->procs->data;
@@ -644,7 +644,7 @@ static void comm_buffer_wait(comm_buffer_t* comm_buffer, int process)
       int proc = comm_buffer->procs->data[proc_index];
 
       // Now we can really get nitty-gritty and try to diagnose the
-      // problem carefully! 
+      // problem carefully!
       if (comm_buffer->type == SEND)
       {
         polymec_error("%d: MPI error sending to %d (%d) %s\n",
@@ -655,7 +655,7 @@ static void comm_buffer_wait(comm_buffer_t* comm_buffer, int process)
         if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
         {
           polymec_error("%d: MPI error receiving from %d (%d) %s\n"
-                        "(Expected %d bytes)\n", comm_buffer->rank, proc, 
+                        "(Expected %d bytes)\n", comm_buffer->rank, proc,
                         status.MPI_ERROR, errstr, (int)(comm_buffer->size));
         }
         else
@@ -696,7 +696,7 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
   int b = (int)boundary;
   int index = 6*p_index + b;
 
-  // Get the offset for this patch boundary and return a pointer to the 
+  // Get the offset for this patch boundary and return a pointer to the
   // appropriate place in the buffer.
   int offset = *int_int_unordered_map_get(buffer->offsets, index);
   ASSERT((offset >= 0) && (offset < buffer->size));
@@ -735,7 +735,7 @@ static void start_update_cell_x1(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_X1_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_X1_BOUNDARY, buffer);
 }
@@ -745,7 +745,7 @@ static void start_update_cell_x2(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_X2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_X2_BOUNDARY, buffer);
 }
@@ -755,7 +755,7 @@ static void start_update_cell_y1(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Y1_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Y1_BOUNDARY, buffer);
 }
@@ -765,7 +765,7 @@ static void start_update_cell_y2(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Y2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Y2_BOUNDARY, buffer);
 }
@@ -775,7 +775,7 @@ static void start_update_cell_z1(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Z1_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Z1_BOUNDARY, buffer);
 }
@@ -785,7 +785,7 @@ static void start_update_cell_z2(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Z2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Z2_BOUNDARY, buffer);
 }
@@ -802,7 +802,7 @@ static void start_update_xface_x2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_X2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_X2_BOUNDARY, buffer);
 }
@@ -867,7 +867,7 @@ static void start_update_yface_y2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Y2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Y2_BOUNDARY, buffer);
 }
@@ -932,7 +932,7 @@ static void start_update_zface_z2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Z2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Z2_BOUNDARY, buffer);
 }
@@ -965,7 +965,7 @@ static void start_update_xedge_y2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Y2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Y2_BOUNDARY, buffer);
 }
@@ -982,7 +982,7 @@ static void start_update_xedge_z2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Z2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Z2_BOUNDARY, buffer);
 }
@@ -999,7 +999,7 @@ static void start_update_yedge_x2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_X2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_X2_BOUNDARY, buffer);
 }
@@ -1032,7 +1032,7 @@ static void start_update_yedge_z2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Z2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Z2_BOUNDARY, buffer);
 }
@@ -1049,7 +1049,7 @@ static void start_update_zedge_x2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_X2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_X2_BOUNDARY, buffer);
 }
@@ -1066,7 +1066,7 @@ static void start_update_zedge_y2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Y2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Y2_BOUNDARY, buffer);
 }
@@ -1099,7 +1099,7 @@ static void start_update_node_x2(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_X2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_X2_BOUNDARY, buffer);
 }
@@ -1116,7 +1116,7 @@ static void start_update_node_y2(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Y2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Y2_BOUNDARY, buffer);
 }
@@ -1133,7 +1133,7 @@ static void start_update_node_z2(void* context, unimesh_t* mesh,
                                  field_metadata_t* md,
                                  unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k,
                                                     UNIMESH_Z2_BOUNDARY);
   unimesh_patch_copy_bvalues_to_buffer(patch, UNIMESH_Z2_BOUNDARY, buffer);
 }
@@ -1143,7 +1143,7 @@ static void finish_update_cell_x1(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_X1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_X1_BOUNDARY, buffer);
 }
@@ -1153,7 +1153,7 @@ static void finish_update_cell_x2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_X2_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_X2_BOUNDARY, buffer);
 }
@@ -1163,7 +1163,7 @@ static void finish_update_cell_y1(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Y1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Y1_BOUNDARY, buffer);
 }
@@ -1173,7 +1173,7 @@ static void finish_update_cell_y2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Y2_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Y2_BOUNDARY, buffer);
 }
@@ -1183,7 +1183,7 @@ static void finish_update_cell_z1(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Z1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Z1_BOUNDARY, buffer);
 }
@@ -1193,7 +1193,7 @@ static void finish_update_cell_z2(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Z2_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Z2_BOUNDARY, buffer);
 }
@@ -1203,7 +1203,7 @@ static void finish_update_xface_x1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_X1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_X1_BOUNDARY, buffer);
 }
@@ -1268,7 +1268,7 @@ static void finish_update_yface_y1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Y1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Y1_BOUNDARY, buffer);
 }
@@ -1333,7 +1333,7 @@ static void finish_update_zface_z1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Z1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Z1_BOUNDARY, buffer);
 }
@@ -1366,7 +1366,7 @@ static void finish_update_xedge_y1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Y1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Y1_BOUNDARY, buffer);
 }
@@ -1383,7 +1383,7 @@ static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Z1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Z1_BOUNDARY, buffer);
 }
@@ -1400,7 +1400,7 @@ static void finish_update_yedge_x1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_X1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_X1_BOUNDARY, buffer);
 }
@@ -1433,7 +1433,7 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Z1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Z1_BOUNDARY, buffer);
 }
@@ -1450,7 +1450,7 @@ static void finish_update_zedge_x1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_X1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_X1_BOUNDARY, buffer);
 }
@@ -1467,7 +1467,7 @@ static void finish_update_zedge_y1(void* context, unimesh_t* mesh,
                                    field_metadata_t* md,
                                    unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Y1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Y1_BOUNDARY, buffer);
 }
@@ -1500,7 +1500,7 @@ static void finish_update_node_x1(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_X1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_X1_BOUNDARY, buffer);
 }
@@ -1517,7 +1517,7 @@ static void finish_update_node_y1(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Y1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Y1_BOUNDARY, buffer);
 }
@@ -1534,7 +1534,7 @@ static void finish_update_node_z1(void* context, unimesh_t* mesh,
                                   field_metadata_t* md,
                                   unimesh_patch_t* patch)
 {
-  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k, 
+  void* buffer = unimesh_patch_boundary_receive_buffer(mesh, i, j, k,
                                                        UNIMESH_Z1_BOUNDARY);
   unimesh_patch_copy_bvalues_from_buffer(patch, UNIMESH_Z1_BOUNDARY, buffer);
 }
@@ -1546,10 +1546,10 @@ static void finish_update_node_z2(void* context, unimesh_t* mesh,
 {
 }
 
-// This observer method is called when a field starts a set of boundary 
+// This observer method is called when a field starts a set of boundary
 // updates on the mesh. We use it to initialize send and receive buffers.
-static void remote_bc_started_boundary_updates(void* context, 
-                                               unimesh_t* mesh, int token, 
+static void remote_bc_started_boundary_updates(void* context,
+                                               unimesh_t* mesh, int token,
                                                unimesh_centering_t centering,
                                                int num_components)
 {
@@ -1562,7 +1562,7 @@ static void remote_bc_started_boundary_updates(void* context,
   if (send_buff == NULL)
   {
     send_buff = send_buffer_new(mesh, centering, num_components);
-    comm_buffer_array_assign_with_dtor(bc->send_buffers, token, 
+    comm_buffer_array_assign_with_dtor(bc->send_buffers, token,
                                        send_buff, comm_buffer_free);
   }
   else
@@ -1582,12 +1582,12 @@ static void remote_bc_started_boundary_updates(void* context,
     comm_buffer_reset(receive_buff, centering, num_components);
 }
 
-// This observer method is called right after the update for the patch 
-// (i, j, k) starts. We use it to post the send for the patch if the 
+// This observer method is called right after the update for the patch
+// (i, j, k) starts. We use it to post the send for the patch if the
 // send buffer is ready for it.
-static void remote_bc_started_boundary_update(void* context, 
-                                              unimesh_t* mesh, int token, 
-                                              int i, int j, int k, 
+static void remote_bc_started_boundary_update(void* context,
+                                              unimesh_t* mesh, int token,
+                                              int i, int j, int k,
                                               unimesh_boundary_t boundary,
                                               real_t t,
                                               field_metadata_t* md,
@@ -1608,8 +1608,8 @@ static void remote_bc_started_boundary_update(void* context,
 
 // This observer method is called right before any remote boundary updates begin.
 // We use it to verify that all sends/receives have posted.
-static void remote_bc_about_to_finish_boundary_updates(void* context, 
-                                                       unimesh_t* mesh, 
+static void remote_bc_about_to_finish_boundary_updates(void* context,
+                                                       unimesh_t* mesh,
                                                        int token,
                                                        unimesh_centering_t centering,
                                                        int num_components)
@@ -1639,22 +1639,22 @@ static void remote_bc_about_to_finish_boundary_updates(void* context,
   }
 }
 
-// This observer method is called right before a remote boundary update is 
-// finished for a particular patch. We use it to wait for messages to be 
+// This observer method is called right before a remote boundary update is
+// finished for a particular patch. We use it to wait for messages to be
 // received for a given process.
-static void remote_bc_about_to_finish_boundary_update(void* context, 
-                                                      unimesh_t* mesh, int token, 
-                                                      int i, int j, int k, 
+static void remote_bc_about_to_finish_boundary_update(void* context,
+                                                      unimesh_t* mesh, int token,
+                                                      int i, int j, int k,
                                                       unimesh_boundary_t boundary,
                                                       real_t t,
                                                       field_metadata_t* md,
                                                       unimesh_patch_t* patch)
-{  
+{
   // Access our remote BC object.
   unimesh_patch_bc_t* bc = unimesh_remote_bc(mesh);
   remote_bc_t* remote_bc = unimesh_patch_bc_context(bc);
 
-  // Get the remote process for this patch boundary. If the "remote process" 
+  // Get the remote process for this patch boundary. If the "remote process"
   // is our own rank, there's nothing to do.
   int remote_proc = unimesh_owner_proc(mesh, i, j, k, boundary);
   if (remote_proc == remote_bc->rank)
@@ -1680,12 +1680,12 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
   if (write_comm_buffers)
   {
-    static const char* centering_str[8] = 
+    static const char* centering_str[8] =
       {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
 
     // Write out the receive buffer.
     char file[FILENAME_MAX+1];
-    snprintf(file, FILENAME_MAX, "%s_receive_buffer.%d", 
+    snprintf(file, FILENAME_MAX, "%s_receive_buffer.%d",
       centering_str[(int)receive_buffer->centering], receive_buffer->rank);
     FILE* f = fopen(file, "w");
     comm_buffer_fprintf(receive_buffer, true, f);
@@ -1812,8 +1812,8 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
   return unimesh_patch_bc_new("remote patch copy BC", bc, vtable, mesh);
 }
 
-static void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh, 
-                                                int i, int j, int k, 
+static void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh,
+                                                int i, int j, int k,
                                                 unimesh_boundary_t boundary)
 {
   // Access our remote BC object.
@@ -1836,8 +1836,8 @@ static void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh,
   return comm_buffer_data(buffer, i, j, k, boundary);
 }
 
-static void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh, 
-                                                   int i, int j, int k, 
+static void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh,
+                                                   int i, int j, int k,
                                                    unimesh_boundary_t boundary)
 {
   // Access our remote BC object.

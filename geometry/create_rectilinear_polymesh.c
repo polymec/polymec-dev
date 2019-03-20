@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,9 +12,9 @@
 #include "geometry/create_rectilinear_polymesh.h"
 #include "geometry/cubic_lattice.h"
 
-polymesh_t* create_rectilinear_polymesh(MPI_Comm comm, 
-                                        real_t* xs, int nxs, 
-                                        real_t* ys, int nys, 
+polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
+                                        real_t* xs, int nxs,
+                                        real_t* ys, int nys,
                                         real_t* zs, int nzs)
 {
   ASSERT(nxs > 1);
@@ -36,7 +36,7 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
   // Create a cubic lattice object for indexing.
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
 
-  // We start out with the naive partitioning in index space, and count 
+  // We start out with the naive partitioning in index space, and count
   // mesh entities.
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
@@ -91,12 +91,12 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
     neighboring_cells[5] = (k == nz-1) ? -1 : cubic_lattice_cell(lattice, i, j, k+1);
     for (int ii = 0; ii < 6; ++ii)
     {
-      if ((neighboring_cells[ii] != -1) && 
-          ((neighboring_cells[ii] < cells_per_proc*rank) || 
+      if ((neighboring_cells[ii] != -1) &&
+          ((neighboring_cells[ii] < cells_per_proc*rank) ||
           (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
-        if (! ((rank == (nproc-1)) && 
-               (neighboring_cells[ii] >= cells_per_proc*rank) && 
+        if (! ((rank == (nproc-1)) &&
+               (neighboring_cells[ii] >= cells_per_proc*rank) &&
                (neighboring_cells[ii] < (cells_per_proc*rank + num_cells))))
           ++num_ghost_cells;
       }
@@ -105,8 +105,8 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
 
   // Create the mesh.
   int num_faces_per_cell = 6, num_nodes_per_face = 4;
-  polymesh_t* mesh = polymesh_new_with_cell_type(comm, num_cells, num_ghost_cells, 
-                                                 num_faces, num_nodes, 
+  polymesh_t* mesh = polymesh_new_with_cell_type(comm, num_cells, num_ghost_cells,
+                                                 num_faces, num_nodes,
                                                  num_faces_per_cell,
                                                  num_nodes_per_face);
 
@@ -123,9 +123,9 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
 
     // Hook up the cell and faces.
 
-    // Note that we define the nodes of the faces to be ordered such that 
-    // the right-hand rule produces a normal vector that always points 
-    // in the positive x, y, or z direction. Thus, the faces whose normal 
+    // Note that we define the nodes of the faces to be ordered such that
+    // the right-hand rule produces a normal vector that always points
+    // in the positive x, y, or z direction. Thus, the faces whose normal
     // vectors point in the opposite directions get their ones complement.
     if (comm == MPI_COMM_SELF)
     {
@@ -152,13 +152,13 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
 
     // We use the reference cell below, which is typical of 3D
     // finite element schemes:
-    //             
+    //
     //     7o----6o      z^  y
     //     /|    /|       | /
     //   4o----5o |       |/   x
     //    |3o---|2o       +---->
-    //    |/    |/       
-    //   0o----1o      
+    //    |/    |/
+    //   0o----1o
     //
     // The faces are numbered 0-5, with 0-1 being the (-/+) x faces,
     // 2-3 the (-/+) y faces, and 4-5 the (-/+) z faces.
@@ -254,7 +254,7 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
     }
   }
 
-  // Hook up ghost cells and send/receive stuff. Note that we reverse the 
+  // Hook up ghost cells and send/receive stuff. Note that we reverse the
   // order of the nested loops to make things consistent across processes.
   for (int ii = 0; ii < 6; ++ii)
   {
@@ -271,18 +271,18 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
       neighboring_cells[4] = (k == 0) ? -1 : cubic_lattice_cell(lattice, i, j, k-1);
       neighboring_cells[5] = (k == nz-1) ? -1 : cubic_lattice_cell(lattice, i, j, k+1);
 
-      if ((neighboring_cells[ii] != -1) && 
-          ((neighboring_cells[ii] < cells_per_proc*rank) || 
+      if ((neighboring_cells[ii] != -1) &&
+          ((neighboring_cells[ii] < cells_per_proc*rank) ||
            (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
       {
         int face = mesh->cell_faces[6*cell+ii];
         if (face < 0) face = ~face;
         ASSERT(mesh->face_cells[2*face] != -1);
 
-        // First of all, let's make sure that the neighboring cell 
+        // First of all, let's make sure that the neighboring cell
         // actually belongs on a different process.
-        if ((rank == (nproc-1)) && 
-            (neighboring_cells[ii] >= cells_per_proc*rank) && 
+        if ((rank == (nproc-1)) &&
+            (neighboring_cells[ii] >= cells_per_proc*rank) &&
             (neighboring_cells[ii] < (cells_per_proc*rank + num_cells)))
         {
 //          mesh->face_cells[2*face+1] = -1;
@@ -326,8 +326,8 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
 
 polymesh_t* create_rectilinear_polymesh_on_rank(MPI_Comm comm,
                                                 int rank,
-                                                real_t* xs, int nxs, 
-                                                real_t* ys, int nys, 
+                                                real_t* xs, int nxs,
+                                                real_t* ys, int nys,
                                                 real_t* zs, int nzs)
 {
   ASSERT(comm != MPI_COMM_SELF);
@@ -347,8 +347,8 @@ polymesh_t* create_rectilinear_polymesh_on_rank(MPI_Comm comm,
 }
 
 void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
-                                    const char* x1_tag, 
-                                    const char* x2_tag, 
+                                    const char* x1_tag,
+                                    const char* x2_tag,
                                     const char* y1_tag,
                                     const char* y2_tag,
                                     const char* z1_tag,
@@ -361,9 +361,9 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
   for (int f = 0; f < mesh->num_faces; ++f)
     bbox_grow(&bbox, &(mesh->face_centers[f]));
 
-  // Figure out the boundary faces of the mesh by checking their face centers 
-  // against the boundary coordinates. We don't have to be too clever, since 
-  // the face centers should be basically right on top of the bounding box 
+  // Figure out the boundary faces of the mesh by checking their face centers
+  // against the boundary coordinates. We don't have to be too clever, since
+  // the face centers should be basically right on top of the bounding box
   // coordinates (in a floating point sense).
   int_slist_t* x1_faces = int_slist_new();
   int_slist_t* x2_faces = int_slist_new();
@@ -390,7 +390,7 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
         int_slist_append(z2_faces, f);
     }
   }
-  
+
   // Now create the boundary tags and populate them.
   int_slist_node_t* iter = NULL;
   int f = 0, face;

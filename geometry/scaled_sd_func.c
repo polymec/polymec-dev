@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -38,8 +38,8 @@ sd_func_t* scaled_sd_func_new(sd_func_t* func, real_t scale_factor)
   sc->func = func;
   sc->scale_factor = scale_factor;
   char sc_str[1024];
-  snprintf(sc_str, 1024, "scaled(%s)", sd_func_name(func)); 
-  sd_func_vtable vtable = {.value = sc_value, 
+  snprintf(sc_str, 1024, "scaled(%s)", sd_func_name(func));
+  sd_func_vtable vtable = {.value = sc_value,
                            .eval_grad = sc_eval_grad,
                            .dtor = polymec_free};
   return sd_func_new(sc_str, sc, vtable);

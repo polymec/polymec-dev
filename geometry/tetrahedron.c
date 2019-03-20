@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,12 +9,12 @@
 #include "geometry/plane_sd_func.h"
 #include "geometry/tetrahedron.h"
 
-// Jonathan Shewchuk's geometric predicates, which are implemented in 
+// Jonathan Shewchuk's geometric predicates, which are implemented in
 // double-precision arithmetic.
 extern double orient3d(double* pa, double* pb, double* pc, double* pd);
 extern double insphere(double* pa, double* pb, double* pc, double* pd, double* pe);
 
-struct tetrahedron_t 
+struct tetrahedron_t
 {
   point_t vertices[4];
 };
@@ -31,7 +31,7 @@ tetrahedron_t* tetrahedron_new()
   return t;
 }
 
-void tetrahedron_set_vertices(tetrahedron_t* t, 
+void tetrahedron_set_vertices(tetrahedron_t* t,
                               point_t* v1,
                               point_t* v2,
                               point_t* v3,
@@ -132,11 +132,11 @@ bool tetrahedron_contains_point(tetrahedron_t* t, point_t* x)
 
 bool tetrahedron_circumsphere_contains_point(tetrahedron_t* t, point_t* x)
 {
-  return (tet_insphere(&t->vertices[0], &t->vertices[1], &t->vertices[2], 
+  return (tet_insphere(&t->vertices[0], &t->vertices[1], &t->vertices[2],
                        &t->vertices[3], x) > 0.0);
 }
 
-// tetrahedron_circumsphere_intersects_point uses exact predicates where 
+// tetrahedron_circumsphere_intersects_point uses exact predicates where
 // direct floating point comparisons are okay.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"
@@ -144,7 +144,7 @@ bool tetrahedron_circumsphere_contains_point(tetrahedron_t* t, point_t* x)
 #pragma clang diagnostic ignored "-Wfloat-equal"
 bool tetrahedron_circumsphere_intersects_point(tetrahedron_t* t, point_t* x)
 {
-  return (tet_insphere(&t->vertices[0], &t->vertices[1], &t->vertices[2], 
+  return (tet_insphere(&t->vertices[0], &t->vertices[1], &t->vertices[2],
                        &t->vertices[3], x) == 0.0);
 }
 #pragma GCC diagnostic pop
@@ -188,7 +188,7 @@ void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
       x2 = &t->vertices[1];
       x3 = &t->vertices[3];
     }
-    else 
+    else
     {
       x1 = &t->vertices[0];
       x2 = &t->vertices[1];
@@ -206,22 +206,22 @@ bool tetrahedron_next_face(tetrahedron_t* t, int* pos, point_t* v1, point_t* v2,
 {
   switch(*pos)
   {
-    case 0: 
+    case 0:
       *v1 = t->vertices[1];
       *v2 = t->vertices[2];
       *v3 = t->vertices[3];
       break;
-    case 1: 
+    case 1:
       *v1 = t->vertices[0];
       *v2 = t->vertices[2];
       *v3 = t->vertices[3];
       break;
-    case 2: 
+    case 2:
       *v1 = t->vertices[0];
       *v2 = t->vertices[1];
       *v3 = t->vertices[3];
       break;
-    case 3: 
+    case 3:
       *v1 = t->vertices[0];
       *v2 = t->vertices[1];
       *v3 = t->vertices[2];

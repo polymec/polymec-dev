@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,9 +8,9 @@
 #include "geometry/create_point_lattice.h"
 #include "geometry/cubic_lattice.h"
 
-point_cloud_t* create_point_lattice(MPI_Comm comm, 
-                                    real_t* xs, int nxs, 
-                                    real_t* ys, int nys, 
+point_cloud_t* create_point_lattice(MPI_Comm comm,
+                                    real_t* xs, int nxs,
+                                    real_t* ys, int nys,
                                     real_t* zs, int nzs)
 {
   ASSERT(xs != NULL);

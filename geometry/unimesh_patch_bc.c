@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "geometry/unimesh_patch_bc.h"
 #include "geometry/unimesh_patch.h"
 
-struct unimesh_patch_bc_t 
+struct unimesh_patch_bc_t
 {
   char* name;
   unimesh_t* mesh;
@@ -33,7 +33,7 @@ unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
                                          unimesh_patch_bc_vtable vtable,
                                          unimesh_t* mesh)
 {
-  unimesh_patch_bc_t* bc = polymec_refcounted_malloc(sizeof(unimesh_patch_bc_t), 
+  unimesh_patch_bc_t* bc = polymec_refcounted_malloc(sizeof(unimesh_patch_bc_t),
                                                      unimesh_patch_bc_free);
   bc->name = string_dup(name);
   bc->context = context;
@@ -78,7 +78,7 @@ bool unimesh_patch_bc_handles_centering(unimesh_patch_bc_t* bc,
   {
     if (bc->vtable.start_update[cent][b] == NULL)
     {
-      handles = false; 
+      handles = false;
       break;
     }
   }
@@ -153,9 +153,9 @@ DEFINE_EASY_UPDATES(y2, UNIMESH_Y2_BOUNDARY)
 DEFINE_EASY_UPDATES(z1, UNIMESH_Z1_BOUNDARY)
 DEFINE_EASY_UPDATES(z2, UNIMESH_Z2_BOUNDARY)
 
-static void easy_dtor(void* context) 
+static void easy_dtor(void* context)
 {
-  unimesh_patch_bc_t* bc = context; 
+  unimesh_patch_bc_t* bc = context;
   if ((bc->easy_context != NULL) && (bc->easy_vtable.dtor != NULL))
     bc->easy_vtable.dtor(bc->easy_context);
 }
@@ -165,7 +165,7 @@ unimesh_patch_bc_t* unimesh_patch_bc_new_easy(const char* name,
                                               unimesh_patch_bc_easy_vtable vtable,
                                               unimesh_t* mesh)
 {
-  unimesh_patch_bc_t* bc = polymec_refcounted_malloc(sizeof(unimesh_patch_bc_t), 
+  unimesh_patch_bc_t* bc = polymec_refcounted_malloc(sizeof(unimesh_patch_bc_t),
                                                      unimesh_patch_bc_free);
   bc->name = string_dup(name);
   bc->context = bc;

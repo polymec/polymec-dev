@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -40,9 +40,9 @@ sd_func_t* sphere_sd_func_new(point_t* x, real_t r, normal_orient_t normal_orien
   s->orient = normal_orientation;
 
   char sphere_str[1024];
-  sprintf(sphere_str, "Sphere (x = (%g %g %g), r = %g)", 
+  sprintf(sphere_str, "Sphere (x = (%g %g %g), r = %g)",
           x->x, x->y, x->z, r);
-  sd_func_vtable vtable = {.value = sphere_value, 
+  sd_func_vtable vtable = {.value = sphere_value,
                            .eval_grad = sphere_eval_grad,
                            .dtor = polymec_free};
   return sd_func_new(sphere_str, s, vtable);

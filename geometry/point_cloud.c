@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 #include "core/unordered_set.h"
 #include "geometry/point_cloud.h"
 
-struct point_cloud_observer_t 
+struct point_cloud_observer_t
 {
   void* context;
   point_cloud_observer_vtable vtable;
@@ -76,11 +76,11 @@ void point_cloud_free(point_cloud_t* cloud)
   polymec_free(cloud);
 }
 
-void point_cloud_set_num_ghosts(point_cloud_t* cloud, 
+void point_cloud_set_num_ghosts(point_cloud_t* cloud,
                                 size_t num_ghosts)
 {
   cloud->num_ghosts = num_ghosts;
-  cloud->points = polymec_realloc(cloud->points, 
+  cloud->points = polymec_realloc(cloud->points,
       sizeof(point_t) * (cloud->num_points + cloud->num_ghosts));
   for (size_t i = 0; i < cloud->observers->size; ++i)
   {
@@ -121,20 +121,20 @@ void point_cloud_fprintf(point_cloud_t* cloud, FILE* stream)
     fprintf(stream, "%d: (%g, %g, %g)\n", i, cloud->points[i].x, cloud->points[i].y, cloud->points[i].z);
 }
 
-void point_cloud_unite(point_cloud_t* cloud, 
+void point_cloud_unite(point_cloud_t* cloud,
                        point_cloud_t* other,
                        const char* tag)
 {
-  cloud->points = polymec_realloc(cloud->points, 
-      sizeof(point_t) * (cloud->num_points + cloud->num_ghosts + 
+  cloud->points = polymec_realloc(cloud->points,
+      sizeof(point_t) * (cloud->num_points + cloud->num_ghosts +
                          other->num_points + other->num_ghosts));
   // Re-arrange ghosts.
-  memcpy(&(cloud->points[cloud->num_points + other->num_points]), 
+  memcpy(&(cloud->points[cloud->num_points + other->num_points]),
          &(cloud->points[cloud->num_points]), sizeof(point_t) * cloud->num_ghosts);
-  memcpy(&(cloud->points[cloud->num_points + other->num_points + cloud->num_ghosts]), 
+  memcpy(&(cloud->points[cloud->num_points + other->num_points + cloud->num_ghosts]),
          &(other->points[cloud->num_ghosts]), sizeof(point_t) * other->num_ghosts);
-  // Copy new non-ghost points into place.        
-  memcpy(&(cloud->points[cloud->num_points]), other->points, 
+  // Copy new non-ghost points into place.
+  memcpy(&(cloud->points[cloud->num_points]), other->points,
          sizeof(point_t) * other->num_points);
 
   // Add the points to the tag if given.
@@ -183,7 +183,7 @@ static void remove_points(point_cloud_t* cloud,
       data[j++] = cloud->points[i];
     else if (i < cloud->num_points)
       ++removed_points;
-    else 
+    else
       ++removed_ghosts;
   }
   polymec_free(cloud->points);
@@ -218,7 +218,7 @@ static void remove_points(point_cloud_t* cloud,
   string_unordered_set_free(tags_to_remove);
 }
 
-void point_cloud_intersect(point_cloud_t* cloud, 
+void point_cloud_intersect(point_cloud_t* cloud,
                            point_cloud_t* other,
                            real_t distance_tol)
 {
@@ -236,7 +236,7 @@ void point_cloud_intersect(point_cloud_t* cloud,
   int_unordered_set_free(points_to_remove);
 }
 
-void point_cloud_difference(point_cloud_t* cloud, 
+void point_cloud_difference(point_cloud_t* cloud,
                             point_cloud_t* other,
                             real_t distance_tol)
 {
@@ -257,9 +257,9 @@ void point_cloud_difference(point_cloud_t* cloud,
 static size_t cloud_byte_size(void* obj)
 {
   point_cloud_t* cloud = obj;
-  
+
   size_t basic_storage = sizeof(int) + (cloud->num_points) * sizeof(point_t);
-  
+
   // Tag-related storage.
   serializer_t* tag_s = tagger_serializer();
   size_t tag_storage = serializer_size(tag_s, cloud->tags);

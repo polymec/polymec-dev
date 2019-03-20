@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,9 +16,9 @@
 ///@{
 
 /// \class point_cloud_field
-/// This thin wrapper represents a field of values defined on the points of 
+/// This thin wrapper represents a field of values defined on the points of
 /// a point cloud.
-typedef struct 
+typedef struct
 {
   /// The underlying point cloud.
   point_cloud_t* cloud;
@@ -29,7 +29,7 @@ typedef struct
   /// The number of locally-stored values in the field.
   size_t num_local_values;
 
-  /// The number of ghost values in the field (which changes with the 
+  /// The number of ghost values in the field (which changes with the
   /// number of ghost points in the cloud).
   size_t num_ghost_values;
 
@@ -51,7 +51,7 @@ point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
 /// \memberof point_cloud_field
 void point_cloud_field_free(point_cloud_field_t* field);
 
-/// Returns the metadata associated with this field. Every field has a 
+/// Returns the metadata associated with this field. Every field has a
 /// metadata object that is empty until its properties are specified.
 /// \memberof unimesh_field
 field_metadata_t* point_cloud_field_metadata(point_cloud_field_t* field);

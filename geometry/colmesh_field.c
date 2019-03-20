@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,7 +13,7 @@
 
 static colmesh_chunk_data_t* colmesh_chunk_data_with_buffer(colmesh_chunk_t* chunk,
                                                             colmesh_centering_t centering,
-                                                            int num_components, 
+                                                            int num_components,
                                                             void* buffer)
 {
   colmesh_chunk_data_t* data = polymec_malloc(sizeof(colmesh_chunk_data_t));
@@ -61,7 +61,7 @@ static void colmesh_chunk_data_free(colmesh_chunk_data_t* data)
   polymec_free(data);
 }
 
-void colmesh_chunk_data_copy(colmesh_chunk_data_t* data, 
+void colmesh_chunk_data_copy(colmesh_chunk_data_t* data,
                              colmesh_chunk_data_t* dest)
 {
   ASSERT(dest->chunk->num_columns == data->chunk->num_columns);
@@ -75,7 +75,7 @@ void colmesh_chunk_data_copy(colmesh_chunk_data_t* data,
 
 DEFINE_UNORDERED_MAP(chunk_data_map, int, colmesh_chunk_data_t*, int_hash, int_equals)
 
-struct colmesh_field_t 
+struct colmesh_field_t
 {
   colmesh_t* mesh;
   colmesh_centering_t centering;
@@ -101,7 +101,7 @@ static inline int chunk_index(colmesh_field_t* field, int xy_index, int z_index)
   return (int)(field->num_z_chunks * xy_index + z_index);
 }
 
-extern exchanger_t* colmesh_exchanger(colmesh_t* mesh, 
+extern exchanger_t* colmesh_exchanger(colmesh_t* mesh,
                                       colmesh_centering_t centering);
 
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
@@ -172,7 +172,7 @@ void colmesh_field_free(colmesh_field_t* field)
   chunk_data_map_free(field->chunks);
   if ((field->buffer != NULL) && field->owns_buffer)
     polymec_free(field->buffer);
-  if (field->ex != NULL) 
+  if (field->ex != NULL)
     release_ref(field->ex);
   release_ref(field->md);
   polymec_free(field);
@@ -203,8 +203,8 @@ void* colmesh_field_buffer(colmesh_field_t* field)
   return field->buffer;
 }
 
-void colmesh_field_set_buffer(colmesh_field_t* field, 
-                              void* buffer, 
+void colmesh_field_set_buffer(colmesh_field_t* field,
+                              void* buffer,
                               bool assume_control)
 {
   START_FUNCTION_TIMER();
@@ -258,7 +258,7 @@ field_metadata_t* colmesh_field_metadata(colmesh_field_t* field)
   return field->md;
 }
 
-colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field, 
+colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field,
                                                int xy_index,
                                                int z_index)
 {
@@ -270,7 +270,7 @@ colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field,
     return NULL;
 }
 
-bool colmesh_field_next_chunk(colmesh_field_t* field, int* pos, 
+bool colmesh_field_next_chunk(colmesh_field_t* field, int* pos,
                               int* xy_index, int* z_index,
                               colmesh_chunk_data_t** chunk_data)
 {

@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "geometry/polygon.h"
 #include "core/slist.h"
 
-struct polygon_t 
+struct polygon_t
 {
   point2_t* vertices;
   size_t num_vertices;
@@ -67,8 +67,8 @@ polygon_t* polygon_new(point2_t* vertices, size_t num_vertices)
   return poly;
 }
 
-polygon_t* polygon_new_with_ordering(point2_t* vertices, 
-                                     int* ordering, 
+polygon_t* polygon_new_with_ordering(point2_t* vertices,
+                                     int* ordering,
                                      size_t num_vertices)
 {
   point2_t reordered_vertices[num_vertices];
@@ -101,7 +101,7 @@ polygon_t* polygon_giftwrap(point2_t* points, size_t num_points)
 
   // Now start gift wrapping.
   int i = index0;
-  do 
+  do
   {
     real_t dtheta_min = 2.0*M_PI;
     int j_min = -1;
@@ -148,7 +148,7 @@ static inline int star_angle_cmp(const void* l, const void* r)
   const star_angle_t* sl = l;
   const star_angle_t* sr = r;
   return (sl->angle < sr->angle) ? -1 :
-         (sl->angle > sr->angle) ?  1 : 0;             
+         (sl->angle > sr->angle) ?  1 : 0;
 }
 
 polygon_t* polygon_star(point2_t* x0, point2_t* points, size_t num_points)
@@ -168,7 +168,7 @@ polygon_t* polygon_star(point2_t* x0, point2_t* points, size_t num_points)
     angles[i].index = (int)i;
   }
   qsort(angles, (size_t)num_points, sizeof(star_angle_t), star_angle_cmp);
-  
+
   // Create a polygon from the new ordering.
   int ordering[num_points];
   for (size_t i = 0; i < num_points; ++i)
@@ -183,7 +183,7 @@ size_t polygon_num_vertices(polygon_t* poly)
 
 bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t* vertex)
 {
-  if (*pos >= poly->num_vertices) 
+  if (*pos >= poly->num_vertices)
     return false;
   *vertex = poly->vertices[*pos];
   ++(*pos);

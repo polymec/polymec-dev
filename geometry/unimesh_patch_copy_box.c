@@ -1,6 +1,6 @@
 // Copyright (c) 2012-2019, Jeffrey N. Johnson
 // All rights reserved.
-// 
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_patch.h"
 
-static void copy_cell(unimesh_patch_t* patch, 
+static void copy_cell(unimesh_patch_t* patch,
                       unimesh_patch_box_t* src_box,
                       unimesh_patch_box_t* dest_box,
                       unimesh_patch_t* dest)
@@ -37,7 +37,7 @@ static void copy_cell(unimesh_patch_t* patch,
           d[di1+i][dj1+j][dk1+k][c] = s[si1+i][sj1+j][sk1+k][c];
 }
 
-static void copy_xface(unimesh_patch_t* patch, 
+static void copy_xface(unimesh_patch_t* patch,
                        unimesh_patch_box_t* src_box,
                        unimesh_patch_box_t* dest_box,
                        unimesh_patch_t* dest)
@@ -66,7 +66,7 @@ static void copy_xface(unimesh_patch_t* patch,
           d[di1+i][dj1+j][dk1+k][c] = s[si1+i][sj1+j][sk1+k][c];
 }
 
-static void copy_yface(unimesh_patch_t* patch, 
+static void copy_yface(unimesh_patch_t* patch,
                        unimesh_patch_box_t* src_box,
                        unimesh_patch_box_t* dest_box,
                        unimesh_patch_t* dest)
@@ -95,7 +95,7 @@ static void copy_yface(unimesh_patch_t* patch,
           d[di1+i][dj1+j][dk1+k][c] = s[si1+i][sj1+j][sk1+k][c];
 }
 
-static void copy_zface(unimesh_patch_t* patch, 
+static void copy_zface(unimesh_patch_t* patch,
                        unimesh_patch_box_t* src_box,
                        unimesh_patch_box_t* dest_box,
                        unimesh_patch_t* dest)
@@ -182,7 +182,7 @@ static void copy_yedge(unimesh_patch_t* patch,
           d[di1+i][dj1+j][dk1+k][c] = s[si1+i][sj1+j][sk1+k][c];
 }
 
-static void copy_zedge(unimesh_patch_t* patch, 
+static void copy_zedge(unimesh_patch_t* patch,
                        unimesh_patch_box_t* src_box,
                        unimesh_patch_box_t* dest_box,
                        unimesh_patch_t* dest)
@@ -211,7 +211,7 @@ static void copy_zedge(unimesh_patch_t* patch,
           d[di1+i][dj1+j][dk1+k][c] = s[si1+i][sj1+j][sk1+k][c];
 }
 
-static void copy_node(unimesh_patch_t* patch, 
+static void copy_node(unimesh_patch_t* patch,
                       unimesh_patch_box_t* src_box,
                       unimesh_patch_box_t* dest_box,
                       unimesh_patch_t* dest)
@@ -245,7 +245,7 @@ typedef void (*copy_box_func)(unimesh_patch_t* patch,
                               unimesh_patch_box_t* dest_box,
                               unimesh_patch_t* dest);
 
-void unimesh_patch_copy_box(unimesh_patch_t* patch, 
+void unimesh_patch_copy_box(unimesh_patch_t* patch,
                             unimesh_patch_box_t* src_box,
                             unimesh_patch_box_t* dest_box,
                             unimesh_patch_t* dest)
@@ -260,7 +260,7 @@ void unimesh_patch_copy_box(unimesh_patch_t* patch,
   ASSERT(dest_box->j1 >= 0);
   ASSERT(dest_box->k1 >= 0);
 
-  static copy_box_func copy[8] = 
+  static copy_box_func copy[8] =
   {
     copy_cell, copy_xface, copy_yface, copy_zface,
     copy_xedge, copy_yedge, copy_zedge, copy_node
