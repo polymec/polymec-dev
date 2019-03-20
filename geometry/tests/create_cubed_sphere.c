@@ -192,22 +192,28 @@ blockmesh_t* create_cubed_sphere(MPI_Comm comm,
     blockmesh_connect_blocks(mesh, b, east, (b + 1) % 4, west);
 
   // Connect the equatorial blocks to the north pole block (4).
-  int north[4] = {2, 6, 7, 3};
+  int north[4][4] = {{2, 6, 7, 3},
+                     {6, 7, 3, 2},
+                     {7, 3, 2, 6},
+                     {3, 2, 6, 7}};
   int north_block_boundaries[4][4] = {{1, 5, 4, 0},  // connection to block 0
                                       {2, 6, 5, 1},  // connection to block 1
                                       {3, 7, 6, 2},  // connection to block 2
                                       {0, 4, 7, 3}}; // connection to block 3
   for (int b = 0; b < 4; ++b)
-    blockmesh_connect_blocks(mesh, b, north, 4, north_block_boundaries[b]);
+    blockmesh_connect_blocks(mesh, b, north[b], 4, north_block_boundaries[b]);
 
   // Connect the equatorial blocks to the south pole block (5).
-  int south[4] = {1, 5, 4, 0};
+  int south[4][4] = {{1, 5, 4, 0},
+                     {0, 1, 5, 4},
+                     {4, 0, 1, 5},
+                     {5, 4, 0, 1}};
   int south_block_boundaries[4][4] = {{2, 6, 7, 3},  // connection to block 0
                                       {1, 5, 6, 2},  // connection to block 1
                                       {0, 4, 5, 1},  // connection to block 2
                                       {3, 7, 4, 0}}; // connection to block 3
   for (int b = 0; b < 4; ++b)
-    blockmesh_connect_blocks(mesh, b, south, 5, south_block_boundaries[b]);
+    blockmesh_connect_blocks(mesh, b, south[b], 5, south_block_boundaries[b]);
 
   // Finalize the mesh and return it.
   blockmesh_finalize(mesh);

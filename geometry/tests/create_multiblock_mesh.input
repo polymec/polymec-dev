@@ -1,0 +1,29 @@
+-- Create a block mesh and add some blocks.
+nx = 10
+ny = 10
+nz = 10
+npx = 2
+npy = 2
+npz = 2
+mesh = blockmesh.new(mpi.COMM_WORLD, nx, ny, nz)
+for i = 1,4 do
+  mesh:add_block{num_x_patches = npx,
+                 num_y_patches = npy,
+                 num_z_patches = npz}
+end
+
+-- Connect the blocks in a ring.
+mesh:connect_blocks{block1_index = 1, block1_nodes = {2, 6, 7, 3},
+                    block2_index = 2, block2_nodes = {1, 5, 8, 4}}
+mesh:connect_blocks{block1_index = 2, block1_nodes = {2, 6, 7, 3},
+                    block2_index = 3, block2_nodes = {1, 5, 8, 4}}
+mesh:connect_blocks{block1_index = 3, block1_nodes = {2, 6, 7, 3},
+                    block2_index = 4, block2_nodes = {1, 5, 8, 4}}
+mesh:connect_blocks{block1_index = 4, block1_nodes = {2, 6, 7, 3},
+                    block2_index = 1, block2_nodes = {1, 5, 8, 4}}
+
+-- Finalize the mesh.
+mesh:finalize()
+
+print(mesh)
+

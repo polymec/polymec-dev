@@ -484,8 +484,8 @@ static void find_connected_patch(blockmesh_t* mesh,
   *i2 = p2_ind[0];
   *j2 = p2_ind[1];
   *k2 = p2_ind[2];
-  log_debug("block %d: patch (%d, %d, %d) <-> block %d: patch (%d, %d, %d) [rot %d]",
-            block1_index, i1, j1, k1, block2_index, *i2, *j2, *k2, rotation);
+//  log_debug("block %d: patch (%d, %d, %d) -> block %d: patch (%d, %d, %d) [rot %d]",
+//            block1_index, i1, j1, k1, block2_index, *i2, *j2, *k2, rotation);
 }
 
 void blockmesh_connect_blocks(blockmesh_t* mesh,
@@ -779,6 +779,7 @@ static adj_graph_t* graph_from_blocks(blockmesh_t* mesh)
     while (unimesh_next_patch(block, &pos1, &i, &j, &k, NULL))
     {
       int index = p_offset + npy*npz*i + npz*j + k;
+//log_debug("block %d, (%d, %d, %d): %d", b_index, i, j, k, index);
       int* edges = adj_graph_edges(g, index);
       int offset = edge_offsets[index];
 

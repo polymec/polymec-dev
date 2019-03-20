@@ -14,44 +14,43 @@
 #include "core/tuple.h"
 #include "geometry/blockmesh.h"
 
-#include "geometry/tests/create_cubed_sphere.h"
+//#include "geometry/tests/create_cubed_sphere.h"
+#include "geometry/tests/create_multiblock_mesh.h"
 
 static void test_serial_ctor(void** state)
 {
-  blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_SELF,
-                                          2, 2, 10, 10, 0.9, 1.0);
+  blockmesh_t* mesh = create_multiblock_mesh(MPI_COMM_SELF,
+                                             2, 2, 10, 10, 0.9, 1.0);
+//  blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_SELF,
+//                                          2, 2, 10, 10, 0.9, 1.0);
   assert_true(blockmesh_comm(mesh) == MPI_COMM_SELF);
-  assert_int_equal(6, blockmesh_num_blocks(mesh));
-  for (int b = 0; b < 6; ++b)
+  assert_int_equal(4, blockmesh_num_blocks(mesh));
+  for (int b = 0; b < 4; ++b)
   {
     assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X1_BOUNDARY));
     assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X2_BOUNDARY));
-    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y1_BOUNDARY));
-    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y2_BOUNDARY));
   }
   blockmesh_free(mesh);
 }
 
 static void test_parallel_ctor(void** state)
 {
-  blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
-                                          2, 2, 10, 10, 0.9, 1.0);
+  blockmesh_t* mesh = create_multiblock_mesh(MPI_COMM_WORLD,
+                                             2, 2, 10, 10, 0.9, 1.0);
   assert_true(blockmesh_comm(mesh) == MPI_COMM_WORLD);
-  assert_int_equal(6, blockmesh_num_blocks(mesh));
-  for (int b = 0; b < 6; ++b)
+  assert_int_equal(4, blockmesh_num_blocks(mesh));
+  for (int b = 0; b < 4; ++b)
   {
     assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X1_BOUNDARY));
     assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_X2_BOUNDARY));
-    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y1_BOUNDARY));
-    assert_true(blockmesh_block_is_connected(mesh, b, UNIMESH_Y2_BOUNDARY));
   }
   blockmesh_free(mesh);
 }
 
 static void test_next_block(void** state)
 {
-  blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
-                                          2, 2, 10, 10, 0.9, 1.0);
+  blockmesh_t* mesh = create_multiblock_mesh(MPI_COMM_SELF,
+                                             2, 2, 10, 10, 0.9, 1.0);
   int pos = 0, block_index;
   unimesh_t* block;
   while (blockmesh_next_block(mesh, &pos, &block_index, &block))
@@ -61,8 +60,8 @@ static void test_next_block(void** state)
 
 static void test_repartition(void** state)
 {
-  blockmesh_t* mesh = create_cubed_sphere(MPI_COMM_WORLD,
-                                          2, 2, 10, 10, 0.9, 1.0);
+  blockmesh_t* mesh = create_multiblock_mesh(MPI_COMM_SELF,
+                                             2, 2, 10, 10, 0.9, 1.0);
   repartition_blockmesh(&mesh, NULL, 0.05, NULL, 0);
 }
 

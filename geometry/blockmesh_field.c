@@ -35,6 +35,7 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
   field->block_bcs = patch_bc_array_new();
   field->centering = centering;
   field->num_components = num_components;
+  field->updating = false;
 
   // Add fields for the blocks within the mesh.
   int num_blocks = blockmesh_num_blocks(mesh);
@@ -168,7 +169,7 @@ bool blockmesh_field_next_block(blockmesh_field_t* field,
   unimesh_t* block;
   bool result = blockmesh_next_block(field->mesh, pos, block_index, &block);
   if (result)
-    *block_field = field->fields->data[*pos-1];
+    *block_field = field->fields->data[*block_index];
   return result;
 }
 

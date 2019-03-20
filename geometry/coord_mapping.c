@@ -233,11 +233,13 @@ void coord_mapping_map_field_data(coord_mapping_t* mapping,
   // Map scalars.
   if (mapped_field_data != field_data)
   {
+    pos = 0;
     while (field_metadata_next_scalar(metadata, &pos, &c))
       mapped_field_data[c] = field_data[c];
   }
 
   // Map vectors.
+  pos = 0;
   while (field_metadata_next_vector(metadata, &pos, &c))
   {
     vector_t v = {field_data[c], field_data[c+1], field_data[c+2]}, v1;
@@ -248,6 +250,7 @@ void coord_mapping_map_field_data(coord_mapping_t* mapping,
   }
 
   // Map tensors.
+  pos = 0;
   while (field_metadata_next_tensor2(metadata, &pos, &c))
   {
     tensor2_t t = {field_data[c],   field_data[c+1], field_data[c+2],
@@ -266,6 +269,7 @@ void coord_mapping_map_field_data(coord_mapping_t* mapping,
   }
 
   // Map symmetric tensors.
+  pos = 0;
   while (field_metadata_next_symtensor2(metadata, &pos, &c))
   {
     symtensor2_t t = {field_data[c],   field_data[c+1], field_data[c+2],

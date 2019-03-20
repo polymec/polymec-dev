@@ -905,7 +905,8 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, md, patch);
 
   // Stash information for this patch in our boundary updates.
-  boundary_update_array_t** updates_p = (boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token);
+  boundary_update_array_t** updates_p =
+    (boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token);
   boundary_update_array_t* updates;
   if (updates_p == NULL)
   {

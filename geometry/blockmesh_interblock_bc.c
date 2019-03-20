@@ -202,12 +202,16 @@ static void ibc_started_boundary_update(void* context,
   // Find our connection for this patch boundary.
   int b_index = boundary_index(ibc->mesh, block, i, j, k, boundary);
   cxn_t** cxn_p = cxn_map_get(ibc->cxns, b_index);
-  ASSERT(cxn_p != NULL);
+
+  // If there's no connection, we have nothing to do.
+  if (cxn_p == NULL)
+    return;
+
   cxn_t* cxn = *cxn_p;
 
   // Extract the boundary values from the patch.
   int c = (int)patch->centering;
-  size_t boundary_size = blob_exchanger_blob_size(ibc->ex[c], b_index);
+  size_t boundary_size = patch->nc * blob_exchanger_blob_size(ibc->ex[c], b_index);
   char bvalues[boundary_size];
   unimesh_patch_copy_bvalues_to_buffer(patch, boundary, bvalues);
 
@@ -422,9 +426,9 @@ static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh,
     blob_exchanger_proc_map_add_index(recv_map, cxn->proc2, b2_index);
 
     // Compute boundary sizes and map them too.
-    size_t b1_size = boundary_sizes[(int)centering][(int)cxn->boundary1];
+    size_t b1_size = sizeof(real_t) * boundary_sizes[(int)centering][(int)cxn->boundary1];
     blob_exchanger_size_map_insert(blob_sizes, b1_index, b1_size);
-    size_t b2_size = boundary_sizes[(int)centering][(int)cxn->boundary2];
+    size_t b2_size = sizeof(real_t) * boundary_sizes[(int)centering][(int)cxn->boundary2];
     blob_exchanger_size_map_insert(blob_sizes, b2_index, b2_size);
   }
 
