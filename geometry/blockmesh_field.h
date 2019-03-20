@@ -63,6 +63,10 @@ int blockmesh_field_num_components(blockmesh_field_t* field);
 /// \memberof blockmesh_field
 blockmesh_t* blockmesh_field_mesh(blockmesh_field_t* field);
 
+/// Returns the number of blocks in the field's underlying block mesh.
+/// \memberof blockmesh_field
+int blockmesh_field_num_blocks(blockmesh_field_t* field);
+
 /// Returns the \ref unimesh_field that stores field data for the block with
 /// the given index in this field.
 /// \param [in] index The index of the block within the mesh upon which the

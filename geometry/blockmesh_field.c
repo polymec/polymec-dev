@@ -20,7 +20,7 @@ struct blockmesh_field_t
   patch_bc_array_t* block_bcs;
   unimesh_centering_t centering;
   int num_components;
-  bool updating;
+  bool bcs_verified, updating;
   field_metadata_t* md;
 };
 
@@ -35,6 +35,7 @@ blockmesh_field_t* blockmesh_field_new(blockmesh_t* mesh,
   field->block_bcs = patch_bc_array_new();
   field->centering = centering;
   field->num_components = num_components;
+  field->bcs_verified = false;
   field->updating = false;
 
   // Add fields for the blocks within the mesh.
@@ -97,6 +98,11 @@ blockmesh_t* blockmesh_field_mesh(blockmesh_field_t* field)
   return field->mesh;
 }
 
+int blockmesh_field_num_blocks(blockmesh_field_t* field)
+{
+  return blockmesh_num_blocks(field->mesh);
+}
+
 unimesh_field_t* blockmesh_field_for_block(blockmesh_field_t* field,
                                            int index)
 {
@@ -110,6 +116,7 @@ void blockmesh_field_set_patch_bc(blockmesh_field_t* field,
                                   unimesh_boundary_t block_boundary,
                                   unimesh_patch_bc_t* patch_bc)
 {
+  ASSERT(!field->bcs_verified);
   ASSERT(block_index >= 0);
   ASSERT(block_index < blockmesh_num_blocks(field->mesh));
 
@@ -139,10 +146,44 @@ void blockmesh_field_update_boundaries(blockmesh_field_t* field,
   blockmesh_field_finish_updating_boundaries(field);
 }
 
+static void verify_bcs(blockmesh_field_t* field)
+{
+  for (size_t f = 0; f < field->fields->size; ++f)
+  {
+    const char* bnames[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
+    for (int b = 0; b < 6; ++b)
+    {
+      unimesh_boundary_t boundary = (unimesh_boundary_t)b;
+      if (!blockmesh_field_has_patch_bc(field, (int)f, boundary))
+      {
+        // Does the mesh provide a boundary condition for these boundary
+        // patches?
+        int pos = 0, i, j, k;
+        unimesh_field_t* bfield = field->fields->data[f];
+        unimesh_t* block = unimesh_field_mesh(bfield);
+        while (unimesh_next_boundary_patch(block, boundary, &pos, &i, &j, &k, NULL))
+        {
+          if (!unimesh_has_patch_bc(block, i, j, k, boundary))
+          {
+            polymec_error("blockmesh_field: Block %d has no boundary condition "
+                          "for %s boundary at (%d, %d, %d).", (int)f,
+                          bnames[b], i, j, k);
+          }
+        }
+      }
+    }
+  }
+}
+
 void blockmesh_field_start_updating_boundaries(blockmesh_field_t* field,
                                                real_t t)
 {
   ASSERT(!field->updating);
+
+  // Make sure all block boundaries have boundary conditions set.
+  if (!field->bcs_verified)
+    verify_bcs(field);
+
   for (size_t i = 0; i < field->fields->size; ++i)
     unimesh_field_start_updating_patch_boundaries(field->fields->data[i], t);
   field->updating = true;

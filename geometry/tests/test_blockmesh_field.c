@@ -68,6 +68,21 @@ static void initialize_field(sp_func_t* func,
                              coord_mapping_t* coord_mappings[4],
                              blockmesh_field_t* field)
 {
+  // We cheat here by setting up zero boundary conditions on all unconnected
+  // block boundaries.
+  blockmesh_t* mesh = blockmesh_field_mesh(field);
+  int pos = 0, block_index;
+  unimesh_t* block;
+  while (blockmesh_next_block(mesh, &pos, &block_index, &block))
+  {
+    static real_t zeros[3] = {0.0, 0.0};
+    unimesh_patch_bc_t* zero_bc = constant_unimesh_patch_bc_new(block, zeros, 2);
+    blockmesh_field_set_patch_bc(field, block_index, UNIMESH_Y1_BOUNDARY, zero_bc);
+    blockmesh_field_set_patch_bc(field, block_index, UNIMESH_Y2_BOUNDARY, zero_bc);
+    blockmesh_field_set_patch_bc(field, block_index, UNIMESH_Z1_BOUNDARY, zero_bc);
+    blockmesh_field_set_patch_bc(field, block_index, UNIMESH_Z2_BOUNDARY, zero_bc);
+  }
+
   unimesh_centering_t centering = blockmesh_field_centering(field);
 
   real_t Lx = eq_domain.x2 - eq_domain.x1;
@@ -76,9 +91,9 @@ static void initialize_field(sp_func_t* func,
 
   // Traverse the blocks in the mesh and apply the function to our
   // underyling unimesh_fields.
-  int pos = 0, bindex;
+  pos = 0;
   unimesh_field_t* bfield;
-  while (blockmesh_field_next_block(field, &pos, &bindex, &bfield))
+  while (blockmesh_field_next_block(field, &pos, &block_index, &bfield))
   {
     // Loop through the patches in this block.
     int pos1 = 0, i, j, k;
@@ -95,7 +110,7 @@ static void initialize_field(sp_func_t* func,
                   .y2 = eq_domain.y1 + bbox.y2 * Ly,
                   .z1 = eq_domain.z1 + bbox.z1 * Lz,
                   .z2 = eq_domain.z1 + bbox.z2 * Lz};
-      coord_mapping_t* coords = coord_mappings[bindex];
+      coord_mapping_t* coords = coord_mappings[block_index];
       real_t dx = (D.x2 - D.x1) / patch->nx;
       real_t dy = (D.y2 - D.y1) / patch->ny;
       real_t dz = (D.z2 - D.z1) / patch->nz;
