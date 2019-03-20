@@ -242,6 +242,16 @@ static inline void map_name##_insert_with_dtors(map_name##_t* map, key_type key,
     } \
     if (map_name##_keys_equal(map, current->key, current->hash, key, h)) \
     { \
+      if (current->k_dtor != NULL) \
+        current->k_dtor(current->key); \
+      if (current->v_dtor != NULL) \
+        current->v_dtor(current->value); \
+      if (current->kv_dtor != NULL) \
+        current->kv_dtor(current->key, current->value); \
+      (*p)->key = key; \
+      (*p)->kv_dtor = kv_dtor; \
+      (*p)->k_dtor = k_dtor; \
+      (*p)->v_dtor = v_dtor; \
       current->value = value; \
       return; \
     } \

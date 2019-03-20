@@ -63,6 +63,7 @@ static void test_repartition(void** state)
   blockmesh_t* mesh = create_multiblock_mesh(MPI_COMM_SELF,
                                              2, 2, 10, 10, 0.9, 1.0);
   repartition_blockmesh(&mesh, NULL, 0.05, NULL, 0);
+  blockmesh_free(mesh);
 }
 
 int main(int argc, char* argv[])

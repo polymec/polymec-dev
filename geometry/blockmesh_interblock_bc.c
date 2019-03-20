@@ -124,12 +124,14 @@ static void ibc_started_boundary_updates(void* context,
   int c = (int)centering;
 
   // Create the buffer for this token if it doesn't yet exist.
-  blob_buffer_t** buffer_p = blob_buffer_map_get(ibc->ex_buffers[c], token);
+  int block_index = blockmesh_block_index(ibc->mesh, block);
+  int bm_token = block_index * 100 + token;
+  blob_buffer_t** buffer_p = blob_buffer_map_get(ibc->ex_buffers[c], bm_token);
   blob_buffer_t* buffer;
   if (buffer_p == NULL)
   {
     buffer = blob_exchanger_create_buffer(ibc->ex[c], num_components);
-    blob_buffer_map_insert_with_v_dtor(ibc->ex_buffers[c], token, buffer,
+    blob_buffer_map_insert_with_v_dtor(ibc->ex_buffers[c], bm_token, buffer,
                                        blob_buffer_free);
   }
   else
@@ -220,7 +222,9 @@ static void ibc_started_boundary_update(void* context,
   rotate_boundary_values(cxn, md, patch->centering, bvalues, rot_bvalues);
 
   // Copy the rotated boundary values to our blob buffer.
-  blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
+  int block_index = blockmesh_block_index(ibc->mesh, block);
+  int bm_token = block_index * 100 + token;
+  blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], bm_token);
   blob_exchanger_copy_in(ibc->ex[c], b_index, rot_bvalues, buffer);
 }
 
@@ -234,10 +238,11 @@ static void ibc_finished_starting_boundary_updates(void* context,
   blockmesh_interblock_bc_t* ibc = context;
   int c = (int)centering;
 
-  blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
-  int token1 = blob_exchanger_start_exchange(ibc->ex[c], token, buffer);
-printf("Starting (%d, %d)\n", token, token1);
-  int_int_unordered_map_insert(ibc->ex_tokens[c], token, token1);
+  int block_index = blockmesh_block_index(ibc->mesh, block);
+  int bm_token = block_index * 100 + token;
+  blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], bm_token);
+  int token1 = blob_exchanger_start_exchange(ibc->ex[c], bm_token, buffer);
+  int_int_unordered_map_insert(ibc->ex_tokens[c], bm_token, token1);
 }
 
 // This observer method is called right before a intermesh boundary update is
@@ -253,7 +258,9 @@ static void ibc_about_to_finish_boundary_updates(void* context,
   int c = (int)centering;
 
   // Fetch the token and finish the exchange.
-  int* token1_p = int_int_unordered_map_get(ibc->ex_tokens[c], token);
+  int block_index = blockmesh_block_index(ibc->mesh, block);
+  int bm_token = block_index * 100 + token;
+  int* token1_p = int_int_unordered_map_get(ibc->ex_tokens[c], bm_token);
   if (token1_p == NULL)
   {
     polymec_error("Block boundary exchange failed with invalid token. "
@@ -261,7 +268,6 @@ static void ibc_about_to_finish_boundary_updates(void* context,
                   "mesh block?");
   }
   int token1 = *token1_p;
-printf("Finishing (%d, %d)\n", token, token1);
   blob_exchanger_finish_exchange(ibc->ex[c], token1);
 }
 
@@ -296,11 +302,13 @@ static void ibc_about_to_finish_boundary_update(void* context,
   int c = (int)patch->centering;
   size_t boundary_size = patch->nc * blob_exchanger_blob_size(ibc->ex[c], b_index);
   char bvalues[boundary_size];
-  blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], token);
+  int block_index = blockmesh_block_index(ibc->mesh, block);
+  int bm_token = block_index * 100 + token;
+  blob_buffer_t* buffer = *blob_buffer_map_get(ibc->ex_buffers[c], bm_token);
   blob_exchanger_copy_out(ibc->ex[c], buffer, b_index, bvalues);
 
   // Destroy the buffer associated with this exchange.
-  int_int_unordered_map_delete(ibc->ex_tokens[c], token);
+  int_int_unordered_map_delete(ibc->ex_tokens[c], bm_token);
 
   // Copy the boundary values back into the patch.
   unimesh_patch_copy_bvalues_from_buffer(patch, boundary, bvalues);
@@ -419,6 +427,8 @@ static blob_exchanger_t* interblock_exchanger_new(blockmesh_t* mesh,
   cxn_t* cxn;
   while (cxn_map_next(cxns, &pos, &b1_index, &cxn))
   {
+    ASSERT(cxn->proc2 >= 0);
+
     // b1_index is the patch boundary index for the near boundary in the
     // connection. Let's map it to a send blob.
     blob_exchanger_proc_map_add_index(send_map, cxn->proc2, b1_index);
@@ -531,7 +541,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     }
 
     // Gather the number of connections from all processes.
-    int num_cxns = (int)cxn_patches->size;
+    int num_cxns = (int)cxn_patches->size/5;
     int num_cxns_for_proc[nproc];
     MPI_Allgather(&num_cxns, 1, MPI_INT, num_cxns_for_proc, 1, MPI_INT, comm);
 
@@ -541,11 +551,11 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     cxn_patch_offsets[0] = 0;
     for (int p = 0; p < nproc; ++p)
     {
-      cxn_patch_offsets[p+1] = cxn_patch_offsets[p] + num_cxns_for_proc[p];
+      cxn_patch_offsets[p+1] = cxn_patch_offsets[p] + 5 * num_cxns_for_proc[p];
       cxn_patch_data_sizes[p] = 5 * num_cxns_for_proc[p];
     }
-    int cxn_patch_data_size = cxn_patch_offsets[nproc];
-    int* cxn_patch_data = polymec_malloc(sizeof(int) * 5 * cxn_patch_data_size);
+    int total_cxn_patch_data_size = cxn_patch_offsets[nproc];
+    int* cxn_patch_data = polymec_malloc(sizeof(int) * total_cxn_patch_data_size);
     MPI_Allgatherv(cxn_patches->data, (int)cxn_patches->size, MPI_INT,
                    cxn_patch_data, cxn_patch_data_sizes, cxn_patch_offsets,
                    MPI_INT, comm);
@@ -556,7 +566,7 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
     // (m, i, j, k) patch ID to its owning process.
     int_tuple_int_unordered_map_t* owner_for_patch =
       int_tuple_int_unordered_map_new();
-    for (int l = 0; l < cxn_patch_data_size; ++l)
+    for (int l = 0; l < total_cxn_patch_data_size/5; ++l)
     {
       int* key = int_tuple_new(4);
       key[0] = cxn_patch_data[5*l];
@@ -586,6 +596,8 @@ void blockmesh_interblock_bc_finalize(blockmesh_interblock_bc_t* bc)
       int* proc_p = int_tuple_int_unordered_map_get(owner_for_patch, key);
       ASSERT(proc_p != NULL);
       int proc = *proc_p;
+      ASSERT(proc >= 0);
+      ASSERT(proc < nproc);
 
       // Assign proc2 to that owning process.
       ASSERT(cxn->proc1 == rank);

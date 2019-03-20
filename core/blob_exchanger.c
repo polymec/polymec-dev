@@ -202,6 +202,7 @@ blob_exchanger_t* blob_exchanger_new(MPI_Comm comm,
     {
       int index = indices->data[i];
       ASSERT(blob_exchanger_size_map_contains(blob_size_map, index));
+      ASSERT(proc >= 0);
       if (proc == rank)
         local_bytes_received += *blob_exchanger_size_map_get(blob_size_map, index);
     }
