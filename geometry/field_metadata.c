@@ -198,7 +198,8 @@ void field_metadata_set_vector(field_metadata_t* md, int component)
 {
   ASSERT(component >= 0);
   ASSERT(component <= (md->num_comps - 3));
-  md->comp_types[component] = FIELD_VECTOR;
+  for (int c = 0; c < 3; ++c)
+    md->comp_types[component+c] = FIELD_VECTOR;
 }
 
 bool field_metadata_has_vectors(field_metadata_t* md)
@@ -223,6 +224,7 @@ bool field_metadata_next_vector(field_metadata_t* md,
   {
     ASSERT(md->comp_types[*pos] == FIELD_VECTOR);
     *comp = *pos;
+    *pos += 3;
     return true;
   }
   else
@@ -233,7 +235,8 @@ void field_metadata_set_tensor2(field_metadata_t* md, int component)
 {
   ASSERT(component >= 0);
   ASSERT(component <= (md->num_comps - 9));
-  md->comp_types[component] = FIELD_TENSOR2;
+  for (int c = 0; c < 9; ++c)
+    md->comp_types[component+c] = FIELD_TENSOR2;
 }
 
 bool field_metadata_has_tensor2s(field_metadata_t* md)
@@ -258,6 +261,7 @@ bool field_metadata_next_tensor2(field_metadata_t* md,
   {
     ASSERT(md->comp_types[*pos] == FIELD_TENSOR2);
     *comp = *pos;
+    *pos += 9;
     return true;
   }
   else
@@ -268,7 +272,8 @@ void field_metadata_set_symtensor2(field_metadata_t* md, int component)
 {
   ASSERT(component >= 0);
   ASSERT(component <= (md->num_comps - 6));
-  md->comp_types[component] = FIELD_SYMTENSOR2;
+  for (int c = 0; c < 9; ++c)
+    md->comp_types[component+c] = FIELD_SYMTENSOR2;
 }
 
 bool field_metadata_has_symtensor2s(field_metadata_t* md)
@@ -293,6 +298,7 @@ bool field_metadata_next_symtensor2(field_metadata_t* md,
   {
     ASSERT(md->comp_types[*pos] == FIELD_TENSOR2);
     *comp = *pos;
+    *pos += 6;
     return true;
   }
   else
