@@ -1,3 +1,6 @@
+Mon Mar 25 08:48:07 PDT 2019  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: versin 2.5.1
+    * Fixed a compile error on Mac.
 Wed Mar 20 15:55:02 PDT 2019  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.5.0
     * New distributed mesh type: blockmesh

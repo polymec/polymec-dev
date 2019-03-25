@@ -1867,7 +1867,7 @@ bool colmesh_chunk_is_valid(colmesh_chunk_t* chunk, char** reason)
     }
     if (nn < 3)
     {
-      snprintf(_reason, 1024, "column %d has a polygonal face %d with only %d "
+      snprintf(_reason, 1024, "column %d has a polygonal face with only %d "
                "nodes.", f, nn);
       if (reason != NULL)
         *reason = _reason;
